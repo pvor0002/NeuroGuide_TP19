@@ -5,6 +5,8 @@
 This document defines how our team will work using GitHub for the project.  
 Please follow this strictly to avoid conflicts, rework, and ensure high code quality.
 
+---
+
 ##  1. Clone the Repository
 Before starting any work, you must clone the project repository to your local machine.
 
@@ -14,15 +16,19 @@ Steps:
 3. Copy the URL
 4. Open terminal and run:
 
+```bash
 git clone <repository-url>
 cd <repository-folder>
+```
 
 ## 2. Always Create a New Branch (DO NOT work on main)
 
 Each user story must be developed in a **separate branch**.
 
 Naming Convention:
+```bash
 git checkout -b feature/<user-story-name>
+```
 
 Example:
 git checkout -b feature/job-simplification
@@ -111,4 +117,3 @@ Every feature must:
 * Before pushing → inform team
 * If stuck → ask early
 * If changing something major → discuss first
-
