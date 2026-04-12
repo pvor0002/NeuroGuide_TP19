@@ -95,6 +95,33 @@ const TOOL_MAP_BY_ROLE = [
   }
 ];
 
+const SECTION_ICONS = {
+  background: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
+      <path d="M9 5v3M15 5v3" />
+    </svg>
+  ),
+  time: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v5l3 2" />
+    </svg>
+  ),
+  skills: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 6h7l7 7-6 6-7-7z" />
+      <circle cx="9" cy="10" r="1.4" />
+    </svg>
+  ),
+  support: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 4l7 3v5c0 4.2-2.6 7.2-7 8-4.4-.8-7-3.8-7-8V7z" />
+      <path d="m9.5 12.5 1.8 1.8 3.5-3.5" />
+    </svg>
+  )
+};
+
 /**
  * Returns default profile state for first launch and reset.
  *
@@ -114,11 +141,9 @@ function getDefaultState() {
       selectedSkills: [],
       skillSearchQuery: "",
       selectedTools: [],
-      preferredRoles: [],
       workStyles: [],
       adhdProfileType: "",
-      supportNeeds: [],
-      optionalNotes: ""
+      supportNeeds: []
     }
   };
 }
@@ -142,6 +167,8 @@ function loadPersistedState() {
 
     const toArray = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === "string" && item) : []);
     const toText = (value) => (typeof value === "string" ? value : "");
+    const persistedAnswers = { ...parsed.answers };
+    delete persistedAnswers.optionalNotes;
 
     return {
       ...fallback,
@@ -151,7 +178,7 @@ function loadPersistedState() {
       viewMode: parsed.viewMode === "overview" ? "overview" : "wizard",
       answers: {
         ...fallback.answers,
-        ...parsed.answers,
+        ...persistedAnswers,
         selectedRoles: toArray(parsed.answers.selectedRoles),
         roleSearchQuery: toText(parsed.answers.roleSearchQuery),
         experienceLevel: toText(parsed.answers.experienceLevel),
@@ -160,11 +187,9 @@ function loadPersistedState() {
         selectedSkills: toArray(parsed.answers.selectedSkills),
         skillSearchQuery: toText(parsed.answers.skillSearchQuery),
         selectedTools: toArray(parsed.answers.selectedTools),
-        preferredRoles: toArray(parsed.answers.preferredRoles),
         workStyles: toArray(parsed.answers.workStyles),
         adhdProfileType: toText(parsed.answers.adhdProfileType),
-        supportNeeds: toArray(parsed.answers.supportNeeds),
-        optionalNotes: toText(parsed.answers.optionalNotes)
+        supportNeeds: toArray(parsed.answers.supportNeeds)
       }
     };
   } catch {
@@ -179,7 +204,7 @@ function loadPersistedState() {
  * @returns {string[]} Unique tools list.
  */
 function getRoleBasedToolSuggestions(answers) {
-  const roleText = [...answers.selectedRoles, ...answers.preferredRoles].join(" ").toLowerCase();
+  const roleText = [...answers.selectedRoles].join(" ").toLowerCase();
   const matched = [];
   for (const rule of TOOL_MAP_BY_ROLE) {
     if (rule.keywords.some((keyword) => roleText.includes(keyword))) {
@@ -212,12 +237,8 @@ function validateStep(stepIndex, answers) {
     if (answers.selectedTools.length === 0) return "Select at least one tool.";
     return null;
   }
-  if (stepIndex === 3) {
-    if (answers.preferredRoles.length === 0) return "Select role target.";
-    if (answers.workStyles.length === 0) return "Select work style.";
-    return null;
-  }
   if (!answers.adhdProfileType) return "Choose ADHD profile type.";
+  if (answers.workStyles.length === 0) return "Select work style.";
   if (answers.supportNeeds.length === 0) return "Select support preferences.";
   return null;
 }
@@ -269,17 +290,11 @@ function App() {
 
   const toolOptions = useMemo(() => getRoleBasedToolSuggestions(state.answers), [state.answers]);
 
-  const roleTargets = useMemo(
-    () => [...new Set([...state.answers.selectedRoles, ...featuredRoles])].slice(0, MAX_VISIBLE_ROLE_RESULTS),
-    [state.answers.selectedRoles, featuredRoles]
-  );
-
   const steps = [
     { title: "Step 1: Your Background", subtitle: "Search role first, then choose level." },
     { title: "Step 2: Time and Energy", subtitle: "Quick choices only." },
     { title: "Step 3: Skills and Tools", subtitle: "Search by keyword and choose relevant tools." },
-    { title: "Step 4: Job Fit", subtitle: "Set role target and work style." },
-    { title: "Step 5: Support Setup", subtitle: "Choose ADHD profile and supports." }
+    { title: "Step 4: Support Setup", subtitle: "Choose ADHD profile, work style, and supports." }
   ];
 
   const currentStep = steps[state.currentStepIndex];
@@ -405,6 +420,7 @@ function App() {
 
   const summarySections = [
     {
+      id: "background",
       title: steps[0].title,
       rows: [
         { key: "Role(s)", value: state.answers.selectedRoles.join(", ") || "-" },
@@ -412,6 +428,7 @@ function App() {
       ]
     },
     {
+      id: "time",
       title: steps[1].title,
       rows: [
         { key: "Duration", value: state.answers.durationBand || "-" },
@@ -419,6 +436,7 @@ function App() {
       ]
     },
     {
+      id: "skills",
       title: steps[2].title,
       rows: [
         { key: "Skills", value: state.answers.selectedSkills.join(", ") || "-" },
@@ -426,16 +444,11 @@ function App() {
       ]
     },
     {
+      id: "support",
       title: steps[3].title,
       rows: [
-        { key: "Role target", value: state.answers.preferredRoles.join(", ") || "-" },
-        { key: "Work style", value: state.answers.workStyles.join(", ") || "-" }
-      ]
-    },
-    {
-      title: steps[4].title,
-      rows: [
         { key: "ADHD type", value: state.answers.adhdProfileType || "-" },
+        { key: "Work style", value: state.answers.workStyles.join(", ") || "-" },
         { key: "Support", value: state.answers.supportNeeds.join(", ") || "-" }
       ]
     }
@@ -454,15 +467,41 @@ function App() {
       </header>
 
       <main className="app-shell">
-        <section className="intro-banner">
-          <h2>Build your profile with less typing</h2>
-          <p>
-            Add your background and skills preferences in guided steps. NeuroGuide turns this into profile data for
-            job suitability and interview preparation.
-          </p>
-        </section>
+        <div className="intro-banner-row">
+          <figure className="intro-banner-outside-visual">
+            <img
+              src="/images/profile-hero-wellbeing-trio.png"
+              alt=""
+              width={640}
+              height={240}
+              decoding="async"
+            />
+          </figure>
+          <section className="intro-banner" aria-labelledby="intro-heading">
+            <div className="intro-banner-inner">
+              <div className="intro-banner-copy">
+                <h2 id="intro-heading">Build your profile with less typing</h2>
+                <p>
+                  Add your background and skills preferences in guided steps. NeuroGuide turns this into profile data for
+                  job suitability and interview preparation.
+                </p>
+              </div>
+              <div className="intro-banner-visual">
+                <figure className="intro-banner-visual-frame">
+                  <img
+                    src="/images/profile-hero-adhd-concept.png"
+                    alt=""
+                    width={280}
+                    height={360}
+                    decoding="async"
+                  />
+                </figure>
+              </div>
+            </div>
+          </section>
+        </div>
 
-        <div className="wizard-layout">
+        <div className={`wizard-layout ${state.viewMode === "overview" ? "overview-mode" : ""}`}>
           {state.viewMode === "wizard" && (
             <aside className="progress-sidebar">
               <h2>Progress</h2>
@@ -545,19 +584,6 @@ function App() {
                 {state.currentStepIndex === 3 && (
                   <>
                     <section className="group-card">
-                      {sectionLabel("Role target", state.answers.preferredRoles.length > 0)}
-                      {renderChips("preferredRoles", roleTargets, "multi")}
-                    </section>
-                    <section className="group-card">
-                      {sectionLabel("Work style", state.answers.workStyles.length > 0)}
-                      {renderChips("workStyles", WORK_STYLE_OPTIONS, "multi")}
-                    </section>
-                  </>
-                )}
-
-                {state.currentStepIndex === 4 && (
-                  <>
-                    <section className="group-card">
                       {sectionLabel("ADHD profile type", Boolean(state.answers.adhdProfileType))}
                       <select
                         value={state.answers.adhdProfileType}
@@ -570,16 +596,12 @@ function App() {
                       </select>
                     </section>
                     <section className="group-card">
+                      {sectionLabel("Work style", state.answers.workStyles.length > 0)}
+                      {renderChips("workStyles", WORK_STYLE_OPTIONS, "multi")}
+                    </section>
+                    <section className="group-card">
                       {sectionLabel("Support that helps", state.answers.supportNeeds.length > 0)}
                       {renderChips("supportNeeds", SUPPORT_NEED_OPTIONS, "multi")}
-                      <label htmlFor="optional-notes">Optional short note</label>
-                      <textarea
-                        id="optional-notes"
-                        value={state.answers.optionalNotes}
-                        onChange={(e) => setAnswer("optionalNotes", e.target.value)}
-                        maxLength={120}
-                        placeholder="Anything else?"
-                      />
                     </section>
                   </>
                 )}
@@ -624,6 +646,7 @@ function App() {
               <div className="summary-grid">
                 {summarySections.map((section, index) => (
                   <article key={section.title} className="summary-block">
+                    <span className="summary-icon">{SECTION_ICONS[section.id]}</span>
                     <h3>{section.title}</h3>
                     <ul className="summary-list">
                       {section.rows.map((row) => (

@@ -68,24 +68,167 @@ body {
   margin: 18px auto 42px;
 }
 
+.intro-banner-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px 14px;
+  width: 100%;
+}
+
+.intro-banner-outside-visual {
+  margin: 0;
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.intro-banner-outside-visual img {
+  display: block;
+  width: auto;
+  max-width: min(42vw, 360px);
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: left center;
+  border-radius: 14px;
+}
+
 .intro-banner {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: min(16rem, 100%);
+  max-width: min(52rem, 100%);
+  margin-inline: 0;
   border: 1px solid var(--stroke);
-  border-radius: 18px;
-  padding: 14px 16px;
-  background: var(--card);
-  box-shadow: 0 12px 32px rgba(60, 73, 142, 0.1);
+  border-radius: 14px;
+  padding: 10px 14px 11px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, var(--card) 48%, rgba(236, 242, 255, 0.55) 100%);
+  box-shadow: 0 8px 22px rgba(60, 73, 142, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  overflow: hidden;
+}
+
+.intro-banner-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(88px, 24%);
+  gap: 12px 14px;
+  align-items: center;
+}
+
+.intro-banner-copy {
+  min-width: 0;
 }
 
 .intro-banner h2 {
   margin: 0;
-  font-size: 1.28rem;
+  font-size: 1.08rem;
+  line-height: 1.28;
+  letter-spacing: -0.02em;
 }
 
 .intro-banner p {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: var(--muted);
-  max-width: 920px;
-  font-size: 0.92rem;
+  max-width: 28rem;
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.intro-banner-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.intro-banner-visual-frame {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.intro-banner-visual-frame img {
+  width: 100%;
+  height: auto;
+  max-height: 128px;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 14px;
+}
+
+@media (max-width: 900px) {
+  .intro-banner-inner {
+    grid-template-columns: minmax(0, 1fr) minmax(80px, 22%);
+    gap: 10px 12px;
+  }
+
+  .intro-banner-outside-visual img {
+    max-width: min(38vw, 300px);
+  }
+
+  .intro-banner-visual-frame img {
+    max-height: 108px;
+  }
+}
+
+@media (max-width: 720px) {
+  .intro-banner-row {
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .intro-banner-outside-visual {
+    align-self: stretch;
+    min-height: 4.5rem;
+    max-height: 6.5rem;
+  }
+
+  .intro-banner-outside-visual img {
+    width: 100%;
+    max-width: min(280px, 100%);
+    height: 100%;
+    max-height: 100%;
+    object-position: center;
+  }
+
+  .intro-banner {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .intro-banner-inner {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .intro-banner p {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .intro-banner-visual {
+    max-width: min(100%, 120px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .intro-banner-visual-frame img {
+    max-height: 88px;
+  }
 }
 
 .wizard-layout {
@@ -94,6 +237,10 @@ body {
   grid-template-columns: 250px 1fr;
   gap: 14px;
   align-items: start;
+}
+
+.wizard-layout.overview-mode {
+  grid-template-columns: 1fr;
 }
 
 .progress-sidebar,
@@ -427,7 +574,7 @@ textarea {
 .summary-grid {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 10px;
 }
 
@@ -436,6 +583,27 @@ textarea {
   border-radius: 14px;
   padding: 10px;
   background: linear-gradient(180deg, #f9fcff 0%, #f3f8ff 100%);
+}
+
+.summary-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #e3edff;
+  border: 1px solid #b9d0ff;
+  margin-bottom: 8px;
+}
+
+.summary-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: #2f66ff;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .summary-block h3 {
