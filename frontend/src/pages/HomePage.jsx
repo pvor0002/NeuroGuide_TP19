@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-/** Decorative peach mark (flower / sunburst style accent). */
+//This is a small reusable component that renders the application’s brand icon/logo using SVG.  
 function BrandMark({ className }) {
   return (
     <svg className={className} width="48" height="48" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
@@ -20,7 +20,7 @@ function BrandMark({ className }) {
   );
 }
 
-/** Local asset: collaborative meeting photo (served from `public/images/`) */
+//These constants store image paths used throughout the homepage.
 const heroBg = "/images/hero-background.png";
 const sectionImage =
   "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1600&q=80";
@@ -31,6 +31,8 @@ const cardImgLaptop =
 const cardImgPeople =
   "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=800&q=80";
 
+  //This is the main exported component for the homepage.
+//It returns the JSX for the homepage.
 export default function HomePage() {
   return (
     <div className="home">

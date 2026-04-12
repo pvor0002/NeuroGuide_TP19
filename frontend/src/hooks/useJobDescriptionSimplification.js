@@ -13,27 +13,19 @@ function attachmentMetaFromFile(file) {
   return { name, ext, typeLabel };
 }
 
-
-/**
- * State and handlers for the job-description simplify flow: pasted or extracted text,
- * file upload extraction, client validation, API simplify call, and user feedback.
- * Prevents overlapping extract/simplify work via `isBusy`.
- *
- * @returns {object} Fields for the simplify page: text, setText, messages, flags, validation, handlers.
- */
+//This is the main hook for the job-description simplify flow.
+//It manages the state and handlers for the job-description simplify flow.
+//It returns an object with the following properties:
 export function useJobDescriptionSimplification() {
   const [text, setText] = useState("");
   const [warnings, setWarnings] = useState([]);
   const [infoMessage, setInfoMessage] = useState("");
   /** Upload, extract, or client file errors: shown under the file preview when present. */
   const [composerFileError, setComposerFileError] = useState("");
-  /** Validation or simplify API errors: shown under the textarea. */
   const [composerActionError, setComposerActionError] = useState("");
   /** Short success line inside the composer (e.g. after extract). */
   const [composerInfo, setComposerInfo] = useState("");
-  /** Last successful `/simplify` payload (section keys from API or mock). */
   const [simplifiedResult, setSimplifiedResult] = useState(null);
-  /** Chat-style attachment row after a file is chosen and passes basic checks. */
   const [attachment, setAttachment] = useState(null);
 
   const [isExtracting, setIsExtracting] = useState(false);
@@ -78,11 +70,7 @@ export function useJobDescriptionSimplification() {
     setComposerInfo("");
   }, []);
 
-  /**
-   * Handles `<input type="file">` selection: validates type/size, calls extract API,
-   * then fills `text` with extracted content and optional server `warnings`.
-   * @param {FileList | null | undefined} fileList - Browser file list (first file is used).
-   */
+
   const onFileSelected = useCallback(
     async (fileList) => {
       const file = fileList?.[0];
@@ -142,11 +130,12 @@ export function useJobDescriptionSimplification() {
     [clearComposerFeedback],
   );
 
-  /**
-   * Validates `text` on the client, then calls the simplify API when `VITE_USE_LIVE_JOB_API=true`.
-   * With the flag off, the handler returns after validation (no request, no error).
-   * Sets `infoMessage` on success or composer inline error on API failure.
-   */
+  //This is the main handler for the simplify flow.
+  //It validates the text, calls the simplify API, and sets the simplified result.
+  //It returns an object with the following properties:
+  //ok: boolean - true if the text is valid, false otherwise
+  //code: string - the code of the error if the text is not valid, null otherwise
+  //message: string - the message of the error if the text is not valid, null otherwise
   const onSimplify = useCallback(async () => {
     if (isBusy) return;
 
