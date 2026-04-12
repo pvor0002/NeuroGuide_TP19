@@ -42,7 +42,7 @@ export function validateJobDescription(text) {
       ok: false,
       code: "INSUFFICIENT_CONTENT",
       message:
-        "There is not enough detail here yet. Try adding responsibilities, requirements, or what the role offers.",
+        "There is not enough detail here yet. ",
     };
   }
 

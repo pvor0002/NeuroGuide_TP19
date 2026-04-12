@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from "react";
-import { extractUploadedJobDescription, simplifyJobDescription } from "../services/jobDescriptionsApi.js";
 import {
   assertAllowedFile,
   MAX_UPLOAD_BYTES,
@@ -13,6 +12,7 @@ function attachmentMetaFromFile(file) {
     ext === "docx" ? "DOCX" : ext === "doc" ? "DOC" : ext === "pdf" ? "PDF" : ext === "txt" ? "TXT" : "FILE";
   return { name, ext, typeLabel };
 }
+
 
 /**
  * State and handlers for the job-description simplify flow: pasted or extracted text,
@@ -143,8 +143,9 @@ export function useJobDescriptionSimplification() {
   );
 
   /**
-   * Validates `text` on the client, then calls the simplify API. Ignores duplicate clicks while busy.
-   * Sets `infoMessage` on success or composer inline error on failure.
+   * Validates `text` on the client, then calls the simplify API when `VITE_USE_LIVE_JOB_API=true`.
+   * With the flag off, the handler returns after validation (no request, no error).
+   * Sets `infoMessage` on success or composer inline error on API failure.
    */
   const onSimplify = useCallback(async () => {
     if (isBusy) return;
@@ -152,6 +153,11 @@ export function useJobDescriptionSimplification() {
     const v = validateJobDescription(text);
     if (!v.ok) {
       setComposerActionError(v.message);
+      return;
+    }
+
+    if (!liveSimplifyEnabled) {
+      setComposerActionError("");
       return;
     }
 

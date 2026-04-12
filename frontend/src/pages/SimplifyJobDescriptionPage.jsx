@@ -114,7 +114,6 @@ export default function SimplifyJobDescriptionPage() {
 
   const fileInputRef = useRef(null);
   const inputId = useId();
-  const hintId = useId();
   const composerMetaId = useId();
 
   const simplifyEnabled = validation.ok && !isBusy;
@@ -130,9 +129,6 @@ export default function SimplifyJobDescriptionPage() {
             <h1 id="simplify-title" className="simplify-hero-title">
               Turn dense postings into something you can actually read.
             </h1>
-            <p className="simplify-hero-lead">
-              Attachments look like a chat thread: file on top, message below, notes stay inside the box.
-            </p>
             <Link to="/" className="simplify-hero-back">
               ← Back home
             </Link>
@@ -156,10 +152,6 @@ export default function SimplifyJobDescriptionPage() {
             <h2 id="simplify-input-heading" className="simplify-card-title">
               Job posting
             </h2>
-            <p id={hintId} className="simplify-card-hint">
-              Use the paperclip to add a file. In offline preview, only plain .txt loads from disk; paste anything else
-              or use the live API for PDF and Word.
-            </p>
 
             <div className="simplify-composer" aria-busy={isExtracting}>
               <input
@@ -205,14 +197,14 @@ export default function SimplifyJobDescriptionPage() {
               <textarea
                 id={inputId}
                 className="simplify-composer-input"
-                aria-describedby={`${hintId} ${composerMetaId}`}
+                aria-describedby={composerMetaId}
                 aria-invalid={Boolean(
                   composerActionError || (!attachment && composerFileError),
                 )}
                 spellCheck="true"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Paste the full posting: role, responsibilities, requirements, pay, location..."
+                placeholder="Paste the job posting here."
               />
 
               {composerActionError || (!attachment && composerFileError) ? (
