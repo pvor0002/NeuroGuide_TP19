@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeuroGuide | Skill, Background and Support Profile</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-wrap">
+      <span class="brand-mark">NG</span>
+      <div>
+        <h1>NeuroGuide</h1>
+        <p>ADHD-friendly job description simplifieer and interview preparation tool</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="intro-banner">
+      <h2>Build your profile with less typing</h2>
+      <p>
+        Add your background and skills preferences in guided steps. NeuroGuide
+        turns this into profile data for job suitability and interview preparation.
+      </p>
+    </section>
+
+    <div class="wizard-layout">
+      <aside class="progress-sidebar" aria-labelledby="sidebar-title">
+        <h2 id="sidebar-title">Progress</h2>
+        <div class="progress-wrapper" aria-live="polite">
+          <p id="progress-text" class="progress-text"></p>
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+        </div>
+        <ol id="progress-list" class="progress-list"></ol>
+      </aside>
+
+      <section id="wizard-card" class="wizard-card" aria-labelledby="wizard-heading">
+        <h2 id="wizard-heading" class="step-title"></h2>
+        <p id="step-description" class="step-description"></p>
+
+        <form id="profile-form" novalidate>
+          <div id="step-content" class="step-content"></div>
+
+          <p id="error-message" class="error-message" aria-live="assertive"></p>
+
+          <div class="button-row">
+            <button id="back-button" type="button" class="button ghost">Back</button>
+            <button id="save-exit-button" type="button" class="button secondary">Save & Exit</button>
+            <button id="next-button" type="submit" class="button primary">Next</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <section id="summary-card" class="summary-card hidden" aria-labelledby="summary-heading">
+      <div class="profile-top">
+        <div class="avatar">NG</div>
+        <div>
+          <h2 id="summary-heading">Profile Ready</h2>
+          <p id="summary-subtitle">Your captured profile details are below.</p>
+        </div>
+      </div>
+
+      <div id="summary-grid" class="summary-grid"></div>
+
+      <div class="button-row">
+        <button id="continue-button" type="button" class="button ghost">Continue Editing</button>
+        <button id="restart-button" type="button" class="button secondary">Start Over</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

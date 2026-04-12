@@ -1,0 +1,11 @@
+{
+  "name": "neuroguide-tp19",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NeuroGuide ADHD-friendly job profile prototype",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "dev": "python3 -m http.server 8080",
+    "build:taxonomy": "python3 scripts/build_taxonomy_from_excel.py"
+  }
+}
