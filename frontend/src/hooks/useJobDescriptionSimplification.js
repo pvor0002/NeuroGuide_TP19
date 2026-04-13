@@ -1,3 +1,16 @@
+/**
+ * This file manages all the logic and state for the job simplifier page 
+ *  input, file upload, validation, API calls, and results.
+ *
+ * This module expects these to exist wherever you wire the API (import them or
+ * attach to `globalThis` before the app runs):
+ * - `extractUploadedJobDescription(file)` — resolves with `extracted_text` and optional `warnings[]`
+ * - `simplifyJobDescription(text)` - resolves with section fields the simplify page renders
+ * - `liveSimplifyEnabled` — boolean; when false, simplify does nothing beyond clearing errors
+ *
+ * @file
+ */
+
 import { useCallback, useMemo, useState } from "react";
 import {
   assertAllowedFile,
@@ -5,6 +18,7 @@ import {
   validateJobDescription,
 } from "../utils/validation.js";
 
+/** Builds `{ name, ext, typeLabel }` for showing the chosen file in the composer. */
 function attachmentMetaFromFile(file) {
   const name = file.name || "document";
   const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
@@ -13,17 +27,17 @@ function attachmentMetaFromFile(file) {
   return { name, ext, typeLabel };
 }
 
-//This is the main hook for the job-description simplify flow.
-//It manages the state and handlers for the job-description simplify flow.
-//It returns an object with the following properties:
+/**
+ * Hook that owns all simplify-page UI state (text, attachment, loading, errors, result).
+ * @returns {object} Public API for `SimplifyJobDescriptionPage`: text/setText, file handlers,
+ *   validation snapshot, busy flags, messages, and `onSimplify`.
+ */
 export function useJobDescriptionSimplification() {
   const [text, setText] = useState("");
   const [warnings, setWarnings] = useState([]);
   const [infoMessage, setInfoMessage] = useState("");
-  /** Upload, extract, or client file errors: shown under the file preview when present. */
   const [composerFileError, setComposerFileError] = useState("");
   const [composerActionError, setComposerActionError] = useState("");
-  /** Short success line inside the composer (e.g. after extract). */
   const [composerInfo, setComposerInfo] = useState("");
   const [simplifiedResult, setSimplifiedResult] = useState(null);
   const [attachment, setAttachment] = useState(null);
@@ -34,21 +48,14 @@ export function useJobDescriptionSimplification() {
   const validation = useMemo(() => validateJobDescription(text), [text]);
   const isBusy = isExtracting || isSimplifying;
 
+  /** Clears inline composer errors and the small success line. */
   const clearComposerFeedback = useCallback(() => {
     setComposerFileError("");
     setComposerActionError("");
     setComposerInfo("");
   }, []);
 
-  const clearMessages = useCallback(() => {
-    setInfoMessage("");
-    clearComposerFeedback();
-  }, [clearComposerFeedback]);
-
-  /**
-   * Replaces the textarea value (paste or controlled updates) and clears stale feedback.
-   * @param {string} next - Full job description text from the input.
-   */
+  /** Updates the job text and resets result, errors, and warnings so the UI stays consistent. */
   const onTextChange = useCallback(
     (next) => {
       setText(next);
@@ -62,6 +69,7 @@ export function useJobDescriptionSimplification() {
     [],
   );
 
+  /** Drops the attached file metadata and related composer messages. */
   const removeAttachment = useCallback(() => {
     setAttachment(null);
     setWarnings([]);
@@ -71,6 +79,10 @@ export function useJobDescriptionSimplification() {
   }, []);
 
 
+  /**
+   * Handles `<input type="file">` selection: validates type/size, then asks the server
+   * to extract text into the textarea (or sets an error message).
+   */
   const onFileSelected = useCallback(
     async (fileList) => {
       const file = fileList?.[0];
@@ -107,6 +119,7 @@ export function useJobDescriptionSimplification() {
       setComposerFileError("");
       setComposerActionError("");
       setIsExtracting(true);
+      //It takes the uploaded file, extracts text from it, and puts that text into your app — or shows an error if something goes wrong.
       try {
         const payload = await extractUploadedJobDescription(file);
         const raw = String(payload.extracted_text ?? "").trim();
@@ -119,7 +132,7 @@ export function useJobDescriptionSimplification() {
           setComposerInfo("Text loaded from this file. You can edit it, then send.");
         } else {
           setWarnings([]);
-          setComposerFileError("");
+          setComposerFileError("No text could be read from this file. Try another file or paste the posting.");
         }
       } catch (err) {
         setComposerFileError(err.message || "Upload could not be processed.");
@@ -129,42 +142,6 @@ export function useJobDescriptionSimplification() {
     },
     [clearComposerFeedback],
   );
-
-  //This is the main handler for the simplify flow.
-  //It validates the text, calls the simplify API, and sets the simplified result.
-  //It returns an object with the following properties:
-  //ok: boolean - true if the text is valid, false otherwise
-  //code: string - the code of the error if the text is not valid, null otherwise
-  //message: string - the message of the error if the text is not valid, null otherwise
-  const onSimplify = useCallback(async () => {
-    if (isBusy) return;
-
-    const v = validateJobDescription(text);
-    if (!v.ok) {
-      setComposerActionError(v.message);
-      return;
-    }
-
-    if (!liveSimplifyEnabled) {
-      setComposerActionError("");
-      return;
-    }
-
-    setIsSimplifying(true);
-    setComposerActionError("");
-    setComposerFileError("");
-    setComposerInfo("");
-    setInfoMessage("");
-    try {
-      const data = await simplifyJobDescription(text);
-      setSimplifiedResult(data && typeof data === "object" ? data : null);
-      setInfoMessage("Simplified version is below.");
-    } catch (err) {
-      setComposerActionError(err.message || "Simplification failed. You can edit the text and try again.");
-    } finally {
-      setIsSimplifying(false);
-    }
-  }, [isBusy, text]);
 
   return {
     text,
@@ -182,6 +159,5 @@ export function useJobDescriptionSimplification() {
     isSimplifying,
     validation,
     onFileSelected,
-    onSimplify,
   };
 }
