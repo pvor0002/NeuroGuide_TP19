@@ -1,55 +1,5 @@
 # NeuroGuide_TP19
 
-## Current Prototype (User Story 5.1)
-
-This repository currently includes a first-iteration front-end prototype for:
-
-**Input Skill, Background and Support Profile** via a guided step-by-step form.
-
-### Included behaviour
-- One clear question per step to reduce open-ended form paralysis
-- Example placeholder responses in each step
-- Progress indicator (`Question X of Y`)
-- Skill tag picker generated from Australian occupation task data
-- Role preference chips generated from Australian occupation profile data
-- Pause/resume support using browser local storage
-- Final summary output of collected profile inputs
-
-### Run locally
-Open `index.html` in your browser.
-
-For best module loading behavior, run a lightweight local server from repo root:
-
-```bash
-python3 -m http.server 8080
-```
-
-Then visit:
-
-`http://localhost:8080`
-
-### Refresh taxonomy from Excel
-
-If you replace the source workbook in `data/`, regenerate the JSON files with:
-
-```bash
-python3 scripts/build_taxonomy_from_excel.py
-```
-
-This updates:
-- `data/au-skills-taxonomy.json`
-- `data/au-role-taxonomy.json`
-
-### Regenerate Iteration 1 Data Management Plan (.docx)
-
-After installing `python-docx` and `pillow`, run from repo root:
-
-```bash
-python3 scripts/generate_data_management_plan_docx.py
-```
-
-This writes `data/NeuroGuide_Iteration1_Data_Management_Plan.docx` and PNG code snippets under `data/dmp_code_snippets/`.
-
 # Team GitHub Workflow & Code Quality Guidelines
 
 This document defines how our team will work using GitHub for the project.  
