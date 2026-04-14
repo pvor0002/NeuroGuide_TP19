@@ -1,7 +1,17 @@
+/**
+ * Root layout and route table for NeuroGuide.
+ *
+ * This file controls your app’s layout and navigation 
+ * it decides which page to show based on the URL and adds a header and footer around it.
+ *
+ * @file
+ */
+
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import HomePage from "./pages/HomePage.jsx";
 import SimplifyJobDescriptionPage from "./pages/SimplifyJobDescriptionPage.jsx";
 
+/** Top bar with brand and main nav; highlights the active route for accessibility. */
 function AppHeader() {
   const location = useLocation();
   return (
@@ -26,19 +36,21 @@ function AppHeader() {
   );
 }
 
+/** Footer shown on every page with a short product note. */
 function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="site-footer-inner">
         <p className="site-footer-tagline">Where clarity meets opportunity</p>
         <p className="site-footer-note">
-          NeuroGuide: employment support with job descriptions that are easier to read and act on.
+          NeuroGuide: Understand jobs. Move forward with confidence.
         </p>
       </div>
     </footer>
   );
 }
 
+/** Wires routes, optional header, main landmark, and footer into one layout shell. */
 export default function App() {
   const location = useLocation();
   const isHome = location.pathname === "/";
