@@ -1,24 +1,11 @@
-/**
- * This file manages all the logic and state for the job simplifier page 
- *  input, file upload, validation, API calls, and results.
- *
- * This module expects these to exist wherever you wire the API (import them or
- * attach to `globalThis` before the app runs):
- * - `extractUploadedJobDescription(file)` — resolves with `extracted_text` and optional `warnings[]`
- * - `simplifyJobDescription(text)` - resolves with section fields the simplify page renders
- * - `liveSimplifyEnabled` — boolean; when false, simplify does nothing beyond clearing errors
- *
- * @file
- */
-
 import { useCallback, useMemo, useState } from "react";
+import { assertAllowedFile, MAX_UPLOAD_BYTES, validateJobDescription } from "../utils/validation.js";
 import {
-  assertAllowedFile,
-  MAX_UPLOAD_BYTES,
-  validateJobDescription,
-} from "../utils/validation.js";
+  extractUploadedJobDescription,
+  liveSimplifyEnabled,
+  simplifyJobDescription
+} from "../services/jobDescriptionApi.js";
 
-/** Builds `{ name, ext, typeLabel }` for showing the chosen file in the composer. */
 function attachmentMetaFromFile(file) {
   const name = file.name || "document";
   const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
@@ -27,11 +14,6 @@ function attachmentMetaFromFile(file) {
   return { name, ext, typeLabel };
 }
 
-/**
- * Hook that owns all simplify-page UI state (text, attachment, loading, errors, result).
- * @returns {object} Public API for `SimplifyJobDescriptionPage`: text/setText, file handlers,
- *   validation snapshot, busy flags, messages, and `onSimplify`.
- */
 export function useJobDescriptionSimplification() {
   const [text, setText] = useState("");
   const [warnings, setWarnings] = useState([]);
@@ -48,14 +30,17 @@ export function useJobDescriptionSimplification() {
   const validation = useMemo(() => validateJobDescription(text), [text]);
   const isBusy = isExtracting || isSimplifying;
 
-  /** Clears inline composer errors and the small success line. */
   const clearComposerFeedback = useCallback(() => {
     setComposerFileError("");
     setComposerActionError("");
     setComposerInfo("");
   }, []);
 
-  /** Updates the job text and resets result, errors, and warnings so the UI stays consistent. */
+  const clearMessages = useCallback(() => {
+    setInfoMessage("");
+    clearComposerFeedback();
+  }, [clearComposerFeedback]);
+
   const onTextChange = useCallback(
     (next) => {
       setText(next);
@@ -66,10 +51,9 @@ export function useJobDescriptionSimplification() {
       setWarnings([]);
       setInfoMessage("");
     },
-    [],
+    []
   );
 
-  /** Drops the attached file metadata and related composer messages. */
   const removeAttachment = useCallback(() => {
     setAttachment(null);
     setWarnings([]);
@@ -78,11 +62,6 @@ export function useJobDescriptionSimplification() {
     setComposerInfo("");
   }, []);
 
-
-  /**
-   * Handles `<input type="file">` selection: validates type/size, then asks the server
-   * to extract text into the textarea (or sets an error message).
-   */
   const onFileSelected = useCallback(
     async (fileList) => {
       const file = fileList?.[0];
@@ -119,7 +98,6 @@ export function useJobDescriptionSimplification() {
       setComposerFileError("");
       setComposerActionError("");
       setIsExtracting(true);
-      //It takes the uploaded file, extracts text from it, and puts that text into your app — or shows an error if something goes wrong.
       try {
         const payload = await extractUploadedJobDescription(file);
         const raw = String(payload.extracted_text ?? "").trim();
@@ -132,7 +110,7 @@ export function useJobDescriptionSimplification() {
           setComposerInfo("Text loaded from this file. You can edit it, then send.");
         } else {
           setWarnings([]);
-          setComposerFileError("No text could be read from this file. Try another file or paste the posting.");
+          setComposerFileError("");
         }
       } catch (err) {
         setComposerFileError(err.message || "Upload could not be processed.");
@@ -140,8 +118,38 @@ export function useJobDescriptionSimplification() {
         setIsExtracting(false);
       }
     },
-    [clearComposerFeedback],
+    [clearComposerFeedback]
   );
+
+  const onSimplify = useCallback(async () => {
+    if (isBusy) return;
+
+    const v = validateJobDescription(text);
+    if (!v.ok) {
+      setComposerActionError(v.message);
+      return;
+    }
+
+    if (!liveSimplifyEnabled) {
+      setComposerActionError("Simplify API is disabled. Remove VITE_SIMPLIFY_API=0 or configure the backend.");
+      return;
+    }
+
+    setIsSimplifying(true);
+    setComposerActionError("");
+    setComposerFileError("");
+    setComposerInfo("");
+    setInfoMessage("");
+    try {
+      const data = await simplifyJobDescription(text);
+      setSimplifiedResult(data && typeof data === "object" ? data : null);
+      setInfoMessage("Simplified version is below.");
+    } catch (err) {
+      setComposerActionError(err.message || "Simplification failed. You can edit the text and try again.");
+    } finally {
+      setIsSimplifying(false);
+    }
+  }, [isBusy, text]);
 
   return {
     text,
@@ -159,5 +167,6 @@ export function useJobDescriptionSimplification() {
     isSimplifying,
     validation,
     onFileSelected,
+    onSimplify
   };
 }

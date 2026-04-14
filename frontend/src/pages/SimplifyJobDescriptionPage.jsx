@@ -1,21 +1,15 @@
-/**
- * This file creates the Job Description Simplifier page, where users paste or upload a job and 
- * see a simplified version.
- *
- * Presentation-only helpers live in this file; data logic is in
- * `useJobDescriptionSimplification`.
- *
- * @file
- */
-
-//useRef is used to control the hidden file input
-//useId creates unique IDs for accessibility
 import { useId, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
 
+const OUTPUT_SECTIONS = [
+  { key: "quick_snapshot", label: "Quick snapshot" },
+  { key: "what_youll_do", label: "What you'll do" },
+  { key: "skills_you_need", label: "Skills you need" },
+  { key: "nice_to_haves", label: "Nice to haves" },
+  { key: "what_the_role_offers", label: "What the role offers" },
+];
 
-/** True when at least one output section has non-empty text to show. */
 function hasRenderableSimplifiedOutput(result) {
   if (!result || typeof result !== "object") return false;
   return OUTPUT_SECTIONS.some(({ key }) => {
@@ -24,7 +18,6 @@ function hasRenderableSimplifiedOutput(result) {
   });
 }
 
-/** This draws the paperclip icon for the attach file button.*/
 function PaperclipIcon() {
   return (
     <svg className="simplify-attach-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -39,7 +32,6 @@ function PaperclipIcon() {
   );
 }
 
-/** This draws the file icon shown in the attachment preview. Also UI only. */
 function FileDocIcon() {
   return (
     <svg className="simplify-file-preview-doc-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -55,7 +47,7 @@ function FileDocIcon() {
   );
 }
 
-/** Row showing attached file name, extension label, remove control, and optional spinner. */
+/** ChatGPT-style file row: red doc tile, name + type, black circular remove. */
 function FileAttachmentPreview({ name, typeLabel, isBusy, onRemove }) {
   return (
     <div className={`simplify-file-preview ${isBusy ? "simplify-file-preview--busy" : ""}`}>
@@ -79,7 +71,7 @@ function FileAttachmentPreview({ name, typeLabel, isBusy, onRemove }) {
   );
 }
 
-/** Soft abstract shapes behind the simplify page hero. */
+/** Decorative shapes only (warm colors, no blue/purple as the main theme). */
 function HeroPaperShapes() {
   return (
     <div className="simplify-hero-shapes" aria-hidden="true">
@@ -100,7 +92,6 @@ function HeroPaperShapes() {
   );
 }
 
-/** Page shell: hero, composer card, optional simplified output, and live status regions. */
 export default function SimplifyJobDescriptionPage() {
   const {
     text,
@@ -121,14 +112,10 @@ export default function SimplifyJobDescriptionPage() {
     onSimplify,
   } = useJobDescriptionSimplification();
 
-  //This gives access to the hidden file input, so clicking the paperclip button can open the file picker.
   const fileInputRef = useRef(null);
-  //This creates a unique ID for the job description input field.
   const inputId = useId();
-  //This creates a unique ID for the metadata displayed below the input field.
   const composerMetaId = useId();
 
-  //This checks if the input is valid and not busy, so the simplify button is enabled.
   const simplifyEnabled = validation.ok && !isBusy;
 
   return (
@@ -276,6 +263,26 @@ export default function SimplifyJobDescriptionPage() {
               </div>
             </div>
           </section>
+
+          {hasRenderableSimplifiedOutput(simplifiedResult) ? (
+            <section className="simplify-output" aria-labelledby="simplify-output-heading">
+              <h2 id="simplify-output-heading" className="simplify-output-title">
+                Simplified breakdown
+              </h2>
+              <div className="simplify-output-grid">
+                {OUTPUT_SECTIONS.map(({ key, label }) => {
+                  const body = simplifiedResult[key];
+                  if (body == null || String(body).trim() === "") return null;
+                  return (
+                    <div key={key} className="simplify-output-block">
+                      <h3 className="simplify-output-block-title">{label}</h3>
+                      <p className="simplify-output-block-body">{String(body)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
 

@@ -1,45 +1,32 @@
-/**
- * Client-side rules for pasted or extracted job description text and uploads.
- *
- * Used before calling the simplify API: trims and normalizes text, enforces word
- * limits, minimum content, and allowed file types for attachments.
- *
- * @file
+/**client-side validation module for the Job Description Simplifier feature.
  */
 
-/** Upper bound on pasted/extracted text length (word count). */
 const MAX_WORDS = 5000;
-/** Minimum words required so the posting is substantial enough to simplify. */
 const MIN_WORDS = 25;
-/** Minimum characters (guards very short pasted snippets that split oddly). */
 const MIN_CHARS = 120;
 
-/**
- * Prepares text for word counting: normalizes line breaks and trims edges.
- * @param {string} text - Raw user or extracted text.
- * @returns {string}
- */
+
+//Standardizes text before counting words
+//Converts all line endings to \n
+//Removes extra whitespace at start/end
 export function normalizeForCount(text) {
   if (!text) return "";
   return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
 }
 
-/**
- * Counts words using the same normalization as validation (line breaks + trim).
- * @param {string} text
- * @returns {number}
- */
+/*Counts number of words in input text*/
 export function countWords(text) {
   const t = normalizeForCount(text);
   if (!t) return 0;
   return t.split(/\s+/).filter(Boolean).length;
 }
 
-/**
- * Validates job description text for the simplify flow.
- * @param {string} text
- * @returns {{ ok: true, code: null, message: null } | { ok: false, code: string, message: string }}
- */
+//This is the main entry point for validating user input.
+//It checks if the text is empty, has too many words, or has too few words.
+//It returns an object with the following properties:
+//ok: boolean - true if the text is valid, false otherwise
+//code: string - the code of the error if the text is not valid, null otherwise
+//message: string - the message of the error if the text is not valid, null otherwise
 export function validateJobDescription(text) {
   const normalized = normalizeForCount(text);
   if (!normalized) {
@@ -50,6 +37,7 @@ export function validateJobDescription(text) {
     };
   }
 
+  //Counts the number of words in the standardized text.
   const words = countWords(normalized);
   if (words > MAX_WORDS) {
     return {
@@ -59,6 +47,11 @@ export function validateJobDescription(text) {
     };
   }
 
+  //Checks if the text has too few words or characters.
+  //If the text has too few words or characters, it returns an object with the following properties:
+  //ok: boolean - false
+  //code: string - "INSUFFICIENT_CONTENT"
+  //message: string - "There is not enough detail here yet."
   if (words < MIN_WORDS || normalized.length < MIN_CHARS) {
     return {
       ok: false,
@@ -73,11 +66,10 @@ export function validateJobDescription(text) {
 
 const ALLOWED = new Set(["pdf", "doc", "docx", "txt"]);
 
-/**
- * Ensures the chosen file extension is one we try to extract text from.
- * @param {File} file - Browser File from an `<input type="file">`.
- * @returns {{ ok: true, message: null } | { ok: false, message: string }}
- */
+//Checks if the file is supported.
+//If the file is not supported, it returns an object with the following properties:
+//ok: boolean - false
+//message: string - "Unsupported file type. Supported formats: .pdf, .doc, .docx, .txt."
 export function assertAllowedFile(file) {
   const name = file.name || "";
   const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
@@ -90,5 +82,6 @@ export function assertAllowedFile(file) {
   return { ok: true, message: null };
 }
 
-/** Maximum upload size in bytes (5 MB) for job file attachments. */
+
+//Defines the maximum file size allowed for uploads.
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
