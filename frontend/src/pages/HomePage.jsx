@@ -122,7 +122,6 @@ export default function HomePage() {
         </div>
       </section>
       
-
       <section className="home-band home-band--focus" aria-labelledby="home-focus-title">
         <div className="home-band-inner home-band-inner--wide home-focus-inner">
           <header className="home-focus-head">
