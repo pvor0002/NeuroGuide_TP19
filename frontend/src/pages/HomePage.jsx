@@ -1,17 +1,14 @@
-/**
- * Homepage: hero, CTA, feature photo, visual focus strip, and FAQ.
- *
- * @file
- */
-
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { NeuroBrandFlower } from "../components/NeuroBrandFlower.jsx";
 
-/** Small inline SVG logo used in the hero */
+const HERO_PETAL_ANGLES = [0, 45, 90, 135];
+
 function BrandMark({ className }) {
   return (
     <svg className={className} width="48" height="48" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
       <circle cx="20" cy="20" r="3" fill="currentColor" />
-      {[0, 45, 90, 135].map((deg) => (
+      {HERO_PETAL_ANGLES.map((deg) => (
         <ellipse
           key={deg}
           cx="20"
@@ -26,63 +23,96 @@ function BrandMark({ className }) {
   );
 }
 
-/** Local hero background (served from `public/images`). */
+//These constants store image paths used throughout the homepage.
 const heroBg = "/images/hero-background.png";
-/** Feature section photo. */
 const sectionImage =
   "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1600&q=80";
-
-/** Visual pillars: one image + a few words each (Unsplash). */
-const FOCUS_VISUALS = [
-  {
-    src: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=960&q=75",
-    alt: "Professional reviewing work on a laptop in a bright office",
-    title: "Scan",
-    caption: "Sections instead of walls of text.",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=960&q=75",
-    alt: "Organized desk with laptop, notebook, and coffee",
-    title: "Compare",
-    caption: "Role, tasks, and skills in one view.",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=960&q=75",
-    alt: "Two professionals shaking hands across a desk",
-    title: "Decide",
-    caption: "Know if it fits—then invest your time.",
-  },
-];
+const cardImgPhone =
+  "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=800&q=80";
+const cardImgLaptop =
+  "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=800&q=80";
+const cardImgPeople =
+  "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=800&q=80";
 
 const FAQ_ITEMS = [
   {
-    q: "What is NeuroGuide?",
-    a: "NeuroGuide is a small web app focused on employment support. It helps you turn long, dense job postings into shorter, clearer language so you can decide if a role fits before you invest time applying.",
+    id: "faq-what",
+    question: "What is NeuroGuide for?",
+    answer:
+      "NeuroGuide helps you understand job postings and prepare for interviews with shorter prompts, clearer structure, and tools that respect how you focus and process information.",
   },
   {
-    q: "What does “Simplify Job Description” do?",
-    a: "You paste text or upload a supported file. The app returns a structured summary: snapshot of the role, main tasks, skills, nice-to-haves, and what the employer offers. You can edit the pasted text anytime before simplifying again.",
+    id: "faq-profile-storage",
+    question: "Where does my profile information go?",
+    answer:
+      "The guided profile builder saves your answers in this browser so you can pause and come back later. It is not sent to our servers unless you choose to share or export it elsewhere yourself.",
   },
   {
-    q: "Is NeuroGuide the same as official career advice or a diagnosis?",
-    a: "No. It is a reading and organization tool for job ads. It does not replace recruiters, coaches, or health professionals, and it does not make hiring decisions for you.",
+    id: "faq-simplify",
+    question: "How does “Simplify Job Description” work?",
+    answer:
+      "You paste or upload a posting; NeuroGuide asks a backend service to rewrite it into plain sections such as what you will do, skills you need, and what the role offers. You need the API running locally (or deployed) for live simplification.",
   },
   {
-    q: "Where do I start?",
-    a: "Use the link in the hero or the button in the section above to open the simplifier, then paste or attach a real posting and run simplify once your text passes the on-page checks.",
+    id: "faq-account",
+    question: "Do I need an account?",
+    answer:
+      "No account is required for this prototype. You can explore the home page, try the profile builder, and use Simplify when your environment is connected to the API.",
+  },
+  {
+    id: "faq-accuracy",
+    question: "Should I rely on the simplified text alone?",
+    answer:
+      "Treat simplified output as a reading aid, not legal advice or a substitute for the employer’s official posting. Always confirm details like pay, hours, and requirements with the source listing or the employer.",
   },
 ];
 
-/** Renders the full landing page layout and internal sections. */
 export default function HomePage() {
+  const [stickyVisible, setStickyVisible] = useState(false);
+
+  useEffect(() => {
+    const threshold = 64;
+    const onScroll = () => {
+      setStickyVisible(window.scrollY > threshold);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div className="home">
+      <header
+        className={`home-sticky-bar ${stickyVisible ? "is-visible" : ""}`}
+        role="banner"
+        aria-hidden={!stickyVisible}
+      >
+        <div className="home-sticky-bar-inner">
+          <div className="home-sticky-bar-brand">
+            <NeuroBrandFlower
+              svgClassName="home-sticky-bar-mark"
+              animationActive={stickyVisible}
+            />
+            <div className="home-sticky-bar-copy">
+              <span className="home-sticky-bar-kicker">NeuroGuide</span>
+              <span className="home-sticky-bar-title">Where clarity meets opportunity</span>
+              <span className="home-sticky-bar-tagline">Simplifying jobs and interviews for the way your mind works</span>
+            </div>
+          </div>
+          <nav className="home-sticky-bar-nav" aria-label="Quick links">
+            <Link to="/profile">Profile builder</Link>
+            <Link to="/simplify-job-description">Simplify Job Description</Link>
+          </nav>
+        </div>
+      </header>
+
       <section className="home-hero" aria-labelledby="home-hero-title">
         <img src={heroBg} alt="" className="home-hero-img" width={1920} height={1080} decoding="async" fetchPriority="high" />
         <nav className="home-hero-nav" aria-label="Quick links">
+          <Link to="/profile">Profile builder</Link>
           <Link to="/simplify-job-description">Simplify Job Description</Link>
         </nav>
-        <div className="home-hero-inner">
+        <div className={`home-hero-inner ${stickyVisible ? "home-hero-inner--dimmed" : ""}`}>
           <div className="home-hero-brand">
             <BrandMark className="home-hero-mark" />
             <p className="home-hero-kicker">NeuroGuide</p>
@@ -102,9 +132,12 @@ export default function HomePage() {
             Looking for what’s next?
           </h2>
           <p className="home-section-lead">
-            Clear structure. Less scrolling. Decide faster.
+            Find your next role and take the leap: start with a posting you can actually read, then explore what fits.
           </p>
           <div className="home-cta-wrap">
+            <Link to="/profile" className="home-btn-peach home-btn-peach--secondary">
+              Build your profile
+            </Link>
             <Link to="/simplify-job-description" className="home-btn-peach">
               Simplify Job Description
             </Link>
@@ -122,65 +155,55 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="home-band home-band--focus" aria-labelledby="home-focus-title">
-        <div className="home-band-inner home-band-inner--wide home-focus-inner">
-          <header className="home-focus-head">
-            <p className="home-focus-eyebrow">ADHD-friendly workflow</p>
-            <h2 id="home-focus-title" className="home-section-title home-focus-title">
-              Job posts, distilled
-            </h2>
-          </header>
-
-          <ul className="home-focus-grid">
-            {FOCUS_VISUALS.map((item, index) => (
-              <li key={item.title} className="home-focus-tile">
-                <article className="home-focus-card">
-                  <figure className="home-focus-figure">
-                    <img
-                      src={item.src}
-                      alt={item.alt}
-                      className="home-focus-img"
-                      width={960}
-                      height={720}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <figcaption className="home-focus-cap">
-                      <span className="home-focus-index" aria-hidden="true">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <h3 className="home-focus-card-title">{item.title}</h3>
-                      <p className="home-focus-card-caption">{item.caption}</p>
-                    </figcaption>
-                  </figure>
-                </article>
-              </li>
-            ))}
-          </ul>
-
-          <p className="home-focus-note">Reading tool only—not medical or career advice.</p>
-
-          <div className="home-cta-wrap home-focus-cta">
-            <Link to="/simplify-job-description" className="home-btn-peach">
-              Simplify a posting
-            </Link>
+      <section className="home-band home-band--cream" aria-labelledby="home-contact-title">
+        <div className="home-band-inner home-band-inner--wide">
+          <h2 id="home-contact-title" className="home-section-title">
+            Let’s talk talent
+          </h2>
+          <div className="home-card-grid">
+            <article className="home-card">
+              <img src={cardImgPhone} alt="" className="home-card-img" width={800} height={520} loading="lazy" />
+              <div className="home-card-body">
+                <h3 className="home-card-title">Contact Us</h3>
+                
+              </div>
+            </article>
+            <article className="home-card">
+              <img src={cardImgLaptop} alt="" className="home-card-img" width={800} height={520} loading="lazy" />
+              <div className="home-card-body">
+                <h3 className="home-card-title">Email Us</h3>
+                
+              </div>
+            </article>
+            <article className="home-card">
+              <img src={cardImgPeople} alt="" className="home-card-img" width={800} height={520} loading="lazy" />
+              <div className="home-card-body">
+                <h3 className="home-card-title">
+                  <span className="home-pin" aria-hidden="true">
+                    📍
+                  </span>{" "}
+                  Visit Us
+                </h3>
+               
+              </div>
+            </article>
           </div>
         </div>
       </section>
 
-      <section className="home-band home-band--cream" aria-labelledby="home-faq-title">
-        <div className="home-band-inner home-faq-band-inner">
+      <section className="home-band home-band--white home-faq" aria-labelledby="home-faq-title">
+        <div className="home-band-inner home-band-inner--wide">
           <h2 id="home-faq-title" className="home-section-title">
-            FAQ
+            Frequently asked questions
           </h2>
-          <p className="home-section-lead home-faq-lead">
-            Common questions about how NeuroGuide works and what to expect from the app.
+          <p className="home-section-lead">
+            Quick answers about how this prototype works and how your information is handled.
           </p>
           <div className="home-faq-list">
-            {FAQ_ITEMS.map((item) => (
-              <details key={item.q} className="home-faq-item">
-                <summary className="home-faq-q">{item.q}</summary>
-                <p className="home-faq-a">{item.a}</p>
+            {FAQ_ITEMS.map(({ id, question, answer }) => (
+              <details key={id} className="home-faq-item" name="home-faq">
+                <summary className="home-faq-summary">{question}</summary>
+                <p className="home-faq-answer">{answer}</p>
               </details>
             ))}
           </div>
