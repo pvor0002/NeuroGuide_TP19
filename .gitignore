@@ -8,5 +8,6 @@ env/
 dist/
 *.log
 .env
+backend/.env
 .idea/
 .vscode/

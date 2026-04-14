@@ -34,6 +34,27 @@ const cardImgLaptop =
 const cardImgPeople =
   "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=800&q=80";
 
+const FOCUS_VISUALS = [
+  {
+    src: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=960&q=75",
+    alt: "Professional reviewing work on a laptop in a bright office",
+    title: "Scan",
+    caption: "Sections instead of walls of text.",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=960&q=75",
+    alt: "Organized desk with laptop, notebook, and coffee",
+    title: "Compare",
+    caption: "Role, tasks, and skills in one view.",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=960&q=75",
+    alt: "Two professionals shaking hands across a desk",
+    title: "Decide",
+    caption: "Know if it fits—then invest your time.",
+  },
+];
+
 const FAQ_ITEMS = [
   {
     id: "faq-what",
@@ -155,6 +176,52 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="home-band home-band--focus" aria-labelledby="home-focus-title">
+        <div className="home-band-inner home-band-inner--wide home-focus-inner">
+          <header className="home-focus-head">
+            <p className="home-focus-eyebrow">ADHD-friendly workflow</p>
+            <h2 id="home-focus-title" className="home-section-title home-focus-title">
+              Job posts, distilled
+            </h2>
+          </header>
+
+          <ul className="home-focus-grid">
+            {FOCUS_VISUALS.map((item, index) => (
+              <li key={item.title} className="home-focus-tile">
+                <article className="home-focus-card">
+                  <figure className="home-focus-figure">
+                    <img
+                      src={item.src}
+                      alt={item.alt}
+                      className="home-focus-img"
+                      width={960}
+                      height={720}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <figcaption className="home-focus-cap">
+                      <span className="home-focus-index" aria-hidden="true">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <h3 className="home-focus-card-title">{item.title}</h3>
+                      <p className="home-focus-card-caption">{item.caption}</p>
+                    </figcaption>
+                  </figure>
+                </article>
+              </li>
+            ))}
+          </ul>
+
+          <p className="home-focus-note">Reading tool only—not medical or career advice.</p>
+
+          <div className="home-cta-wrap home-focus-cta">
+            <Link to="/simplify-job-description" className="home-btn-peach">
+              Simplify a posting
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="home-band home-band--cream" aria-labelledby="home-contact-title">
         <div className="home-band-inner home-band-inner--wide">
           <h2 id="home-contact-title" className="home-section-title">
@@ -165,14 +232,12 @@ export default function HomePage() {
               <img src={cardImgPhone} alt="" className="home-card-img" width={800} height={520} loading="lazy" />
               <div className="home-card-body">
                 <h3 className="home-card-title">Contact Us</h3>
-                
               </div>
             </article>
             <article className="home-card">
               <img src={cardImgLaptop} alt="" className="home-card-img" width={800} height={520} loading="lazy" />
               <div className="home-card-body">
                 <h3 className="home-card-title">Email Us</h3>
-                
               </div>
             </article>
             <article className="home-card">
@@ -184,7 +249,6 @@ export default function HomePage() {
                   </span>{" "}
                   Visit Us
                 </h3>
-               
               </div>
             </article>
           </div>
