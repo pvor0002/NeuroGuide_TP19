@@ -1721,6 +1721,167 @@ a.btn.btn-primary:hover {
   color: #1f1b19;
 }
 
+.simplify-output-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.simplify-output-heading-row .simplify-output-title {
+  margin: 0;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.simplify-export-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.simplify-export {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.simplify-export-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.15rem 0.65rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #1f4d2e;
+  background: linear-gradient(165deg, #3d7d52 0%, #2f6a44 42%, #265a38 100%);
+  color: #f6fff8;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  cursor: pointer;
+  box-shadow: 0 3px 14px rgba(30, 61, 40, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: filter 0.15s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.simplify-export-trigger__icon {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  opacity: 0.95;
+}
+
+.simplify-export-trigger__label {
+  line-height: 1.2;
+}
+
+.simplify-export-trigger__chevron {
+  width: 0;
+  height: 0;
+  margin-left: 0.1rem;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid currentColor;
+  opacity: 0.88;
+  transition: transform 0.2s ease;
+}
+
+.simplify-export-trigger[aria-expanded="true"] .simplify-export-trigger__chevron {
+  transform: rotate(180deg);
+}
+
+.simplify-export-trigger:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 5px 18px rgba(30, 61, 40, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.simplify-export-trigger:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.simplify-export-trigger:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  filter: grayscale(0.15);
+  box-shadow: none;
+}
+
+.simplify-export-trigger:focus-visible {
+  outline: 2px solid #f4d4a8;
+  outline-offset: 3px;
+}
+
+.simplify-export-trigger .simplify-export-spinner {
+  border-color: rgba(255, 250, 246, 0.35);
+  border-top-color: #fffaf6;
+}
+
+.simplify-export-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 6;
+  margin-top: 0.45rem;
+  min-width: 13rem;
+  padding: 0.4rem;
+  border-radius: 12px;
+  border: 1px solid rgba(47, 106, 68, 0.35);
+  background: #fffef9;
+  box-shadow: 0 12px 36px rgba(30, 61, 40, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.simplify-export-option {
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2a2420;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.simplify-export-option:hover {
+  background: rgba(90, 143, 106, 0.14);
+}
+
+.simplify-export-option:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.simplify-export-error {
+  margin: 0;
+  max-width: min(28rem, 100%);
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #5c2a24;
+  background: rgba(184, 92, 78, 0.12);
+  border: 1px solid rgba(184, 92, 78, 0.35);
+}
+
+.simplify-export-spinner {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2px;
+}
+
 .simplify-summary-block {
   margin-bottom: 1.35rem;
   padding: 1.1rem 1.25rem;

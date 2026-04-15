@@ -1,6 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
+import {
+  buildExportPdfFilename,
+  buildExportTxtFilename,
+  buildPlainTextExport,
+  buildSimplifiedJobPdfBlob,
+  downloadBlob,
+  parseJobTitleAndCompany
+} from "../utils/simplifiedJobExport.js";
 
 const CARD_SECTIONS = [
   { key: "basic_info", label: "Basic information" },
@@ -199,6 +207,127 @@ function SimplifyFlipCard({ cardKey, label, body }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ExportDownloadIcon() {
+  return (
+    <svg className="simplify-export-trigger__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 4v11.5M8.5 12L12 15.5l3.5-3.5"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M5 19.5h14" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SimplifyExportToolbar({ outputVisible, simplifiedResult, warnings, syncing }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDocMouseDown = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [menuOpen]);
+
+  if (!outputVisible) return null;
+
+  const { jobTitle, companyName } = parseJobTitleAndCompany(simplifiedResult?.basic_info ?? "");
+  const disabled = exportBusy || syncing;
+
+  const runPlainText = () => {
+    setExportError("");
+    setMenuOpen(false);
+    setExportBusy(true);
+    window.setTimeout(() => {
+      try {
+        const content = buildPlainTextExport(simplifiedResult, warnings);
+        const blob = new Blob([`\uFEFF${content}`], { type: "text/plain;charset=utf-8" });
+        downloadBlob(blob, buildExportTxtFilename(jobTitle, companyName));
+      } catch (err) {
+        setExportError(err?.message || "Plain text export failed. You can try again.");
+      } finally {
+        setExportBusy(false);
+      }
+    }, 0);
+  };
+
+  const runPdf = () => {
+    setExportError("");
+    setMenuOpen(false);
+    setExportBusy(true);
+    window.requestAnimationFrame(() => {
+      void (async () => {
+        try {
+          const blob = await buildSimplifiedJobPdfBlob(simplifiedResult, warnings);
+          downloadBlob(blob, buildExportPdfFilename(jobTitle, companyName));
+        } catch (err) {
+          setExportError(err?.message || "PDF export failed. You can try again.");
+        } finally {
+          setExportBusy(false);
+        }
+      })();
+    });
+  };
+
+  return (
+    <div className="simplify-export-column">
+      <div className="simplify-export" ref={wrapRef}>
+        <button
+          type="button"
+          className="simplify-export-trigger"
+          aria-haspopup="true"
+          aria-expanded={menuOpen}
+          aria-controls="simplify-export-menu"
+          disabled={disabled}
+          onClick={() => {
+            if (disabled) return;
+            setExportError("");
+            setMenuOpen((o) => !o);
+          }}
+        >
+          {exportBusy ? (
+            <>
+              <span className="spinner simplify-export-spinner" aria-hidden="true" />
+              <span className="simplify-export-trigger__label">Preparing download…</span>
+            </>
+          ) : (
+            <>
+              <ExportDownloadIcon />
+              <span className="simplify-export-trigger__label">Export</span>
+              <span className="simplify-export-trigger__chevron" aria-hidden="true" />
+            </>
+          )}
+        </button>
+        {menuOpen && !exportBusy ? (
+          <div id="simplify-export-menu" className="simplify-export-menu" role="group" aria-label="Export options">
+            <button type="button" className="simplify-export-option" onClick={runPlainText}>
+              Plain text (.txt)
+            </button>
+            <button type="button" className="simplify-export-option" onClick={runPdf}>
+              PDF
+            </button>
+          </div>
+        ) : null}
+      </div>
+      {exportError ? (
+        <p className="simplify-export-error" role="alert">
+          {exportError}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -479,9 +608,17 @@ export default function SimplifyJobDescriptionPage() {
 
           {outputVisible ? (
             <section ref={outputRef} className="simplify-output" aria-labelledby="simplify-output-heading">
-              <h2 id="simplify-output-heading" className="simplify-output-title">
-                Simplified breakdown
-              </h2>
+              <div className="simplify-output-heading-row">
+                <h2 id="simplify-output-heading" className="simplify-output-title">
+                  Simplified breakdown
+                </h2>
+                <SimplifyExportToolbar
+                  outputVisible={outputVisible}
+                  simplifiedResult={simplifiedResult}
+                  warnings={warnings}
+                  syncing={isSimplifying}
+                />
+              </div>
               {simplifiedResult.summary != null && String(simplifiedResult.summary).trim() !== "" ? (
                 <div className="simplify-summary-block">
                   <h3 className="simplify-summary-title">Easy summary</h3>
