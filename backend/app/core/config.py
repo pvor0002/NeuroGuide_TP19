@@ -15,10 +15,6 @@ class Settings(BaseSettings):
     app_name: str = "NeuroGuide API"
     api_v1_prefix: str = "/api/v1"
     debug: bool = True
-    cors_origins: list[str] = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ]
 
     gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-2.5-flash"
@@ -31,19 +27,6 @@ class Settings(BaseSettings):
         if isinstance(v, str) and not v.strip():
             return None
         return v if isinstance(v, str) else str(v)
-
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: object) -> list[str]:
-        if v is None:
-            return []
-        if isinstance(v, str):
-            if not v.strip():
-                return []
-            return [part.strip() for part in v.split(",") if part.strip()]
-        if isinstance(v, list):
-            return [str(item).strip() for item in v if str(item).strip()]
-        return [str(v).strip()]
 
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE) if _ENV_FILE.is_file() else ".env",
