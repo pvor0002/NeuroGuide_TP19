@@ -1,4 +1,4 @@
-const API_BASE = "https://neuroguide-tp19.onrender.com/api/v1";
+const API_BASE = "/api/v1";
 
 /**
  * Set VITE_SIMPLIFY_API=0 to hide simplify actions when no backend is available.
@@ -39,7 +39,7 @@ function apiFailureMessage(res, err) {
   const fromDetail = detailToMessage(err?.detail);
   if (fromDetail) return fromDetail;
   if (err?.message && typeof err.message === "string") return err.message;
-  return `Request failed (${res.status}). Is the backend running on https://neuroguide-tp19.onrender.com ?`;
+  return `Request failed (${res.status}). Is the backend running on http://127.0.0.1:8000 ?`;
 }
 
 export async function extractUploadedJobDescription(file) {
