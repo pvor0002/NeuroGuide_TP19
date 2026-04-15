@@ -11,10 +11,64 @@ import {
 } from "../utils/simplifiedJobExport.js";
 
 const CARD_SECTIONS = [
-  { key: "basic_info", label: "Basic information" },
-  { key: "responsibilities", label: "Responsibilities" },
-  { key: "skills_qualifications", label: "Skills & qualifications" },
+  { key: "basic_info", label: "Basic information", emoji: "🧭" },
+  { key: "responsibilities", label: "Top missions", emoji: "🎯" },
+  { key: "skills_qualifications", label: "Core skills", emoji: "⚡" },
 ];
+
+const CARD_POINT_LIMIT = {
+  responsibilities: 4,
+  skills_qualifications: 4,
+};
+
+function shortenLine(line, maxChars = 88) {
+  const src = String(line ?? "").replace(/\s+/g, " ").trim();
+  if (!src) return "";
+  if (src.length <= maxChars) return src;
+  const firstClause = src.split(/[,;:]\s+/)[0].trim();
+  if (firstClause.length >= 18 && firstClause.length <= maxChars) return `${firstClause}…`;
+  return `${src.slice(0, maxChars - 1).trimEnd()}…`;
+}
+
+function extractTopPoints(text, limit) {
+  const src = String(text ?? "").replace(/\r\n/g, "\n").trim();
+  if (!src) return [];
+
+  const explicitBullets = src
+    .split("\n")
+    .map((line) => String(line ?? "").trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^[-*•]\s+/, "").replace(/^\d+[.)]\s+/, "").trim())
+    .filter((line) => line && !/^[A-Za-z][A-Za-z0-9 &'\/().-]{2,40}:\s*$/.test(line));
+
+  const candidates =
+    explicitBullets.length > 0
+      ? explicitBullets
+      : src
+          .split(/\n+|;\s+|(?<=[.!?])\s+(?=[A-Z])/)
+          .map((line) => line.replace(/^\d+[.)]\s+/, "").trim())
+          .filter(Boolean);
+
+  const uniq = [];
+  const seen = new Set();
+  for (const item of candidates) {
+    const cleaned = shortenLine(item);
+    const key = cleaned.toLowerCase();
+    if (!cleaned || cleaned.length < 8 || seen.has(key)) continue;
+    seen.add(key);
+    uniq.push(cleaned);
+    if (uniq.length >= limit) break;
+  }
+  return uniq;
+}
+
+function getCardViewModel(cardKey, body) {
+  const text = String(body ?? "").trim();
+  if (!text) return { text: "", points: [] };
+  const limit = CARD_POINT_LIMIT[cardKey];
+  if (!limit) return { text, points: [] };
+  return { text, points: extractTopPoints(text, limit) };
+}
 
 function hasRenderableSimplifiedOutput(result) {
   if (!result || typeof result !== "object") return false;
@@ -155,9 +209,11 @@ function renderImportantLines(text) {
 }
 
 /** Front shows title only; click flips to content (ADHD-friendly: one focus at a time). */
-function SimplifyFlipCard({ cardKey, label, body }) {
+function SimplifyFlipCard({ cardKey, label, emoji, body }) {
   const [flipped, setFlipped] = useState(false);
-  const text = String(body ?? "").trim();
+  const { text, points } = getCardViewModel(cardKey, body);
+  const hasPoints = points.length > 0;
+  const focusHint = hasPoints ? `Top ${points.length}` : "Quick view";
   const toggle = () => setFlipped((v) => !v);
   const onKeyDown = (e) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -185,6 +241,10 @@ function SimplifyFlipCard({ cardKey, label, body }) {
       >
         <div className="simplify-flip-card__inner">
           <div className="simplify-flip-card__face simplify-flip-card__face--front">
+            <p className="simplify-flip-card__chip" aria-hidden="true">
+              <span>{emoji}</span>
+              <span>{focusHint}</span>
+            </p>
             <h3 className="simplify-flip-card__title">{label}</h3>
             <p className="simplify-flip-card__cta">
               <FlipCardsIcon />
@@ -197,9 +257,26 @@ function SimplifyFlipCard({ cardKey, label, body }) {
             aria-label={`${label} details`}
           >
             <div className="simplify-flip-card__back-head">
-              <span className="simplify-flip-card__back-title">{label}</span>
+              <span className="simplify-flip-card__back-title">
+                {emoji} {label}
+              </span>
             </div>
-            <div className="simplify-flip-card__body">{renderImportantLines(text)}</div>
+            <div className="simplify-flip-card__body">
+              {hasPoints ? (
+                <ul className="simplify-flip-card__focus-list">
+                  {points.map((point, idx) => (
+                    <li key={`${cardKey}-focus-${idx}`} className="simplify-flip-card__focus-item">
+                      <span className="simplify-flip-card__focus-dot" aria-hidden="true">
+                        {idx + 1}
+                      </span>
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                renderImportantLines(text)
+              )}
+            </div>
             <p className="simplify-flip-card__cta simplify-flip-card__cta--back">
               <FlipCardsIcon />
               <span>Flip back</span>
@@ -381,6 +458,7 @@ export default function SimplifyJobDescriptionPage() {
   const inputId = useId();
   const composerMetaId = useId();
   const [scrollToOutputOnResult, setScrollToOutputOnResult] = useState(false);
+  const [showInterviewPrepPrompt, setShowInterviewPrepPrompt] = useState(false);
 
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
@@ -626,11 +704,25 @@ export default function SimplifyJobDescriptionPage() {
                 </div>
               ) : null}
               <div className="simplify-output-grid simplify-output-grid--cards">
-                {CARD_SECTIONS.map(({ key, label }) => {
+                {CARD_SECTIONS.map(({ key, label, emoji }) => {
                   const body = simplifiedResult[key];
                   if (body == null || String(body).trim() === "") return null;
-                  return <SimplifyFlipCard key={key} cardKey={key} label={label} body={body} />;
+                  return <SimplifyFlipCard key={key} cardKey={key} label={label} emoji={emoji} body={body} />;
                 })}
+              </div>
+              <div className="simplify-next-step">
+                <button
+                  type="button"
+                  className="simplify-next-step-btn"
+                  onClick={() => setShowInterviewPrepPrompt(true)}
+                >
+                  Start interview preparation
+                </button>
+                {showInterviewPrepPrompt ? (
+                  <p className="simplify-next-step-prompt" role="status">
+                    functionaloty part of iteration 2 development
+                  </p>
+                ) : null}
               </div>
             </section>
           ) : null}

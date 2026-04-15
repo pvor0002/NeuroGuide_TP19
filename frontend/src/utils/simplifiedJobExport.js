@@ -3,7 +3,7 @@ export const MAX_BULLETS_PER_SECTION = 5;
 /** Treat backend placeholder as empty for export. */
 export function stripPlaceholder(body) {
   const s = String(body ?? "").trim();
-  if (s === "—" || s === "-") return "";
+  if (s === "-" || s === "-") return "";
   return s;
 }
 
@@ -131,7 +131,7 @@ export function buildPlainTextExport(result, warnings) {
   const { skills, nice } = splitSkillsAndNiceToHaves(result?.skills_qualifications ?? "");
   const offers = extractRoleOffersSnippet(result?.basic_info ?? "");
 
-  lines.push("NeuroGuide — Simplified job description");
+  lines.push("NeuroGuide - Simplified job description");
   lines.push("=".repeat(40));
   lines.push("");
 
@@ -228,7 +228,7 @@ export async function buildSimplifiedJobPdfBlob(result, warnings) {
   doc.setFontSize(15);
   const docTitle =
     jobTitle && companyName
-      ? `${jobTitle} — ${companyName}`
+      ? `${jobTitle} - ${companyName}`
       : jobTitle || companyName || "Simplified job description";
   addWrappedText(doc, docTitle, margin, maxW, yRef, 7);
   yRef.y += 2;

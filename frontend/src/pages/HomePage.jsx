@@ -27,13 +27,6 @@ function BrandMark({ className }) {
 const heroBg = "/images/hero-background.png";
 const sectionImage =
   "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1600&q=80";
-const cardImgPhone =
-  "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=800&q=80";
-const cardImgLaptop =
-  "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=800&q=80";
-const cardImgPeople =
-  "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=800&q=80";
-
 const FOCUS_VISUALS = [
   {
     src: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=960&q=75",
@@ -51,7 +44,7 @@ const FOCUS_VISUALS = [
     src: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=960&q=75",
     alt: "Two professionals shaking hands across a desk",
     title: "Decide",
-    caption: "Know if it fits—then invest your time.",
+    caption: "Know if it fits-then invest your time.",
   },
 ];
 
@@ -212,45 +205,12 @@ export default function HomePage() {
             ))}
           </ul>
 
-          <p className="home-focus-note">Reading tool only—not medical or career advice.</p>
+          <p className="home-focus-note">Reading tool only-not medical or career advice.</p>
 
           <div className="home-cta-wrap home-focus-cta">
             <Link to="/simplify-job-description" className="home-btn-peach">
               Simplify a posting
             </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="home-band home-band--cream" aria-labelledby="home-contact-title">
-        <div className="home-band-inner home-band-inner--wide">
-          <h2 id="home-contact-title" className="home-section-title">
-            Let’s talk talent
-          </h2>
-          <div className="home-card-grid">
-            <article className="home-card">
-              <img src={cardImgPhone} alt="" className="home-card-img" width={800} height={520} loading="lazy" />
-              <div className="home-card-body">
-                <h3 className="home-card-title">Contact Us</h3>
-              </div>
-            </article>
-            <article className="home-card">
-              <img src={cardImgLaptop} alt="" className="home-card-img" width={800} height={520} loading="lazy" />
-              <div className="home-card-body">
-                <h3 className="home-card-title">Email Us</h3>
-              </div>
-            </article>
-            <article className="home-card">
-              <img src={cardImgPeople} alt="" className="home-card-img" width={800} height={520} loading="lazy" />
-              <div className="home-card-body">
-                <h3 className="home-card-title">
-                  <span className="home-pin" aria-hidden="true">
-                    📍
-                  </span>{" "}
-                  Visit Us
-                </h3>
-              </div>
-            </article>
           </div>
         </div>
       </section>
@@ -270,6 +230,22 @@ export default function HomePage() {
                 <p className="home-faq-answer">{answer}</p>
               </details>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="home-contact-mini" aria-labelledby="home-contact-mini-title">
+        <div className="home-contact-mini-inner">
+          <h2 id="home-contact-mini-title" className="home-contact-mini-title">
+            Let&apos;s talk talent
+          </h2>
+          <div className="home-contact-mini-links">
+            <a href="#" className="home-contact-mini-link">
+              Contact us
+            </a>
+            <a href="mailto:hello@neuroguide.app" className="home-contact-mini-link">
+              Email us
+            </a>
           </div>
         </div>
       </section>
