@@ -1,18 +1,17 @@
-import { useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
 
-const OUTPUT_SECTIONS = [
-  { key: "quick_snapshot", label: "Quick snapshot" },
-  { key: "what_youll_do", label: "What you'll do" },
-  { key: "skills_you_need", label: "Skills you need" },
-  { key: "nice_to_haves", label: "Nice to haves" },
-  { key: "what_the_role_offers", label: "What the role offers" },
+const CARD_SECTIONS = [
+  { key: "basic_info", label: "Basic information" },
+  { key: "responsibilities", label: "Responsibilities" },
+  { key: "skills_qualifications", label: "Skills & qualifications" },
 ];
 
 function hasRenderableSimplifiedOutput(result) {
   if (!result || typeof result !== "object") return false;
-  return OUTPUT_SECTIONS.some(({ key }) => {
+  if (result.summary != null && String(result.summary).trim() !== "") return true;
+  return CARD_SECTIONS.some(({ key }) => {
     const v = result[key];
     return v != null && String(v).trim() !== "";
   });
@@ -71,6 +70,139 @@ function FileAttachmentPreview({ name, typeLabel, isBusy, onRemove }) {
   );
 }
 
+function FlipCardsIcon() {
+  return (
+    <svg className="simplify-flip-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M8 4h9a2 2 0 0 1 2 2v12M8 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M12 11v6M9 14h6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function renderImportantLines(text) {
+  const src = String(text ?? "").replace(/\r\n/g, "\n").trim();
+  if (!src) return null;
+
+  const lines = src.split("\n");
+  const blocks = [];
+  let list = [];
+
+  const flushList = (key) => {
+    if (list.length === 0) return;
+    blocks.push(
+      <ul key={key} className="simplify-flip-card__list">
+        {list.map((li, i) => (
+          <li key={`${key}-${i}`} className="simplify-flip-card__li">
+            {li}
+          </li>
+        ))}
+      </ul>,
+    );
+    list = [];
+  };
+
+  lines.forEach((raw, idx) => {
+    const trimmed = String(raw ?? "").trim();
+    if (!trimmed) {
+      flushList(`ul-${idx}`);
+      blocks.push(<div key={`sp-${idx}`} className="simplify-flip-card__spacer" />);
+      return;
+    }
+
+    const bullet = trimmed.match(/^[-*•]\s+(.+)$/);
+    if (bullet) {
+      list.push(bullet[1]);
+      return;
+    }
+
+    flushList(`ul-${idx}`);
+
+    // Bold "Label:" prefixes to make scanning easier (Basic info / Requirements / Pay / Location, etc.)
+    const m = trimmed.match(/^([A-Za-z][A-Za-z0-9 &'\/().-]{2,40}):\s*(.+)$/);
+    if (m) {
+      const [, label, rest] = m;
+      blocks.push(
+        <p key={`l-${idx}`} className="simplify-flip-card__line">
+          <strong className="simplify-flip-card__label">{label}:</strong> {rest}
+        </p>,
+      );
+      return;
+    }
+
+    blocks.push(
+      <p key={`t-${idx}`} className="simplify-flip-card__line">
+        {trimmed}
+      </p>,
+    );
+  });
+
+  flushList("ul-end");
+  return blocks;
+}
+
+/** Front shows title only; click flips to content (ADHD-friendly: one focus at a time). */
+function SimplifyFlipCard({ cardKey, label, body }) {
+  const [flipped, setFlipped] = useState(false);
+  const text = String(body ?? "").trim();
+  const toggle = () => setFlipped((v) => !v);
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggle();
+    }
+  };
+
+  return (
+    <div className="simplify-flip-card">
+      <div
+        className={`simplify-flip-card__hitbox ${flipped ? "simplify-flip-card__hitbox--flipped" : ""}`}
+        role="button"
+        tabIndex={0}
+        onClick={toggle}
+        onKeyDown={onKeyDown}
+        aria-expanded={flipped}
+        aria-controls={`simplify-flip-panel-${cardKey}`}
+        id={`simplify-flip-trigger-${cardKey}`}
+        aria-label={
+          flipped
+            ? `${label}: details open. Activate to return to the title.`
+            : `${label}. Activate to read this section.`
+        }
+      >
+        <div className="simplify-flip-card__inner">
+          <div className="simplify-flip-card__face simplify-flip-card__face--front">
+            <h3 className="simplify-flip-card__title">{label}</h3>
+            <p className="simplify-flip-card__cta">
+              <FlipCardsIcon />
+              <span>Click to open</span>
+            </p>
+          </div>
+          <div
+            className="simplify-flip-card__face simplify-flip-card__face--back"
+            id={`simplify-flip-panel-${cardKey}`}
+            aria-label={`${label} details`}
+          >
+            <div className="simplify-flip-card__back-head">
+              <span className="simplify-flip-card__back-title">{label}</span>
+            </div>
+            <div className="simplify-flip-card__body">{renderImportantLines(text)}</div>
+            <p className="simplify-flip-card__cta simplify-flip-card__cta--back">
+              <FlipCardsIcon />
+              <span>Flip back</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Decorative shapes only (warm colors, no blue/purple as the main theme). */
 function HeroPaperShapes() {
   return (
@@ -94,6 +226,8 @@ function HeroPaperShapes() {
 
 export default function SimplifyJobDescriptionPage() {
   const {
+    inputMode,
+    setInputMode,
     text,
     setText,
     simplifiedResult,
@@ -110,13 +244,27 @@ export default function SimplifyJobDescriptionPage() {
     validation,
     onFileSelected,
     onSimplify,
+    simplifyEnabled,
   } = useJobDescriptionSimplification();
 
   const fileInputRef = useRef(null);
+  const outputRef = useRef(null);
   const inputId = useId();
   const composerMetaId = useId();
+  const [scrollToOutputOnResult, setScrollToOutputOnResult] = useState(false);
 
-  const simplifyEnabled = validation.ok && !isBusy;
+  const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
+
+  useEffect(() => {
+    if (!scrollToOutputOnResult) return;
+    if (!outputVisible) return;
+    // Let the DOM paint the output first, then scroll.
+    const t = window.setTimeout(() => {
+      outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    setScrollToOutputOnResult(false);
+    return () => window.clearTimeout(t);
+  }, [scrollToOutputOnResult, outputVisible]);
 
   return (
     <div className="simplify-page">
@@ -125,7 +273,7 @@ export default function SimplifyJobDescriptionPage() {
       <header className="simplify-hero" aria-labelledby="simplify-title">
         <div className="simplify-hero-grid">
           <div className="simplify-hero-copy">
-            <p className="simplify-hero-eyebrow">Paste or attach, then simplify</p>
+            <p className="simplify-hero-eyebrow">Paste or upload, then simplify</p>
             <h1 id="simplify-title" className="simplify-hero-title">
               Turn dense postings into something you can actually read.
             </h1>
@@ -153,6 +301,28 @@ export default function SimplifyJobDescriptionPage() {
               Job posting
             </h2>
 
+            <div className="simplify-input-mode" role="group" aria-label="How you want to add the posting">
+              <button
+                type="button"
+                className={`simplify-input-mode-btn ${inputMode === "text" ? "simplify-input-mode-btn--active" : ""}`}
+                aria-pressed={inputMode === "text"}
+                onClick={() => setInputMode("text")}
+              >
+                Paste text
+              </button>
+              <button
+                type="button"
+                className={`simplify-input-mode-btn ${inputMode === "file" ? "simplify-input-mode-btn--active" : ""}`}
+                aria-pressed={inputMode === "file"}
+                onClick={() => setInputMode("file")}
+              >
+                Upload file
+              </button>
+            </div>
+            <p className="simplify-input-mode-hint">
+              Choose one: paste the posting as text, or upload a single file (.txt, .pdf, .doc, .docx). Not both.
+            </p>
+
             <div className="simplify-composer" aria-busy={isExtracting}>
               <input
                 ref={fileInputRef}
@@ -161,14 +331,14 @@ export default function SimplifyJobDescriptionPage() {
                 tabIndex={-1}
                 accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                 aria-hidden="true"
-                disabled={isBusy}
+                disabled={isBusy || inputMode !== "file"}
                 onChange={(e) => {
                   onFileSelected(e.target.files);
                   e.target.value = "";
                 }}
               />
 
-              {attachment ? (
+              {inputMode === "file" && attachment ? (
                 <div className="simplify-composer-attachments">
                   <FileAttachmentPreview
                     name={attachment.name}
@@ -191,56 +361,91 @@ export default function SimplifyJobDescriptionPage() {
                 </div>
               ) : null}
 
-              <label className="sr-only" htmlFor={inputId}>
-                Job description text
-              </label>
-              <textarea
-                id={inputId}
-                className="simplify-composer-input"
-                aria-describedby={composerMetaId}
-                aria-invalid={Boolean(
-                  composerActionError || (!attachment && composerFileError),
-                )}
-                spellCheck="true"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Paste the job posting here."
-              />
+              {inputMode === "text" ? (
+                <>
+                  <label className="sr-only" htmlFor={inputId}>
+                    Job description text
+                  </label>
+                  <textarea
+                    id={inputId}
+                    className="simplify-composer-input"
+                    aria-describedby={composerMetaId}
+                    aria-invalid={Boolean(composerActionError || composerFileError)}
+                    spellCheck="true"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="Paste the job posting here."
+                  />
+                </>
+              ) : (
+                <div className="simplify-file-placeholder">
+                  {!attachment && !isExtracting ? (
+                    <p className="simplify-file-placeholder-lead">
+                      Upload one file with the job posting. We&apos;ll read the text when you submit.
+                    </p>
+                  ) : null}
+                  {attachment && !isExtracting ? (
+                    <button
+                      type="button"
+                      className="simplify-file-replace"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isBusy}
+                    >
+                      Choose a different file
+                    </button>
+                  ) : null}
+                </div>
+              )}
 
-              {composerActionError || (!attachment && composerFileError) ? (
+              {composerActionError || (inputMode === "text" && composerFileError) || (inputMode === "file" && composerFileError) ? (
                 <div className="simplify-composer-error" role="alert">
                   {composerActionError || composerFileError}
                 </div>
               ) : null}
 
               <div className="simplify-composer-footer">
-                <button
-                  type="button"
-                  className="simplify-attach-icon"
-                  disabled={isBusy}
-                  aria-label={isExtracting ? "Reading file" : "Attach job file"}
-                  title="Attach file"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {isExtracting && !attachment ? (
-                    <span className="spinner simplify-attach-spinner" aria-hidden="true" />
-                  ) : (
-                    <PaperclipIcon />
-                  )}
-                </button>
+                {inputMode === "file" ? (
+                  <button
+                    type="button"
+                    className="simplify-attach-icon simplify-attach-icon--file"
+                    disabled={isBusy || Boolean(attachment)}
+                    aria-label={attachment ? "File selected" : "Choose job file"}
+                    title={attachment ? "File selected" : "Choose file"}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {isExtracting && !attachment ? (
+                      <span className="spinner simplify-attach-spinner" aria-hidden="true" />
+                    ) : (
+                      <PaperclipIcon />
+                    )}
+                  </button>
+                ) : (
+                  <span className="simplify-composer-footer-spacer" aria-hidden="true" />
+                )}
 
                 <p id={composerMetaId} className="simplify-composer-meta" role="status">
-                  {!validation.ok && text.trim().length > 0 ? (
-                    <span className="simplify-composer-meta--warn">{validation.message}</span>
+                  {inputMode === "text" ? (
+                    !validation.ok && text.trim().length > 0 ? (
+                      <span className="simplify-composer-meta--warn">{validation.message}</span>
+                    ) : (
+                      <span className="simplify-composer-meta--muted">Paste the full posting · max 5,000 words</span>
+                    )
                   ) : (
-                    <span className="simplify-composer-meta--muted">PDF, Word, or .txt · max 5 MB</span>
+                    <span className="simplify-composer-meta--muted">
+                      {attachment
+                        ? "Submit when ready, or replace the file."
+                        : ".txt, .pdf, .doc, or .docx · max 5 MB"}
+                    </span>
                   )}
                 </p>
 
                 <button
                   type="button"
                   className="simplify-composer-send"
-                  onClick={onSimplify}
+                  onClick={() => {
+                    setScrollToOutputOnResult(true);
+                    onSimplify();
+                  }}
                   disabled={!simplifyEnabled}
                   aria-busy={isSimplifying}
                   aria-label={isSimplifying ? "Simplifying" : "Simplify posting"}
@@ -264,21 +469,30 @@ export default function SimplifyJobDescriptionPage() {
             </div>
           </section>
 
-          {hasRenderableSimplifiedOutput(simplifiedResult) ? (
-            <section className="simplify-output" aria-labelledby="simplify-output-heading">
+          <div className="simplify-alerts">
+            {infoMessage ? (
+              <section className="simplify-alert simplify-alert--ok" role="status" aria-live="polite">
+                {infoMessage}
+              </section>
+            ) : null}
+          </div>
+
+          {outputVisible ? (
+            <section ref={outputRef} className="simplify-output" aria-labelledby="simplify-output-heading">
               <h2 id="simplify-output-heading" className="simplify-output-title">
                 Simplified breakdown
               </h2>
-              <div className="simplify-output-grid">
-                {OUTPUT_SECTIONS.map(({ key, label }) => {
+              {simplifiedResult.summary != null && String(simplifiedResult.summary).trim() !== "" ? (
+                <div className="simplify-summary-block">
+                  <h3 className="simplify-summary-title">Easy summary</h3>
+                  <div className="simplify-summary-body">{String(simplifiedResult.summary)}</div>
+                </div>
+              ) : null}
+              <div className="simplify-output-grid simplify-output-grid--cards">
+                {CARD_SECTIONS.map(({ key, label }) => {
                   const body = simplifiedResult[key];
                   if (body == null || String(body).trim() === "") return null;
-                  return (
-                    <div key={key} className="simplify-output-block">
-                      <h3 className="simplify-output-block-title">{label}</h3>
-                      <p className="simplify-output-block-body">{String(body)}</p>
-                    </div>
-                  );
+                  return <SimplifyFlipCard key={key} cardKey={key} label={label} body={body} />;
                 })}
               </div>
             </section>
@@ -288,14 +502,6 @@ export default function SimplifyJobDescriptionPage() {
 
       <div role="status" aria-live="polite" className="sr-only">
         {isSimplifying ? "Simplifying job description" : ""}
-      </div>
-
-      <div className="simplify-alerts">
-        {infoMessage ? (
-          <section className="simplify-alert simplify-alert--ok" role="status" aria-live="polite">
-            {infoMessage}
-          </section>
-        ) : null}
       </div>
     </div>
   );
