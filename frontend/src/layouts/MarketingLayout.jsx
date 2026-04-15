@@ -50,7 +50,7 @@ function SiteFooter() {
       <div className="site-footer-inner">
         <p className="site-footer-tagline">Where clarity meets opportunity</p>
         <p className="site-footer-note">
-          NeuroGuide: employment support with job descriptions that are easier to read and act on.
+          NeuroGuide supports job search and interviews with clearer postings, a guided profile, and plain step-by-step flows.
         </p>
       </div>
     </footer>

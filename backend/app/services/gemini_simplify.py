@@ -33,9 +33,12 @@ Rules:
    - summary: A gentle, plain-language overview (short paragraphs, bullets OK). Optimize for clarity and
      reduced cognitive load (concrete language, avoid jargon where possible, note structure explicitly).
    - basic_info: Title, employer if stated, location/work arrangement, employment type, pay if stated, schedule.
-   - responsibilities: What the person will do day-to-day, in scannable form.
-   - skills_qualifications: Required and preferred skills, education, certifications, experience.
+   - responsibilities: Output only the 3-4 most important day-to-day duties. Each line must be short
+     (ideally under 12 words), action-first, and easy to scan.
+   - skills_qualifications: Output only the 3-4 most important required skills/qualifications. Each line
+     must be short (ideally under 10 words), concrete, and easy to scan.
 4. Do not invent employer names, salary, or requirements not present in the source; you may say "not stated" where missing.
+5. For responsibilities and skills_qualifications, use concise bullet lines starting with "- ".
 """
 
 
@@ -103,7 +106,7 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
                 ),
             )
         except Exception as first_exc:
-            # JSON response mode is not supported for all model/SDK combos — retry without it.
+            # JSON response mode is not supported for all model/SDK combos - retry without it.
             try:
                 response = model.generate_content(prompt)
             except Exception as second_exc:
@@ -153,8 +156,8 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
         )
 
     return SimplifyResponse(
-        summary=summary or "—",
-        basic_info=basic_info or "—",
-        responsibilities=responsibilities or "—",
-        skills_qualifications=skills or "—",
+        summary=summary or "-",
+        basic_info=basic_info or "-",
+        responsibilities=responsibilities or "-",
+        skills_qualifications=skills or "-",
     )

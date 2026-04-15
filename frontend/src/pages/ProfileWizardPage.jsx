@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { NeuroBrandFlower } from "../components/NeuroBrandFlower.jsx";
 
 const STORAGE_KEY = "neuroguide.skillBackgroundSupportProfile.react.v1";
 const MAX_VISIBLE_SKILL_RESULTS = 20;
 const MAX_VISIBLE_ROLE_RESULTS = 18;
-const MAX_VISIBLE_TOOLS = 18;
+const MAX_SELECTED_ROLES = 3;
 
 const DURATION_OPTIONS = ["< 6 months", "6-12 months", "1-2 years", "2-5 years", "5+ years"];
 const EXPERIENCE_LEVEL_OPTIONS = ["Beginner", "Intermediate", "Advanced"];
@@ -59,43 +59,100 @@ const ROLE_KEYWORDS_FOR_BLUE_COLLAR = [
   "retail"
 ];
 
-const BASE_TOOLS = [
-  "Google Sheets",
-  "Microsoft Excel",
-  "Microsoft Teams",
-  "Slack",
-  "Trello",
-  "Notion",
-  "Canva",
-  "Jira"
-];
-
-const TOOL_MAP_BY_ROLE = [
+const ROLE_SKILL_RULES = [
   {
-    keywords: ["waiter", "barista", "cafe", "restaurant", "hospitality", "kitchen"],
-    tools: ["Square POS", "Lightspeed POS", "Toast POS", "OpenTable", "Deputy"]
+    roleKeywords: ["farmer", "farming", "agriculture", "agricultural"],
+    skillKeywords: ["crop", "harvest", "soil", "irrig", "livestock", "farm", "tractor", "pesticide"],
+    presetSkills: [
+      "Crop planning",
+      "Irrigation management",
+      "Soil preparation",
+      "Harvest coordination",
+      "Livestock care",
+      "Farm equipment operation",
+    ],
   },
   {
-    keywords: ["customer service", "call", "contact centre", "reception"],
-    tools: ["ServiceNow", "Zendesk", "Salesforce Service Cloud", "Freshdesk", "HubSpot CRM"]
+    roleKeywords: ["barista", "cafe", "coffee", "waiter", "hospitality", "restaurant", "kitchen"],
+    skillKeywords: ["customer service", "food", "beverage", "cash", "point of sale", "pos", "clean", "teamwork"],
+    presetSkills: ["Customer service", "Food safety", "POS handling", "Order accuracy", "Team collaboration"],
   },
   {
-    keywords: ["cleaner", "cleaning", "housekeeper", "commercial cleaner"],
-    tools: ["Deputy", "Tanda", "SafetyCulture iAuditor", "Google Keep Checklists"]
+    roleKeywords: ["retail", "sales assistant", "store", "cashier"],
+    skillKeywords: ["customer service", "sales", "merchandising", "cash handling", "point of sale", "stock", "inventory"],
+    presetSkills: ["Customer engagement", "Cash handling", "Stock replenishment", "Merchandising basics"],
   },
   {
-    keywords: ["retail", "checkout", "sales assistant", "storeperson"],
-    tools: ["Square POS", "Shopify POS", "Vend POS", "Cin7", "MYOB"]
+    roleKeywords: ["cleaner", "cleaning", "housekeeper"],
+    skillKeywords: ["clean", "sanit", "hygiene", "safety", "time management", "attention to detail"],
+    presetSkills: ["Sanitisation routines", "Attention to detail", "Time management", "Workplace safety"],
   },
   {
-    keywords: ["warehouse", "logistics", "truck", "delivery", "forklift"],
-    tools: ["SAP EWM", "Fishbowl Inventory", "Unleashed", "Samsara", "GeoOp"]
+    roleKeywords: ["warehouse", "logistics", "driver", "delivery", "forklift"],
+    skillKeywords: ["warehouse", "inventory", "forklift", "dispatch", "loading", "route", "safety", "logistics"],
+    presetSkills: ["Inventory handling", "Safe loading", "Route planning", "Warehouse safety"],
   },
   {
-    keywords: ["software", "ict", "developer", "programmer", "it support"],
-    tools: ["GitHub", "VS Code", "Jira", "Postman", "ServiceNow"]
+    roleKeywords: ["developer", "software", "it support", "programmer", "engineer"],
+    skillKeywords: ["javascript", "python", "debug", "git", "api", "troubleshoot", "sql", "testing"],
+    presetSkills: ["Debugging", "Version control (Git)", "API integration", "Testing and QA"],
+  },
+  {
+    roleKeywords: ["admin", "administration", "reception", "office"],
+    skillKeywords: ["scheduling", "calendar", "document", "data entry", "communication", "organis", "microsoft", "excel"],
+    presetSkills: ["Calendar coordination", "Document management", "Data entry", "Professional communication"],
   }
 ];
+
+const TRANSFERABLE_SKILL_KEYWORDS = [
+  "communication",
+  "team",
+  "organis",
+  "organization",
+  "time management",
+  "problem",
+  "customer",
+  "attention to detail",
+  "planning",
+  "safety"
+];
+
+function getRoleBasedSkillSuggestions(selectedRoles, skillTags) {
+  if (!selectedRoles.length || !skillTags.length) return [];
+  const roleText = selectedRoles.join(" ").toLowerCase();
+  const matchedRules = ROLE_SKILL_RULES.filter((rule) =>
+    rule.roleKeywords.some((keyword) => roleText.includes(keyword))
+  );
+
+  const presetPool = [...new Set(matchedRules.flatMap((rule) => rule.presetSkills || []))];
+  const keywordPool = [...new Set(matchedRules.flatMap((rule) => rule.skillKeywords))];
+  if (keywordPool.length > 0 || presetPool.length > 0) {
+    const matchedFromTaxonomy = skillTags.filter((skill) => {
+      const lower = skill.toLowerCase();
+      return keywordPool.some((kw) => lower.includes(kw));
+    });
+    const combined = [...new Set([...matchedFromTaxonomy, ...presetPool])];
+    if (combined.length > 0) return combined.slice(0, 12);
+  }
+
+  // Conservative fallback: only keep explicit overlap between role words and skill labels.
+  const roleWords = roleText.split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
+  const overlap = skillTags.filter((skill) => {
+    const lower = skill.toLowerCase();
+    return roleWords.some((word) => lower.includes(word));
+  });
+  if (overlap.length > 0) return [...new Set(overlap)].slice(0, 12);
+
+  // Final fallback: always provide core transferable skills so auto-populate never stays empty.
+  const transferable = skillTags.filter((skill) => {
+    const lower = skill.toLowerCase();
+    return TRANSFERABLE_SKILL_KEYWORDS.some((kw) => lower.includes(kw));
+  });
+  if (transferable.length > 0) return [...new Set(transferable)].slice(0, 8);
+
+  // Absolute fallback: deterministic first page of taxonomy skills.
+  return skillTags.slice(0, 8);
+}
 
 const SECTION_ICONS = {
   background: (
@@ -153,17 +210,19 @@ function HeroPaperShapes() {
 function getDefaultState() {
   return {
     currentStepIndex: 0,
+    visitedStepIndices: [0],
     completed: false,
     viewMode: "wizard",
     answers: {
       selectedRoles: [],
       roleSearchQuery: "",
-      experienceLevel: "",
-      durationBand: "",
-      energyPattern: "",
+      roleExperience: {},
+      roleDuration: {},
+      energyPatterns: [],
       selectedSkills: [],
+      autoSelectedSkills: [],
       skillSearchQuery: "",
-      selectedTools: [],
+      removedAutoSkills: [],
       workStyles: [],
       adhdProfileType: "",
       supportNeeds: []
@@ -190,6 +249,7 @@ function loadPersistedState() {
 
     const toArray = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === "string" && item) : []);
     const toText = (value) => (typeof value === "string" ? value : "");
+    const toRecord = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
     const persistedAnswers = { ...parsed.answers };
     delete persistedAnswers.optionalNotes;
 
@@ -197,6 +257,9 @@ function loadPersistedState() {
       ...fallback,
       ...parsed,
       currentStepIndex: Number.isInteger(parsed.currentStepIndex) ? parsed.currentStepIndex : 0,
+      visitedStepIndices: Array.isArray(parsed.visitedStepIndices)
+        ? parsed.visitedStepIndices.filter((idx) => Number.isInteger(idx) && idx >= 0)
+        : [0],
       completed: Boolean(parsed.completed),
       viewMode: parsed.viewMode === "overview" ? "overview" : "wizard",
       answers: {
@@ -204,12 +267,13 @@ function loadPersistedState() {
         ...persistedAnswers,
         selectedRoles: toArray(parsed.answers.selectedRoles),
         roleSearchQuery: toText(parsed.answers.roleSearchQuery),
-        experienceLevel: toText(parsed.answers.experienceLevel),
-        durationBand: toText(parsed.answers.durationBand),
-        energyPattern: toText(parsed.answers.energyPattern),
+        roleExperience: toRecord(parsed.answers.roleExperience),
+        roleDuration: toRecord(parsed.answers.roleDuration),
+        energyPatterns: toArray(parsed.answers.energyPatterns).slice(0, 2),
         selectedSkills: toArray(parsed.answers.selectedSkills),
+        autoSelectedSkills: toArray(parsed.answers.autoSelectedSkills),
         skillSearchQuery: toText(parsed.answers.skillSearchQuery),
-        selectedTools: toArray(parsed.answers.selectedTools),
+        removedAutoSkills: toArray(parsed.answers.removedAutoSkills),
         workStyles: toArray(parsed.answers.workStyles),
         adhdProfileType: toText(parsed.answers.adhdProfileType),
         supportNeeds: toArray(parsed.answers.supportNeeds)
@@ -221,57 +285,48 @@ function loadPersistedState() {
 }
 
 /**
- * Returns role-context tool recommendations.
- *
- * @param {object} answers - Current answer model.
- * @returns {string[]} Unique tools list.
- */
-function getRoleBasedToolSuggestions(answers) {
-  const roleText = [...answers.selectedRoles].join(" ").toLowerCase();
-  const matched = [];
-  for (const rule of TOOL_MAP_BY_ROLE) {
-    if (rule.keywords.some((keyword) => roleText.includes(keyword))) {
-      matched.push(...rule.tools);
-    }
-  }
-  return [...new Set([...matched, ...BASE_TOOLS])].slice(0, MAX_VISIBLE_TOOLS);
-}
-
-/**
  * Validates a single step and returns a message when invalid.
  *
  * @param {number} stepIndex - Current step index.
  * @param {object} answers - Current answer model.
  * @returns {string|null} Validation message or null.
  */
-function validateStep(stepIndex, answers) {
-  if (stepIndex === 0) {
+function validateStep(stepId, answers) {
+  if (stepId === "support") {
+    if (!answers.adhdProfileType) return "Choose ADHD profile type.";
+    if (answers.workStyles.length === 0) return "Select work style.";
+    if (answers.supportNeeds.length === 0) return "Select support preferences.";
+    return null;
+  }
+  if (stepId === "background") {
     if (answers.selectedRoles.length === 0) return "Select at least one role.";
-    if (!answers.experienceLevel) return "Choose experience level.";
+    if (answers.selectedRoles.length > MAX_SELECTED_ROLES) return `You can select up to ${MAX_SELECTED_ROLES} roles.`;
+    const missingLevel = answers.selectedRoles.find((role) => !answers.roleExperience?.[role]);
+    if (missingLevel) return "Set an experience level for each selected role.";
+    const missingDuration = answers.selectedRoles.find((role) => !answers.roleDuration?.[role]);
+    if (missingDuration) return "Set how long you have done each selected role.";
     return null;
   }
-  if (stepIndex === 1) {
-    if (!answers.durationBand) return "Select duration.";
-    if (!answers.energyPattern) return "Select preferred rhythm.";
+  if (stepId === "time") {
+    if (!answers.energyPatterns || answers.energyPatterns.length === 0) return "Select at least one preferred rhythm.";
+    if (answers.energyPatterns.length > 2) return "Select up to 2 preferred rhythms.";
     return null;
   }
-  if (stepIndex === 2) {
+  if (stepId === "skills") {
     if (answers.selectedSkills.length === 0) return "Select at least one skill.";
-    if (answers.selectedTools.length === 0) return "Select at least one tool.";
     return null;
   }
-  if (!answers.adhdProfileType) return "Choose ADHD profile type.";
-  if (answers.workStyles.length === 0) return "Select work style.";
-  if (answers.supportNeeds.length === 0) return "Select support preferences.";
   return null;
 }
 
 export default function ProfileWizardPage() {
+  const location = useLocation();
   const [roleTags, setRoleTags] = useState([]);
   const [skillTags, setSkillTags] = useState([]);
   const [state, setState] = useState(loadPersistedState);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState("error");
+  const [showSuitabilityPlaceholder, setShowSuitabilityPlaceholder] = useState(false);
   const [brandFlowerActive, setBrandFlowerActive] = useState(false);
 
   useEffect(() => {
@@ -320,17 +375,44 @@ export default function ProfileWizardPage() {
     return skillTags.filter((skill) => skill.toLowerCase().includes(q)).slice(0, MAX_VISIBLE_SKILL_RESULTS);
   }, [skillTags, state.answers.skillSearchQuery]);
 
-  const toolOptions = useMemo(() => getRoleBasedToolSuggestions(state.answers), [state.answers]);
+  const autoSuggestedSkills = useMemo(
+    () =>
+      getRoleBasedSkillSuggestions(state.answers.selectedRoles, skillTags).filter(
+        (skill) => !state.answers.removedAutoSkills.includes(skill)
+      ),
+    [state.answers.selectedRoles, state.answers.removedAutoSkills, skillTags]
+  );
 
   const steps = [
-    { title: "Step 1: Your Background", subtitle: "Search role first, then choose level." },
-    { title: "Step 2: Time and Energy", subtitle: "Quick choices only." },
-    { title: "Step 3: Skills and Tools", subtitle: "Search by keyword and choose relevant tools." },
-    { title: "Step 4: Support Setup", subtitle: "Choose ADHD profile, work style, and supports." }
+    { id: "support", title: "Step 1: Support Setup", subtitle: "Choose ADHD profile, work style, and supports." },
+    { id: "background", title: "Step 2: Your Background", subtitle: "What roles have you done, and at what level?" },
+    { id: "skills", title: "Step 3: Skills", subtitle: "Which skills fit your role experience?" },
+    { id: "time", title: "Step 4: Time and Energy", subtitle: "When do you do your best work?" }
   ];
 
   const currentStep = steps[state.currentStepIndex];
   const progressPercent = Math.round(((state.currentStepIndex + 1) / steps.length) * 100);
+  useEffect(() => {
+    setState((prev) => {
+      const manualSkills = prev.answers.selectedSkills.filter((skill) => !prev.answers.autoSelectedSkills.includes(skill));
+      const nextAuto = prev.answers.selectedRoles.length === 0 ? [] : autoSuggestedSkills;
+      const nextSelected = [...manualSkills, ...nextAuto.filter((skill) => !manualSkills.includes(skill))];
+      const noChanges =
+        nextAuto.length === prev.answers.autoSelectedSkills.length &&
+        nextAuto.every((skill, idx) => skill === prev.answers.autoSelectedSkills[idx]) &&
+        nextSelected.length === prev.answers.selectedSkills.length &&
+        nextSelected.every((skill, idx) => skill === prev.answers.selectedSkills[idx]);
+      if (noChanges) return prev;
+      return {
+        ...prev,
+        answers: {
+          ...prev.answers,
+          autoSelectedSkills: nextAuto,
+          selectedSkills: nextSelected,
+        },
+      };
+    });
+  }, [autoSuggestedSkills, state.answers.selectedRoles]);
 
   /**
    * Updates nested answer fields in one immutable state update.
@@ -341,6 +423,32 @@ export default function ProfileWizardPage() {
    */
   const setAnswer = (field, value) =>
     setState((prev) => ({ ...prev, answers: { ...prev.answers, [field]: value } }));
+
+  const setRoleExperience = (role, level) => {
+    setState((prev) => ({
+      ...prev,
+      answers: {
+        ...prev.answers,
+        roleExperience: {
+          ...prev.answers.roleExperience,
+          [role]: prev.answers.roleExperience?.[role] === level ? "" : level,
+        },
+      },
+    }));
+  };
+
+  const setRoleDuration = (role, duration) => {
+    setState((prev) => ({
+      ...prev,
+      answers: {
+        ...prev.answers,
+        roleDuration: {
+          ...prev.answers.roleDuration,
+          [role]: prev.answers.roleDuration?.[role] === duration ? "" : duration,
+        },
+      },
+    }));
+  };
 
   /**
    * Toggles multi-select value in array-based answer field.
@@ -357,6 +465,72 @@ export default function ProfileWizardPage() {
     });
   };
 
+  const toggleRole = (role) => {
+    setState((prev) => {
+      const current = prev.answers.selectedRoles;
+      const alreadySelected = current.includes(role);
+      if (!alreadySelected && current.length >= MAX_SELECTED_ROLES) {
+        setMessage(`You can add up to ${MAX_SELECTED_ROLES} roles.`);
+        setMessageTone("error");
+        return prev;
+      }
+      const nextRoles = alreadySelected ? current.filter((item) => item !== role) : [...current, role];
+      const nextRoleExperience = { ...prev.answers.roleExperience };
+      const nextRoleDuration = { ...prev.answers.roleDuration };
+      if (alreadySelected) {
+        delete nextRoleExperience[role];
+        delete nextRoleDuration[role];
+      }
+      const manualSkills = prev.answers.selectedSkills.filter((skill) => !prev.answers.autoSelectedSkills.includes(skill));
+      return {
+        ...prev,
+        answers: {
+          ...prev.answers,
+          selectedRoles: nextRoles,
+          roleExperience: nextRoleExperience,
+          roleDuration: nextRoleDuration,
+          selectedSkills: manualSkills,
+          autoSelectedSkills: [],
+          removedAutoSkills: [],
+        },
+      };
+    });
+  };
+
+  const addSkill = (raw) => {
+    const skill = String(raw ?? "").trim();
+    if (!skill) return;
+    setState((prev) => {
+      if (prev.answers.selectedSkills.includes(skill)) {
+        return { ...prev, answers: { ...prev.answers, skillSearchQuery: "" } };
+      }
+      return {
+        ...prev,
+        answers: {
+          ...prev.answers,
+          selectedSkills: prev.answers.selectedSkills.includes(skill) ? prev.answers.selectedSkills : [...prev.answers.selectedSkills, skill],
+          autoSelectedSkills: prev.answers.autoSelectedSkills.filter((item) => item !== skill),
+          removedAutoSkills: prev.answers.removedAutoSkills.filter((item) => item !== skill),
+          skillSearchQuery: "",
+        },
+      };
+    });
+  };
+
+  const removeSkill = (skill) => {
+    setState((prev) => ({
+      ...prev,
+      answers: {
+        ...prev.answers,
+        selectedSkills: prev.answers.selectedSkills.filter((item) => item !== skill),
+        autoSelectedSkills: prev.answers.autoSelectedSkills.filter((item) => item !== skill),
+        removedAutoSkills: prev.answers.removedAutoSkills.includes(skill)
+          ? prev.answers.removedAutoSkills
+          : [...prev.answers.removedAutoSkills, skill],
+      },
+    }));
+  };
+
   /**
    * Toggles a single-select string field.
    *
@@ -366,8 +540,20 @@ export default function ProfileWizardPage() {
    */
   const toggleSingle = (field, value) => setAnswer(field, state.answers[field] === value ? "" : value);
 
+  const toggleEnergyPattern = (value) => {
+    setState((prev) => {
+      const current = prev.answers.energyPatterns || [];
+      const alreadySelected = current.includes(value);
+      if (alreadySelected) {
+        return { ...prev, answers: { ...prev.answers, energyPatterns: current.filter((item) => item !== value) } };
+      }
+      if (current.length >= 2) return prev;
+      return { ...prev, answers: { ...prev.answers, energyPatterns: [...current, value] } };
+    });
+  };
+
   const nextStep = () => {
-    const err = validateStep(state.currentStepIndex, state.answers);
+    const err = validateStep(currentStep.id, state.answers);
     if (err) {
       setMessage(err);
       setMessageTone("error");
@@ -375,7 +561,13 @@ export default function ProfileWizardPage() {
     }
     setMessage("");
     if (state.currentStepIndex < steps.length - 1) {
-      setState((prev) => ({ ...prev, currentStepIndex: prev.currentStepIndex + 1 }));
+      setState((prev) => {
+        const nextIndex = prev.currentStepIndex + 1;
+        const visited = prev.visitedStepIndices.includes(nextIndex)
+          ? prev.visitedStepIndices
+          : [...prev.visitedStepIndices, nextIndex];
+        return { ...prev, currentStepIndex: nextIndex, visitedStepIndices: visited };
+      });
       return;
     }
     setState((prev) => ({ ...prev, completed: true, viewMode: "overview" }));
@@ -426,6 +618,95 @@ export default function ProfileWizardPage() {
     );
   };
 
+  const renderRoleSelector = () => {
+    const selectedValues = state.answers.selectedRoles;
+    const visible = roleOptions.filter((item) => !selectedValues.includes(item));
+    return (
+      <>
+        <div className="tag-input-wrap">
+          <div className="selected-tag-list">
+            {selectedValues.map((tag) => (
+              <span key={tag} className="selected-tag">
+                {tag}
+                <button type="button" className="tag-remove-button" onClick={() => toggleRole(tag)}>
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <input
+            value={state.answers.roleSearchQuery}
+            onChange={(e) => setAnswer("roleSearchQuery", e.target.value)}
+            placeholder="Type to add up to 5 roles..."
+          />
+        </div>
+        <p className="role-limit-note">
+          {selectedValues.length}/{MAX_SELECTED_ROLES} roles selected
+        </p>
+        <div className="suggestion-list">
+          {visible.length === 0 ? (
+            <div className="suggestion-empty">No matching keywords</div>
+          ) : (
+            visible.map((item) => (
+              <button key={item} type="button" className="suggestion-row" onClick={() => toggleRole(item)}>
+                <span>{item}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </>
+    );
+  };
+
+  const renderSkillSelector = () => {
+    const selectedValues = state.answers.selectedSkills;
+    const query = state.answers.skillSearchQuery.trim();
+    const visible = skillOptions.filter((item) => !selectedValues.includes(item));
+    const hasExact = selectedValues.some((item) => item.toLowerCase() === query.toLowerCase()) ||
+      visible.some((item) => item.toLowerCase() === query.toLowerCase());
+
+    return (
+      <>
+        <div className="tag-input-wrap">
+          <div className="selected-tag-list">
+            {selectedValues.map((tag) => (
+              <span key={tag} className="selected-tag">
+                {tag}
+                <button type="button" className="tag-remove-button" onClick={() => removeSkill(tag)}>
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <input
+            value={state.answers.skillSearchQuery}
+            onChange={(e) => setAnswer("skillSearchQuery", e.target.value)}
+            placeholder="Type a skill keyword..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addSkill(state.answers.skillSearchQuery);
+              }
+            }}
+          />
+        </div>
+        <div className="suggestion-list">
+          {visible.slice(0, MAX_VISIBLE_SKILL_RESULTS).map((item) => (
+            <button key={item} type="button" className="suggestion-row" onClick={() => addSkill(item)}>
+              <span>{item}</span>
+            </button>
+          ))}
+          {query && !hasExact ? (
+            <button type="button" className="suggestion-row suggestion-row--custom" onClick={() => addSkill(query)}>
+              <span>Add "{query}"</span>
+            </button>
+          ) : null}
+          {!query && visible.length === 0 ? <div className="suggestion-empty">No matching keywords</div> : null}
+        </div>
+      </>
+    );
+  };
+
   const renderChips = (field, options, mode) => (
     <div className="chip-grid">
       {options.map((option) => {
@@ -444,6 +725,28 @@ export default function ProfileWizardPage() {
     </div>
   );
 
+  const renderEnergyPatternCheckboxes = () => (
+    <div className="energy-check-grid" role="group" aria-label="Energy pattern options">
+      {ENERGY_PATTERN_OPTIONS.map((option) => {
+        const selected = (state.answers.energyPatterns || []).includes(option);
+        return (
+          <button
+            key={option}
+            type="button"
+            className={`energy-check-item ${selected ? "is-selected" : ""}`}
+            onClick={() => toggleEnergyPattern(option)}
+            aria-pressed={selected}
+          >
+            <span className={`energy-check-box ${selected ? "is-selected" : ""}`} aria-hidden="true">
+              {selected ? "✓" : ""}
+            </span>
+            <span className="energy-check-label">{option}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const resetAll = () => {
     window.localStorage.removeItem(STORAGE_KEY);
     setState(getDefaultState());
@@ -452,38 +755,61 @@ export default function ProfileWizardPage() {
 
   const summarySections = [
     {
-      id: "background",
-      title: steps[0].title,
-      rows: [
-        { key: "Role(s)", value: state.answers.selectedRoles.join(", ") || "-" },
-        { key: "Level", value: state.answers.experienceLevel || "-" }
-      ]
-    },
-    {
-      id: "time",
-      title: steps[1].title,
-      rows: [
-        { key: "Duration", value: state.answers.durationBand || "-" },
-        { key: "Rhythm", value: state.answers.energyPattern || "-" }
-      ]
-    },
-    {
-      id: "skills",
-      title: steps[2].title,
-      rows: [
-        { key: "Skills", value: state.answers.selectedSkills.join(", ") || "-" },
-        { key: "Tools", value: state.answers.selectedTools.join(", ") || "-" }
-      ]
-    },
-    {
       id: "support",
-      title: steps[3].title,
+      title: "Step 1: Support Setup",
       rows: [
         { key: "ADHD type", value: state.answers.adhdProfileType || "-" },
         { key: "Work style", value: state.answers.workStyles.join(", ") || "-" },
         { key: "Support", value: state.answers.supportNeeds.join(", ") || "-" }
       ]
+    },
+    {
+      id: "background",
+      title: "Step 2: Your Background",
+      rows: [
+        {
+          key: "Role(s)",
+          value:
+            state.answers.selectedRoles
+              .map(
+                (role) =>
+                  `${role} (${state.answers.roleExperience?.[role] || "Level not set"}, ${
+                    state.answers.roleDuration?.[role] || "Duration not set"
+                  })`
+              )
+              .join(", ") || "-",
+        }
+      ]
+    },
+    {
+      id: "skills",
+      title: "Step 3: Skills",
+      rows: [
+        { key: "Skills", value: state.answers.selectedSkills.join(", ") || "-" }
+      ]
+    },
+    {
+      id: "time",
+      title: "Step 4: Time and Energy",
+      rows: [
+        { key: "Rhythm", value: (state.answers.energyPatterns || []).join(", ") || "-" }
+      ]
     }
+  ];
+
+  const previewRows = [
+    { label: "ADHD type", value: state.answers.adhdProfileType || "-" },
+    { label: "Work style", value: state.answers.workStyles.join(", ") || "-" },
+    { label: "Supports", value: state.answers.supportNeeds.join(", ") || "-" },
+    {
+      label: "Roles",
+      value:
+        state.answers.selectedRoles
+          .map((role) => `${role} (${state.answers.roleDuration?.[role] || "-"}, ${state.answers.roleExperience?.[role] || "-"})`)
+          .join(", ") || "-",
+    },
+    { label: "Energy rhythm", value: (state.answers.energyPatterns || []).join(", ") || "-" },
+    { label: "Skills", value: state.answers.selectedSkills.join(", ") || "-" },
   ];
 
   return (
@@ -501,8 +827,18 @@ export default function ProfileWizardPage() {
             </div>
           </Link>
           <nav className="profile-top-nav" aria-label="Site">
-            <Link to="/">Home</Link>
-            <Link to="/simplify-job-description">Simplify job description</Link>
+            <Link to="/" aria-current={location.pathname === "/" ? "page" : undefined}>
+              Home
+            </Link>
+            <Link to="/profile" aria-current={location.pathname === "/profile" ? "page" : undefined}>
+              Profile builder
+            </Link>
+            <Link
+              to="/simplify-job-description"
+              aria-current={location.pathname === "/simplify-job-description" ? "page" : undefined}
+            >
+              Simplify Job Description
+            </Link>
           </nav>
         </div>
       </header>
@@ -529,88 +865,58 @@ export default function ProfileWizardPage() {
       <main className="app-shell">
         <div className={`wizard-layout ${state.viewMode === "overview" ? "overview-mode" : ""}`}>
           {state.viewMode === "wizard" && (
-            <aside className="progress-sidebar">
-              <h2>Progress</h2>
-              <p className="progress-text">
-                {state.currentStepIndex + 1}/{steps.length}
-              </p>
-              <div className="progress-track" role="progressbar" aria-valuenow={progressPercent} aria-valuemin="0" aria-valuemax="100">
-                <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
-              </div>
+            <section className="progress-topbar" aria-label="Progress">
+              <h2 className="progress-inline-title">
+                Progress{" "}
+                <span className="progress-text">
+                  {state.currentStepIndex + 1}/{steps.length}
+                </span>
+              </h2>
               <ol className="progress-list">
                 {steps.map((step, idx) => {
-                  const done = validateStep(idx, state.answers) === null;
+                  const done = state.visitedStepIndices.includes(idx) && validateStep(step.id, state.answers) === null;
                   return (
                     <li key={step.title} className={`progress-item ${idx === state.currentStepIndex ? "is-active" : ""} ${done ? "is-done" : ""}`}>
-                      <button type="button" className="progress-step-button" onClick={() => setState((p) => ({ ...p, currentStepIndex: idx }))}>
-                        Step {idx + 1}
+                      <button
+                        type="button"
+                        className="progress-step-button"
+                        onClick={() =>
+                          setState((p) => ({
+                            ...p,
+                            currentStepIndex: idx,
+                            visitedStepIndices: p.visitedStepIndices.includes(idx)
+                              ? p.visitedStepIndices
+                              : [...p.visitedStepIndices, idx],
+                          }))
+                        }
+                      >
+                        <span className="progress-step-top" aria-hidden="true">
+                          <span className="progress-step-dot">{done ? "✓" : idx + 1}</span>
+                          {idx < steps.length - 1 ? <span className="progress-step-link" /> : null}
+                        </span>
+                        <span className="progress-step-copy">
+                          <span className="progress-step-kicker">Step {idx + 1}</span>
+                          <span className="progress-step-title">{step.title.replace(/^Step \d+:\s*/, "")}</span>
+                        </span>
                       </button>
                     </li>
                   );
                 })}
               </ol>
-            </aside>
+            </section>
           )}
 
           {state.viewMode === "wizard" && (
-            <section className="wizard-card">
-              <h2 className="step-title">{currentStep.title}</h2>
-              <p className="step-description">{currentStep.subtitle}</p>
+            <div className="wizard-main-grid">
+              <section className="wizard-card">
+                <h2 className="step-title">{currentStep.title}</h2>
+                <p className="step-description">{currentStep.subtitle}</p>
 
-              <div className="step-content">
-                {state.currentStepIndex === 0 && (
+                <div className="step-content">
+                {currentStep.id === "support" && (
                   <>
                     <section className="group-card">
-                      {sectionLabel("Search role", state.answers.selectedRoles.length > 0)}
-                      {renderTagSearch(
-                        "selectedRoles",
-                        "roleSearchQuery",
-                        roleOptions,
-                        "e.g. waiter, cleaner, barista, customer service"
-                      )}
-                    </section>
-                    <section className="group-card">
-                      {sectionLabel("Experience level", Boolean(state.answers.experienceLevel))}
-                      {renderChips("experienceLevel", EXPERIENCE_LEVEL_OPTIONS, "single")}
-                    </section>
-                  </>
-                )}
-
-                {state.currentStepIndex === 1 && (
-                  <>
-                    <section className="group-card">
-                      {sectionLabel("How long have you done this work?", Boolean(state.answers.durationBand))}
-                      {renderChips("durationBand", DURATION_OPTIONS, "single")}
-                    </section>
-                    <section className="group-card">
-                      {sectionLabel("What rhythm helps you most?", Boolean(state.answers.energyPattern))}
-                      {renderChips("energyPattern", ENERGY_PATTERN_OPTIONS, "single")}
-                    </section>
-                  </>
-                )}
-
-                {state.currentStepIndex === 2 && (
-                  <>
-                    <section className="group-card">
-                      {sectionLabel("Search skill", state.answers.selectedSkills.length > 0)}
-                      {renderTagSearch(
-                        "selectedSkills",
-                        "skillSearchQuery",
-                        skillOptions,
-                        "e.g. service, communication, planning"
-                      )}
-                    </section>
-                    <section className="group-card">
-                      {sectionLabel("Tools (based on role type)", state.answers.selectedTools.length > 0)}
-                      {renderChips("selectedTools", toolOptions, "multi")}
-                    </section>
-                  </>
-                )}
-
-                {state.currentStepIndex === 3 && (
-                  <>
-                    <section className="group-card">
-                      {sectionLabel("ADHD profile type", Boolean(state.answers.adhdProfileType))}
+                      {sectionLabel("Pick your ADHD profile", Boolean(state.answers.adhdProfileType))}
                       <select
                         value={state.answers.adhdProfileType}
                         onChange={(e) => setAnswer("adhdProfileType", e.target.value)}
@@ -621,39 +927,150 @@ export default function ProfileWizardPage() {
                         <option value="combined">Combined</option>
                       </select>
                     </section>
-                    <section className="group-card">
-                      {sectionLabel("Work style", state.answers.workStyles.length > 0)}
+                    <section className="group-card support-step-theme">
+                      {sectionLabel("Choose your best work style", state.answers.workStyles.length > 0)}
                       {renderChips("workStyles", WORK_STYLE_OPTIONS, "multi")}
                     </section>
-                    <section className="group-card">
-                      {sectionLabel("Support that helps", state.answers.supportNeeds.length > 0)}
+                    <section className="group-card support-step-theme">
+                      {sectionLabel("Choose supports that help you", state.answers.supportNeeds.length > 0)}
                       {renderChips("supportNeeds", SUPPORT_NEED_OPTIONS, "multi")}
                     </section>
                   </>
                 )}
-              </div>
 
-              <p className="error-message" data-tone={messageTone}>
-                {message}
-              </p>
+                {currentStep.id === "background" && (
+                  <>
+                    <section className="group-card roles-step-theme">
+                      {sectionLabel("What roles have you worked in?", state.answers.selectedRoles.length > 0)}
+                      {renderRoleSelector()}
+                    </section>
+                    <section className="group-card">
+                      {sectionLabel(
+                        "Set your experience level for each selected role",
+                        state.answers.selectedRoles.length > 0 &&
+                          state.answers.selectedRoles.every(
+                            (role) => Boolean(state.answers.roleExperience?.[role]) && Boolean(state.answers.roleDuration?.[role])
+                          ),
+                      )}
+                      {state.answers.selectedRoles.length === 0 ? (
+                        <p className="role-level-empty">Add role(s) above to unlock your level-up cards.</p>
+                      ) : (
+                        <div className="role-level-grid">
+                          {state.answers.selectedRoles.map((role, idx) => (
+                            <article key={role} className="role-level-card">
+                              <p className="role-level-order">Role {idx + 1}</p>
+                              <h3 className="role-level-title">{role}</h3>
+                              <p className="role-level-subtitle">How long have you done this role?</p>
+                              <div className="chip-grid role-duration-grid">
+                                {DURATION_OPTIONS.map((duration) => {
+                                  const selected = state.answers.roleDuration?.[role] === duration;
+                                  return (
+                                    <button
+                                      key={`${role}-${duration}`}
+                                      type="button"
+                                      className={`choice-chip ${selected ? "is-selected" : ""}`}
+                                      onClick={() => setRoleDuration(role, duration)}
+                                    >
+                                      {duration}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <p className="role-level-subtitle">What is your experience level in this role?</p>
+                              <div className="chip-grid">
+                                {EXPERIENCE_LEVEL_OPTIONS.map((level) => {
+                                  const selected = state.answers.roleExperience?.[role] === level;
+                                  return (
+                                    <button
+                                      key={`${role}-${level}`}
+                                      type="button"
+                                      className={`choice-chip ${selected ? "is-selected" : ""}`}
+                                      onClick={() => setRoleExperience(role, level)}
+                                    >
+                                      {level}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  </>
+                )}
 
-              <div className="button-row">
-                <button
-                  type="button"
-                  className="button ghost"
-                  disabled={state.currentStepIndex === 0}
-                  onClick={() => setState((p) => ({ ...p, currentStepIndex: Math.max(0, p.currentStepIndex - 1) }))}
-                >
-                  Back
-                </button>
-                <button type="button" className="button secondary" onClick={saveAndExit}>
-                  Save & Exit
-                </button>
-                <button type="button" className="button primary" onClick={nextStep}>
-                  {state.currentStepIndex === steps.length - 1 ? "Finish" : "Next"}
-                </button>
-              </div>
-            </section>
+                {currentStep.id === "time" && (
+                  <>
+                    <section className="group-card time-step-theme">
+                      {sectionLabel("What rhythm helps you most?", (state.answers.energyPatterns || []).length > 0)}
+                      {renderEnergyPatternCheckboxes()}
+                    </section>
+                  </>
+                )}
+
+                {currentStep.id === "skills" && (
+                  <>
+                    <section className="group-card skills-step-theme">
+                      {sectionLabel("Skills auto-added from selected roles (you can edit)", state.answers.selectedSkills.length > 0)}
+                      {renderSkillSelector()}
+                    </section>
+                  </>
+                )}
+                </div>
+
+                <p className="error-message" data-tone={messageTone}>
+                  {message}
+                </p>
+
+                <div className="button-row">
+                  <button type="button" className="button ghost button-clear-all" onClick={resetAll}>
+                    Clear all
+                  </button>
+                  <button
+                    type="button"
+                    className="button ghost"
+                    disabled={state.currentStepIndex === 0}
+                    onClick={() =>
+                      setState((p) => {
+                        const nextIndex = Math.max(0, p.currentStepIndex - 1);
+                        const visited = p.visitedStepIndices.includes(nextIndex)
+                          ? p.visitedStepIndices
+                          : [...p.visitedStepIndices, nextIndex];
+                        return { ...p, currentStepIndex: nextIndex, visitedStepIndices: visited };
+                      })
+                    }
+                  >
+                    Back
+                  </button>
+                  <button type="button" className="button secondary" onClick={saveAndExit}>
+                    Save & Exit
+                  </button>
+                  <button type="button" className="button primary" onClick={nextStep}>
+                    {state.currentStepIndex === steps.length - 1 ? "Finish" : "Next"}
+                  </button>
+                </div>
+              </section>
+              <aside className="profile-preview-card" aria-live="polite">
+                <div className="profile-preview-header">
+                  <div className="profile-preview-avatar" aria-hidden="true">
+                    NG
+                  </div>
+                  <div className="profile-preview-headcopy">
+                    <h3 className="profile-preview-title">Live profile preview</h3>
+                    <p className="profile-preview-subtitle">Dashboard view of your profile progress</p>
+                  </div>
+                </div>
+                <ul className="profile-preview-list">
+                  {previewRows.map((row) => (
+                    <li key={row.label} className="profile-preview-item">
+                      <span className="profile-preview-key">{row.label}</span>
+                      <span className="profile-preview-value">{row.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </aside>
+            </div>
           )}
 
           {state.viewMode === "overview" && (
@@ -685,7 +1102,16 @@ export default function ProfileWizardPage() {
                     <button
                       type="button"
                       className="button secondary"
-                      onClick={() => setState((prev) => ({ ...prev, viewMode: "wizard", currentStepIndex: index }))}
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          viewMode: "wizard",
+                          currentStepIndex: index,
+                          visitedStepIndices: prev.visitedStepIndices.includes(index)
+                            ? prev.visitedStepIndices
+                            : [...prev.visitedStepIndices, index],
+                        }))
+                      }
                     >
                       Edit this step
                     </button>
@@ -693,6 +1119,18 @@ export default function ProfileWizardPage() {
                 ))}
               </div>
               <div className="button-row">
+                <button
+                  type="button"
+                  className="button primary"
+                  onClick={() => setShowSuitabilityPlaceholder(true)}
+                >
+                  Check job suitability score
+                </button>
+                {showSuitabilityPlaceholder ? (
+                  <p className="error-message" data-tone="info">
+                    Functionality part of iteration 3 development
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   className="button ghost"

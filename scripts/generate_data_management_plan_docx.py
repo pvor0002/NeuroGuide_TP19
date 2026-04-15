@@ -160,9 +160,9 @@ def build_code_snippets() -> list[Path]:
     ).strip().split("\n")
 
     specs = [
-        (ASSETS / "snippet_extract_occupations.png", snip1, "build_taxonomy_from_excel.py — role list (Table_1)"),
-        (ASSETS / "snippet_build_skill_labels.png", snip2, "build_taxonomy_from_excel.py — skill tag synthesis"),
-        (ASSETS / "snippet_main_pipeline.png", snip3, "build_taxonomy_from_excel.py — end-to-end pipeline"),
+        (ASSETS / "snippet_extract_occupations.png", snip1, "build_taxonomy_from_excel.py - role list (Table_1)"),
+        (ASSETS / "snippet_build_skill_labels.png", snip2, "build_taxonomy_from_excel.py - skill tag synthesis"),
+        (ASSETS / "snippet_main_pipeline.png", snip3, "build_taxonomy_from_excel.py - end-to-end pipeline"),
     ]
     for path, lines, cap in specs:
         if render_code_png(path, lines, cap):
@@ -191,7 +191,7 @@ def add_source_table(doc: Document) -> None:
     ]
     rows = [
         [
-            "Jobs and Skills Australia — Occupation profiles workbook "
+            "Jobs and Skills Australia - Occupation profiles workbook "
             "(Occupation profiles data - February 2026.xlsx)",
             "Local file under data/; opened with Python openpyxl (read-only)",
             "Per Jobs and Skills Australia publication cycle (replace file when a new edition is released)",
@@ -253,7 +253,7 @@ def main() -> None:
     # Title
     t = doc.add_paragraph()
     t.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = t.add_run("Data Management Plan\nNeuroGuide — Iteration 1")
+    r = t.add_run("Data Management Plan\nNeuroGuide - Iteration 1")
     set_run_font(r, 20, bold=True, color=HEADING_BLUE)
     t.paragraph_format.space_after = Pt(18)
 
@@ -277,7 +277,7 @@ def main() -> None:
     add_para(
         doc,
         "Iteration 1 scope includes: guided skill and background capture, accessibility-oriented input patterns "
-        "where implemented in the prototype, and a job-description simplification experience — delivered primarily "
+        "where implemented in the prototype, and a job-description simplification experience - delivered primarily "
         "as front-end flows backed by curated static taxonomies rather than live model APIs.",
     )
     add_para(doc, "Functions supported by data in this iteration:", bullet=False)
@@ -322,13 +322,13 @@ def main() -> None:
         "and external NLP or speech services subject to privacy review.",
         bullet=False,
     )
-    add_placeholder(doc, "Screenshot — product landing or iteration scope overview")
+    add_placeholder(doc, "Screenshot - product landing or iteration scope overview")
 
     # --- 2 ---
     add_heading_custom(doc, "2. Data sources and update strategy", 1)
     add_heading_custom(doc, "2.1 Open data and project source table", 2)
     add_source_table(doc)
-    add_placeholder(doc, "Screenshot — Jobs and Skills Australia download or attribution page (when final URL confirmed)")
+    add_placeholder(doc, "Screenshot - Jobs and Skills Australia download or attribution page (when final URL confirmed)")
 
     add_heading_custom(doc, "2.2 Principles for selecting data sources", 2)
     for line in [
@@ -365,7 +365,7 @@ def main() -> None:
     add_para(
         doc,
         "Task statements are scanned from Table_3. The first alphabetic token of each task line is treated as a "
-        "leading action verb (proxy for task type). Frequencies are aggregated with collections.Counter — a standard "
+        "leading action verb (proxy for task type). Frequencies are aggregated with collections.Counter - a standard "
         "exploratory step to identify dominant task verbs in the corpus. Only verbs meeting a minimum count threshold "
         "(default 18) are promoted to skill labels, which suppresses long-tail noise while retaining statistically "
         "supported constructs.",
@@ -376,7 +376,7 @@ def main() -> None:
         doc,
         "Occupation titles are deduplicated in dictionary space; when duplicate labels appear with differing employment "
         "count strings, the maximum parsed numeric employment proxy is retained so ranking favours the stronger record. "
-        "The final role list is sorted by descending employment proxy then alphabetically — a transparent, auditable rule.",
+        "The final role list is sorted by descending employment proxy then alphabetically - a transparent, auditable rule.",
     )
     add_para(
         doc,
@@ -420,14 +420,14 @@ def main() -> None:
         doc.add_picture(str(pth), width=Inches(6.2))
         doc.add_paragraph()
     if not snippet_paths:
-        add_placeholder(doc, "Screenshot — scripts/build_taxonomy_from_excel.py in IDE (if image generation unavailable)")
+        add_placeholder(doc, "Screenshot - scripts/build_taxonomy_from_excel.py in IDE (if image generation unavailable)")
 
     add_heading_custom(doc, "3.3 Transposition into the application", 2)
     add_para(
         doc,
         "Clean JSON arrays transpose directly into UI affordances: searchable multi-select tags for roles and skills. "
         "The pattern matches standard practice: cleaned, stable artefacts exposed to the client in a shape the UI "
-        "can consume directly — here via static hosting and fetch() rather than a dynamic query API.",
+        "can consume directly - here via static hosting and fetch() rather than a dynamic query API.",
     )
 
     add_heading_custom(doc, "3.4 Storage and archiving", 2)
@@ -437,7 +437,7 @@ def main() -> None:
         "Retain superseded Excel files with a dated filename or branch tag before overwriting.",
     ]:
         add_para(doc, line, bullet=True)
-    add_placeholder(doc, "Iteration 2 — S3 / database ERD or bucket policy screenshot for résumé and profile API")
+    add_placeholder(doc, "Iteration 2 - S3 / database ERD or bucket policy screenshot for résumé and profile API")
 
     # --- 4 ---
     add_heading_custom(doc, "4. Data update frequency and iteration process", 1)
@@ -447,7 +447,7 @@ def main() -> None:
         "Teaching feedback: incorporate Monash / client feedback into threshold or mapping tweaks and document changes in this DMP.",
     ]:
         add_para(doc, line, bullet=True)
-    add_placeholder(doc, "Iteration 2 — planned cadence for ADHD modelling datasets and API monitoring")
+    add_placeholder(doc, "Iteration 2 - planned cadence for ADHD modelling datasets and API monitoring")
 
     # --- 5 ---
     add_heading_custom(doc, "5. Storage strategy", 1)
@@ -466,7 +466,7 @@ def main() -> None:
         ("au-role-taxonomy.json / au-skills-taxonomy.json", "Yes", "data/ → dist/ on build", "Git diff + changelog entry"),
         ("User profile draft (prototype)", "Optional local", "Browser localStorage", "User-controlled; not server-backed"),
         ("Internal product / requirements notes", "As applicable", "Team repository or wiki", "Version with release or submission package"),
-        ("Iteration 2 — embeddings / models", "[Planned]", "[TBD]", "[Placeholder: model registry / versioned artifacts]"),
+        ("Iteration 2 - embeddings / models", "[Planned]", "[TBD]", "[Placeholder: model registry / versioned artifacts]"),
     ]
     for i, row in enumerate(storage_rows, start=1):
         for j, val in enumerate(row):
@@ -506,7 +506,7 @@ def main() -> None:
         "scores, and optional behavioural or attention-profile inputs to tailor content presentation.",
         bullet=False,
     )
-    add_placeholder(doc, "Entity-relationship diagram or vector model diagram — Iteration 2")
+    add_placeholder(doc, "Entity-relationship diagram or vector model diagram - Iteration 2")
 
     add_heading_custom(doc, "6.2 Modelling techniques and rationale", 2)
     add_para(
@@ -515,7 +515,7 @@ def main() -> None:
         "rules for label synthesis. This provides an interpretable baseline before predictive models consume "
         "the same tags.",
     )
-    add_placeholder(doc, "Iteration 2 — scikit-learn cosine similarity / feature pipeline description")
+    add_placeholder(doc, "Iteration 2 - scikit-learn cosine similarity / feature pipeline description")
 
     # --- 7 ---
     add_heading_custom(doc, "7. Ethical, legal and privacy issues", 1)
@@ -540,9 +540,9 @@ def main() -> None:
         doc,
         "The current prototype does not send profile payloads to a team-controlled backend. Iteration 2+ plans "
         "(résumé uploads, voice, suitability persistence) require encryption in transit, access controls, and clear "
-        "retention policy — placeholder for security architecture screenshot and DPIA summary.",
+        "retention policy - placeholder for security architecture screenshot and DPIA summary.",
     )
-    add_placeholder(doc, "Screenshot — privacy posture / threat model workshop whiteboard (Iteration 2)")
+    add_placeholder(doc, "Screenshot - privacy posture / threat model workshop whiteboard (Iteration 2)")
 
     # --- 8 ---
     add_heading_custom(doc, "8. Alignment with problem domain and user needs", 1)
@@ -553,7 +553,7 @@ def main() -> None:
         "organisation before value is delivered. Data design priorities are clarity, reproducibility, and minimal "
         "collection of sensitive information in this iteration.",
     )
-    add_placeholder(doc, "Screenshot — user journey or needs summary (optional)")
+    add_placeholder(doc, "Screenshot - user journey or needs summary (optional)")
 
     # --- 9 ---
     add_heading_custom(doc, "9. Summary", 1)

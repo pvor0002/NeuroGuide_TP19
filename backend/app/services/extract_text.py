@@ -59,7 +59,7 @@ async def extract_text_from_upload(file: UploadFile) -> tuple[str, list[str]]:
         text = "\n".join(parts).strip()
         return text, warnings
 
-    # .doc — legacy binary format; avoid heavy native dependencies
+    # .doc - legacy binary format; avoid heavy native dependencies
     raise HTTPException(
         status_code=422,
         detail=(
