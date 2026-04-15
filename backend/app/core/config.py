@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,12 +16,12 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     debug: bool = True
 
-    gemini_api_key: str | None = None
+    gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-2.5-flash"
 
     @field_validator("gemini_api_key", mode="before")
     @classmethod
-    def empty_key_to_none(cls, v: object) -> str | None:
+    def empty_key_to_none(cls, v: object) -> Optional[str]:
         if v is None:
             return None
         if isinstance(v, str) and not v.strip():
