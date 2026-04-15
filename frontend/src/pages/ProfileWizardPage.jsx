@@ -59,52 +59,99 @@ const ROLE_KEYWORDS_FOR_BLUE_COLLAR = [
   "retail"
 ];
 
-const ROLE_SKILL_HINTS = [
+const ROLE_SKILL_RULES = [
   {
     roleKeywords: ["farmer", "farming", "agriculture", "agricultural"],
-    skillKeywords: ["farm", "crop", "irrig", "harvest", "soil", "tractor", "livestock", "agricultur", "pesticide"]
+    skillKeywords: ["crop", "harvest", "soil", "irrig", "livestock", "farm", "tractor", "pesticide"],
+    presetSkills: [
+      "Crop planning",
+      "Irrigation management",
+      "Soil preparation",
+      "Harvest coordination",
+      "Livestock care",
+      "Farm equipment operation",
+    ],
+  },
+  {
+    roleKeywords: ["barista", "cafe", "coffee", "waiter", "hospitality", "restaurant", "kitchen"],
+    skillKeywords: ["customer service", "food", "beverage", "cash", "point of sale", "pos", "clean", "teamwork"],
+    presetSkills: ["Customer service", "Food safety", "POS handling", "Order accuracy", "Team collaboration"],
+  },
+  {
+    roleKeywords: ["retail", "sales assistant", "store", "cashier"],
+    skillKeywords: ["customer service", "sales", "merchandising", "cash handling", "point of sale", "stock", "inventory"],
+    presetSkills: ["Customer engagement", "Cash handling", "Stock replenishment", "Merchandising basics"],
+  },
+  {
+    roleKeywords: ["cleaner", "cleaning", "housekeeper"],
+    skillKeywords: ["clean", "sanit", "hygiene", "safety", "time management", "attention to detail"],
+    presetSkills: ["Sanitisation routines", "Attention to detail", "Time management", "Workplace safety"],
+  },
+  {
+    roleKeywords: ["warehouse", "logistics", "driver", "delivery", "forklift"],
+    skillKeywords: ["warehouse", "inventory", "forklift", "dispatch", "loading", "route", "safety", "logistics"],
+    presetSkills: ["Inventory handling", "Safe loading", "Route planning", "Warehouse safety"],
+  },
+  {
+    roleKeywords: ["developer", "software", "it support", "programmer", "engineer"],
+    skillKeywords: ["javascript", "python", "debug", "git", "api", "troubleshoot", "sql", "testing"],
+    presetSkills: ["Debugging", "Version control (Git)", "API integration", "Testing and QA"],
+  },
+  {
+    roleKeywords: ["admin", "administration", "reception", "office"],
+    skillKeywords: ["scheduling", "calendar", "document", "data entry", "communication", "organis", "microsoft", "excel"],
+    presetSkills: ["Calendar coordination", "Document management", "Data entry", "Professional communication"],
   }
 ];
 
-function getRoleBasedSkillSuggestions(selectedRoles, skillTags) {
-  const joinedRoles = selectedRoles.join(" ").toLowerCase();
-  const hintedKeywords = ROLE_SKILL_HINTS.filter((hint) =>
-    hint.roleKeywords.some((keyword) => joinedRoles.includes(keyword))
-  ).flatMap((hint) => hint.skillKeywords);
+const TRANSFERABLE_SKILL_KEYWORDS = [
+  "communication",
+  "team",
+  "organis",
+  "organization",
+  "time management",
+  "problem",
+  "customer",
+  "attention to detail",
+  "planning",
+  "safety"
+];
 
-  if (hintedKeywords.length > 0) {
-    const hinted = skillTags.filter((skill) => {
+function getRoleBasedSkillSuggestions(selectedRoles, skillTags) {
+  if (!selectedRoles.length || !skillTags.length) return [];
+  const roleText = selectedRoles.join(" ").toLowerCase();
+  const matchedRules = ROLE_SKILL_RULES.filter((rule) =>
+    rule.roleKeywords.some((keyword) => roleText.includes(keyword))
+  );
+
+  const presetPool = [...new Set(matchedRules.flatMap((rule) => rule.presetSkills || []))];
+  const keywordPool = [...new Set(matchedRules.flatMap((rule) => rule.skillKeywords))];
+  if (keywordPool.length > 0 || presetPool.length > 0) {
+    const matchedFromTaxonomy = skillTags.filter((skill) => {
       const lower = skill.toLowerCase();
-      return hintedKeywords.some((keyword) => lower.includes(keyword));
+      return keywordPool.some((kw) => lower.includes(kw));
     });
-    if (hinted.length > 0) return hinted.slice(0, 12);
+    const combined = [...new Set([...matchedFromTaxonomy, ...presetPool])];
+    if (combined.length > 0) return combined.slice(0, 12);
   }
 
-  const roleWords = new Set(
-    selectedRoles
-      .join(" ")
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter((token) => token.length >= 3)
-  );
-  const scored = skillTags
-    .map((skill) => {
-      const lower = skill.toLowerCase();
-      let score = 0;
-      for (const word of roleWords) {
-        if (lower.includes(word)) score += 1;
-      }
-      return { skill, score };
-    })
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score || a.skill.localeCompare(b.skill))
-    .map((item) => item.skill);
+  // Conservative fallback: only keep explicit overlap between role words and skill labels.
+  const roleWords = roleText.split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
+  const overlap = skillTags.filter((skill) => {
+    const lower = skill.toLowerCase();
+    return roleWords.some((word) => lower.includes(word));
+  });
+  if (overlap.length > 0) return [...new Set(overlap)].slice(0, 12);
 
-  if (scored.length > 0) return scored.slice(0, 12);
-  const seed = joinedRoles.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-  const start = skillTags.length > 0 ? seed % skillTags.length : 0;
-  const rotated = [...skillTags.slice(start), ...skillTags.slice(0, start)];
-  return rotated.slice(0, 8);
+  // Final fallback: always provide core transferable skills so auto-populate never stays empty.
+  const transferable = skillTags.filter((skill) => {
+    const lower = skill.toLowerCase();
+    return TRANSFERABLE_SKILL_KEYWORDS.some((kw) => lower.includes(kw));
+  });
+  if (transferable.length > 0) return [...new Set(transferable)].slice(0, 8);
+
+  // Absolute fallback: deterministic first page of taxonomy skills.
+  return skillTags.slice(0, 8);
 }
 
 const SECTION_ICONS = {
