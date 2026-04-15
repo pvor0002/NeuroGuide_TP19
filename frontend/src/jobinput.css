@@ -819,6 +819,10 @@ a.btn.btn-primary:hover {
   border-bottom: 1px solid rgba(45, 41, 38, 0.05);
 }
 
+.home-band.home-band--focus {
+  padding-block: clamp(4.25rem, 9.5vw, 6.5rem);
+}
+
 .home-focus-inner {
   text-align: center;
 }
@@ -829,25 +833,30 @@ a.btn.btn-primary:hover {
 }
 
 .home-focus-eyebrow {
-  margin: 0 0 0.75rem;
-  font-size: 0.68rem;
+  margin: 0 0 0.85rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: #8f6f5e;
 }
 
+.home-focus-title.home-section-title {
+  font-size: clamp(1.95rem, 4.2vw, 2.85rem);
+}
+
 .home-focus-title.home-section-title::after {
-  margin-top: 0.95rem;
+  margin-top: 1.05rem;
+  width: 3.6rem;
 }
 
 .home-focus-grid {
   list-style: none;
-  margin: clamp(2rem, 4.5vw, 2.75rem) 0 0;
+  margin: clamp(2.35rem, 5vw, 3.1rem) 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(1rem, 2.2vw, 1.35rem);
+  gap: clamp(1.15rem, 2.5vw, 1.65rem);
   text-align: left;
 }
 
@@ -875,15 +884,16 @@ a.btn.btn-primary:hover {
   flex-direction: column;
   background: #fffdfb;
   border: 1px solid rgba(45, 41, 38, 0.07);
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(45, 41, 38, 0.06);
+  box-shadow: 0 14px 44px rgba(45, 41, 38, 0.07);
 }
 
 .home-focus-img {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
+  max-height: min(260px, 48vw);
   object-fit: cover;
   object-position: center;
   filter: saturate(0.92) contrast(1.02);
@@ -891,25 +901,25 @@ a.btn.btn-primary:hover {
 
 .home-focus-cap {
   position: relative;
-  padding: clamp(1.1rem, 2.4vw, 1.35rem) clamp(1.1rem, 2.4vw, 1.35rem) clamp(1.2rem, 2.6vw, 1.45rem);
+  padding: clamp(1.2rem, 2.6vw, 1.45rem) clamp(1.15rem, 2.5vw, 1.4rem) clamp(1.3rem, 2.8vw, 1.55rem);
   border-top: 1px solid rgba(45, 41, 38, 0.06);
   flex: 1;
 }
 
 .home-focus-index {
   position: absolute;
-  top: clamp(1rem, 2.2vw, 1.25rem);
-  right: clamp(1rem, 2.2vw, 1.25rem);
-  font-size: 0.65rem;
+  top: clamp(1.05rem, 2.3vw, 1.3rem);
+  right: clamp(1.05rem, 2.3vw, 1.3rem);
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: rgba(45, 41, 38, 0.28);
 }
 
 .home-focus-card-title {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.4rem;
   padding-right: 2rem;
-  font-size: clamp(1.05rem, 2vw, 1.18rem);
+  font-size: clamp(1.12rem, 2.15vw, 1.3rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.15;
@@ -918,24 +928,19 @@ a.btn.btn-primary:hover {
 
 .home-focus-card-caption {
   margin: 0;
-  font-size: 0.88rem;
-  line-height: 1.5;
+  font-size: 0.94rem;
+  line-height: 1.55;
   font-weight: 500;
   color: #5c544e;
 }
 
 .home-focus-note {
-  margin: clamp(1.5rem, 3vw, 2rem) auto 0;
+  margin: clamp(1.75rem, 3.2vw, 2.25rem) auto 0;
   max-width: 28rem;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   letter-spacing: 0.02em;
   line-height: 1.45;
   color: #8a817b;
-}
-
-.home-focus-cta {
-  margin-top: 1.35rem;
-  margin-bottom: 0;
 }
 
 .home-card-grid {

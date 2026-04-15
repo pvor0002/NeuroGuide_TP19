@@ -30,21 +30,21 @@ const sectionImage =
 const FOCUS_VISUALS = [
   {
     src: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=960&q=75",
-    alt: "Professional reviewing work on a laptop in a bright office",
+    alt: "Professional reviewing structured notes on a laptop in a bright office",
     title: "Scan",
-    caption: "Sections instead of walls of text.",
+    caption:
+      "What you’ll do, skills you need, nice-to-haves, and what the role offers each in its own short section.",
   },
   {
     src: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=960&q=75",
-    alt: "Organized desk with laptop, notebook, and coffee",
+    alt: "Organized desk with laptop, notebook, and coffee for comparing role details",
     title: "Compare",
-    caption: "Role, tasks, and skills in one view.",
-  },
+    caption: "Role, tasks, and skills in one view.",},
   {
     src: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=960&q=75",
-    alt: "Two professionals shaking hands across a desk",
+    alt: "Two professionals shaking hands across a desk after reviewing a fit",
     title: "Decide",
-    caption: "Know if it fits-then invest your time.",
+    caption: "Know if it fits you, then invest your time.",
   },
 ];
 
@@ -53,31 +53,25 @@ const FAQ_ITEMS = [
     id: "faq-what",
     question: "What is NeuroGuide for?",
     answer:
-      "NeuroGuide helps you understand job postings and prepare for interviews with shorter prompts, clearer structure, and tools that respect how you focus and process information.",
+      "It helps you read job posts in shorter chunks with clear headings. It also walks you through a simple profile so you can save how you describe your skills and experience.",
   },
   {
     id: "faq-profile-storage",
     question: "Where does my profile information go?",
     answer:
-      "The guided profile builder saves your answers in this browser so you can pause and come back later. It is not sent to our servers unless you choose to share or export it elsewhere yourself.",
+      "It is saved only in your browser on this device. You can close the tab and come back later.",
   },
   {
     id: "faq-simplify",
     question: "How does “Simplify Job Description” work?",
     answer:
-      "You paste or upload a posting; NeuroGuide asks a backend service to rewrite it into plain sections such as what you will do, skills you need, and what the role offers. You need the API running locally (or deployed) for live simplification.",
+      "You paste the posting or upload a file. NeuroGuide gives you a version split into shorter parts with headings so it is easier to read. If nothing comes back, simplify may not be ready for you yet.",
   },
   {
     id: "faq-account",
     question: "Do I need an account?",
     answer:
-      "No account is required for this prototype. You can explore the home page, try the profile builder, and use Simplify when your environment is connected to the API.",
-  },
-  {
-    id: "faq-accuracy",
-    question: "Should I rely on the simplified text alone?",
-    answer:
-      "Treat simplified output as a reading aid, not legal advice or a substitute for the employer’s official posting. Always confirm details like pay, hours, and requirements with the source listing or the employer.",
+      "No. There is no login or password for this version.",
   },
 ];
 
@@ -140,35 +134,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="home-band home-band--white" aria-labelledby="home-next-title">
-        <div className="home-band-inner">
-          <h2 id="home-next-title" className="home-section-title">
-            Looking for what’s next?
-          </h2>
-          <p className="home-section-lead">
-            Find your next role and take the leap: start with a posting you can actually read, then explore what fits.
-          </p>
-          <div className="home-cta-wrap">
-            <Link to="/profile" className="home-btn-peach home-btn-peach--secondary">
-              Build your profile
-            </Link>
-            <Link to="/simplify-job-description" className="home-btn-peach">
-              Simplify Job Description
-            </Link>
-          </div>
-          <figure className="home-feature-figure">
-            <img
-              src={sectionImage}
-              alt="Hands writing notes in a planner on a light wood desk"
-              className="home-feature-img"
-              width={1600}
-              height={900}
-              loading="lazy"
-            />
-          </figure>
-        </div>
-      </section>
-
       <section className="home-band home-band--focus" aria-labelledby="home-focus-title">
         <div className="home-band-inner home-band-inner--wide home-focus-inner">
           <header className="home-focus-head">
@@ -188,7 +153,7 @@ export default function HomePage() {
                       alt={item.alt}
                       className="home-focus-img"
                       width={960}
-                      height={720}
+                      height={540}
                       loading="lazy"
                       decoding="async"
                     />
@@ -205,13 +170,36 @@ export default function HomePage() {
             ))}
           </ul>
 
-          <p className="home-focus-note">Reading tool only-not medical or career advice.</p>
+          <p className="home-focus-note">Reading tool only—not medical or career advice.</p>
+        </div>
+      </section>
 
-          <div className="home-cta-wrap home-focus-cta">
+      <section className="home-band home-band--white" aria-labelledby="home-next-title">
+        <div className="home-band-inner">
+          <h2 id="home-next-title" className="home-section-title">
+            Looking for what’s next?
+          </h2>
+          <p className="home-section-lead">
+            Start with a posting broken into short, scannable sections. When you are ready, capture how you fit in the guided profile builder.
+          </p>
+          <div className="home-cta-wrap">
+            <Link to="/profile" className="home-btn-peach">
+              Build your profile
+            </Link>
             <Link to="/simplify-job-description" className="home-btn-peach">
-              Simplify a posting
+              Simplify Job Description
             </Link>
           </div>
+          <figure className="home-feature-figure">
+            <img
+              src={sectionImage}
+              alt="Hands writing notes in a planner on a light wood desk"
+              className="home-feature-img"
+              width={1600}
+              height={900}
+              loading="lazy"
+            />
+          </figure>
         </div>
       </section>
 
