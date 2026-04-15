@@ -1,5 +1,9 @@
 fastapi
+python-multipart
 uvicorn[standard]
 pydantic-settings
 pytest
 httpx
+google-generativeai
+pypdf
+python-docx

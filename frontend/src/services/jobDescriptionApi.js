@@ -1,4 +1,4 @@
-const API_BASE = "/api";
+const API_BASE = "/api/v1";
 
 /**
  * Set VITE_SIMPLIFY_API=0 to hide simplify actions when no backend is available.
@@ -16,6 +16,30 @@ async function readJsonOrText(res) {
   } catch {
     return { detail: text };
   }
+}
+
+/** FastAPI often returns `detail` as a string, or a list of validation errors. */
+function detailToMessage(detail) {
+  if (detail == null) return "";
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (item && typeof item === "object" && "msg" in item) return String(item.msg);
+        return String(item);
+      })
+      .filter(Boolean)
+      .join(" ");
+  }
+  if (typeof detail === "object" && "message" in detail) return String(detail.message);
+  return "";
+}
+
+function apiFailureMessage(res, err) {
+  const fromDetail = detailToMessage(err?.detail);
+  if (fromDetail) return fromDetail;
+  if (err?.message && typeof err.message === "string") return err.message;
+  return `Request failed (${res.status}). Is the backend running on http://127.0.0.1:8000 ?`;
 }
 
 export async function extractUploadedJobDescription(file) {
@@ -36,11 +60,7 @@ export async function extractUploadedJobDescription(file) {
 
   if (!res.ok) {
     const err = await readJsonOrText(res);
-    const msg =
-      typeof err?.detail === "string"
-        ? err.detail
-        : err?.message || `Extract failed (${res.status}). Paste text or start the API server.`;
-    throw new Error(msg);
+    throw new Error(apiFailureMessage(res, err) || `Extract failed (${res.status}).`);
   }
 
   return readJsonOrText(res);
@@ -55,11 +75,7 @@ export async function simplifyJobDescription(text) {
 
   if (!res.ok) {
     const err = await readJsonOrText(res);
-    const msg =
-      typeof err?.detail === "string"
-        ? err.detail
-        : err?.message || `Simplify failed (${res.status}). Is the API server running?`;
-    throw new Error(msg);
+    throw new Error(apiFailureMessage(res, err) || `Simplify failed (${res.status}).`);
   }
 
   return readJsonOrText(res);
