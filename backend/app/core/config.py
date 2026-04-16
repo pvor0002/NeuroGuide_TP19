@@ -16,12 +16,10 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     debug: bool = True
 
-    cors_origins: list[str] = Field(
-        default_factory=lambda: [
-            "https://neuroguide-rho.vercel.app",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ]
+    # Keep this as a *string* because pydantic-settings will otherwise try to JSON-decode
+    # env vars for complex types (e.g. list[str]) and crash on comma-separated values.
+    cors_origins: str = Field(
+        default="https://neuroguide-rho.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
     )
 
     gemini_api_key: Optional[str] = None
@@ -29,16 +27,19 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_allowed_origins(cls, v: object) -> list[str]:
+    def normalize_cors_origins(cls, v: object) -> str:
         if v is None:
-            return []
+            return ""
         if isinstance(v, str):
-            # Accept comma-separated env var: CORS_ORIGINS="a,b,c"
-            items = [item.strip() for item in v.split(",")]
-            return [item for item in items if item]
+            return v
         if isinstance(v, (list, tuple, set)):
-            return [str(item).strip() for item in v if str(item).strip()]
-        return [str(v).strip()] if str(v).strip() else []
+            return ",".join(str(item).strip() for item in v if str(item).strip())
+        return str(v)
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        items = [item.strip() for item in self.cors_origins.split(",")]
+        return [item for item in items if item]
 
     @field_validator("gemini_api_key", mode="before")
     @classmethod
