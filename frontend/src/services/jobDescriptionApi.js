@@ -1,4 +1,5 @@
-const API_BASE = "https://neuroguide-tp19.onrender.com/api/v1";
+const DEFAULT_API_BASE = "http://127.0.0.1:8000/api/v1";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE).replace(/\/+$/, "");
 
 /**
  * Set VITE_SIMPLIFY_API=0 to hide simplify actions when no backend is available.
@@ -39,7 +40,7 @@ function apiFailureMessage(res, err) {
   const fromDetail = detailToMessage(err?.detail);
   if (fromDetail) return fromDetail;
   if (err?.message && typeof err.message === "string") return err.message;
-  return `Request failed (${res.status}). Is the backend running on https://neuroguide-tp19.onrender.com ?`;
+  return `Request failed (${res.status}). Is the backend running on ${API_BASE} ?`;
 }
 
 export async function extractUploadedJobDescription(file) {
