@@ -493,14 +493,6 @@ export default function SimplifyJobDescriptionPage() {
       </header>
 
       <div className="simplify-studio">
-        <aside className="simplify-rail" aria-hidden="true">
-          <div className="simplify-rail-track">
-            <span className="simplify-rail-node">1</span>
-            <span className="simplify-rail-spine" />
-            <span className="simplify-rail-node">2</span>
-          </div>
-        </aside>
-
         <div className="simplify-workspace">
           <section className="simplify-card simplify-card--a simplify-chat-card" aria-labelledby="simplify-input-heading">
             <div className="simplify-card-tag">Your posting</div>

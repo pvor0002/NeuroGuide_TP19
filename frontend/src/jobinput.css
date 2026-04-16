@@ -1263,89 +1263,25 @@ a.btn.btn-primary:hover {
   max-width: 1000px;
   margin: 0 auto;
   padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 3vw, 1.5rem) 1rem;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: clamp(1.1rem, 3vw, 2.2rem);
-  align-items: start;
-}
-
-@media (max-width: 640px) {
-  .simplify-studio {
-    grid-template-columns: 1fr;
-  }
-
-  .simplify-rail {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    padding: 0.25rem 0 0.5rem;
-  }
-
-  .simplify-rail-track {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .simplify-rail-spine {
-    width: 1.75rem;
-    height: 2px;
-    min-height: 0;
-    margin: 0 0.15rem;
-  }
-}
-
-.simplify-rail {
-  display: flex;
-  flex-direction: column;
-  padding-top: 0.5rem;
-}
-
-.simplify-rail-track {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-
-.simplify-rail-node {
-  width: 2.35rem;
-  height: 2.35rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 0.95rem;
-  border: 2px solid transparent;
-}
-
-.simplify-rail-track .simplify-rail-node:nth-child(1) {
-  background: #e3f0e5;
-  border-color: #4a7c59;
-  color: #1e3d28;
-  box-shadow: 2px 3px 0 rgba(74, 124, 89, 0.28);
-}
-
-.simplify-rail-track .simplify-rail-node:nth-child(3) {
-  background: #fce8e8;
-  border-color: #b84a4a;
-  color: #4a1818;
-  box-shadow: 2px 3px 0 rgba(184, 74, 74, 0.22);
-}
-
-.simplify-rail-spine {
-  width: 3px;
-  min-height: 2.25rem;
-  margin: 0.15rem 0;
-  background: linear-gradient(180deg, #7d9f82, #c76a6a);
-  border-radius: 3px;
-  opacity: 0.85;
 }
 
 .simplify-workspace {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 1.35rem;
+}
+
+.simplify-workspace .simplify-chat-card,
+.simplify-workspace .simplify-alerts {
+  width: 100%;
+  max-width: min(100%, 58rem);
+}
+
+.simplify-workspace .simplify-output {
+  align-self: stretch;
+  width: 100%;
+  max-width: none;
 }
 
 .simplify-card {
