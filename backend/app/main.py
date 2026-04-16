@@ -9,7 +9,7 @@ settings = get_settings()
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.cors_origins_list,
     allow_origin_regex=r"https://.*\.(onrender\.com|vercel\.app)$",
     allow_credentials=True,
     allow_methods=["*"],
