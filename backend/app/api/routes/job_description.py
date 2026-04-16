@@ -15,6 +15,7 @@ async def extract_job_file(file: UploadFile = File(...)) -> ExtractResponse:
 
 
 @router.post("/simplify", response_model=SimplifyResponse)
+@router.post("/simplify/", response_model=SimplifyResponse)
 def simplify_job_posting(
     body: SimplifyRequest,
     settings: Settings = Depends(get_settings),
