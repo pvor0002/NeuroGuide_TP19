@@ -11,9 +11,9 @@ import {
 } from "../utils/simplifiedJobExport.js";
 
 const CARD_SECTIONS = [
-  { key: "basic_info", label: "Basic information", emoji: "🧭" },
-  { key: "responsibilities", label: "Top missions", emoji: "🎯" },
-  { key: "skills_qualifications", label: "Core skills", emoji: "⚡" },
+  { key: "basic_info", label: "Basic information", emoji: "" },
+  { key: "responsibilities", label: "Responsibilities", emoji: "" },
+  { key: "skills_qualifications", label: "Skills & Qualifications", emoji: "" },
 ];
 
 const CARD_POINT_LIMIT = {
@@ -39,7 +39,7 @@ function extractTopPoints(text, limit) {
     .map((line) => String(line ?? "").trim())
     .filter(Boolean)
     .map((line) => line.replace(/^[-*•]\s+/, "").replace(/^\d+[.)]\s+/, "").trim())
-    .filter((line) => line && !/^[A-Za-z][A-Za-z0-9 &'\/().-]{2,40}:\s*$/.test(line));
+    .filter((line) => line && !/^[A-Za-z][A-Za-z0-9 &'/().-]{2,40}:\s*$/.test(line));
 
   const candidates =
     explicitBullets.length > 0
@@ -186,7 +186,7 @@ function renderImportantLines(text) {
     flushList(`ul-${idx}`);
 
     // Bold "Label:" prefixes to make scanning easier (Basic info / Requirements / Pay / Location, etc.)
-    const m = trimmed.match(/^([A-Za-z][A-Za-z0-9 &'\/().-]{2,40}):\s*(.+)$/);
+    const m = trimmed.match(/^([A-Za-z][A-Za-z0-9 &'/().-]{2,40}):\s*(.+)$/);
     if (m) {
       const [, label, rest] = m;
       blocks.push(
@@ -213,7 +213,7 @@ function SimplifyFlipCard({ cardKey, label, emoji, body }) {
   const [flipped, setFlipped] = useState(false);
   const { text, points } = getCardViewModel(cardKey, body);
   const hasPoints = points.length > 0;
-  const focusHint = hasPoints ? `Top ${points.length}` : "Quick view";
+  const focusHint = "Quick view";
   const toggle = () => setFlipped((v) => !v);
   const onKeyDown = (e) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -468,8 +468,8 @@ export default function SimplifyJobDescriptionPage() {
     // Let the DOM paint the output first, then scroll.
     const t = window.setTimeout(() => {
       outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setScrollToOutputOnResult(false);
     }, 50);
-    setScrollToOutputOnResult(false);
     return () => window.clearTimeout(t);
   }, [scrollToOutputOnResult, outputVisible]);
 
