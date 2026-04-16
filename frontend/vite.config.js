@@ -7,19 +7,33 @@
  * @file
  */
 
-import { defineConfig } from "vite";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  plugins: [react()],
-  publicDir: "../data",
-  server: {
-    port: 5173,
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, "..");
+
+export default defineConfig(({ mode }) => {
+  const fromRepoRoot = loadEnv(mode, repoRoot, "VITE_");
+  const fromFrontend = loadEnv(mode, __dirname, "VITE_");
+  const sitePassword = fromFrontend.VITE_SITE_PASSWORD ?? fromRepoRoot.VITE_SITE_PASSWORD ?? "";
+
+  return {
+    plugins: [react()],
+    publicDir: "../data",
+    define: {
+      "import.meta.env.VITE_SITE_PASSWORD": JSON.stringify(sitePassword),
+    },
+    server: {
+      port: 5173,
+      proxy: {
+        "/api": {
+          target: "http://127.0.0.1:8000",
+          changeOrigin: true,
+        },
       },
     },
-  },
+  };
 });
