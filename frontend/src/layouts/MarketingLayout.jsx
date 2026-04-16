@@ -7,9 +7,15 @@ function AppHeader() {
   const [brandFlowerActive, setBrandFlowerActive] = useState(false);
 
   useEffect(() => {
-    setBrandFlowerActive(false);
-    const id = requestAnimationFrame(() => setBrandFlowerActive(true));
-    return () => cancelAnimationFrame(id);
+    let innerId;
+    const outerId = requestAnimationFrame(() => {
+      setBrandFlowerActive(false);
+      innerId = requestAnimationFrame(() => setBrandFlowerActive(true));
+    });
+    return () => {
+      cancelAnimationFrame(outerId);
+      if (innerId !== undefined) cancelAnimationFrame(innerId);
+    };
   }, [location.pathname]);
 
   return (

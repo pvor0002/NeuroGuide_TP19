@@ -330,11 +330,15 @@ export default function ProfileWizardPage() {
   const [brandFlowerActive, setBrandFlowerActive] = useState(false);
 
   useEffect(() => {
-    setBrandFlowerActive(false);
-    const id = requestAnimationFrame(() => {
-      setBrandFlowerActive(true);
+    let innerId;
+    const outerId = requestAnimationFrame(() => {
+      setBrandFlowerActive(false);
+      innerId = requestAnimationFrame(() => setBrandFlowerActive(true));
     });
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelAnimationFrame(outerId);
+      if (innerId !== undefined) cancelAnimationFrame(innerId);
+    };
   }, []);
 
   useEffect(() => {
@@ -391,26 +395,27 @@ export default function ProfileWizardPage() {
   ];
 
   const currentStep = steps[state.currentStepIndex];
-  const progressPercent = Math.round(((state.currentStepIndex + 1) / steps.length) * 100);
   useEffect(() => {
-    setState((prev) => {
-      const manualSkills = prev.answers.selectedSkills.filter((skill) => !prev.answers.autoSelectedSkills.includes(skill));
-      const nextAuto = prev.answers.selectedRoles.length === 0 ? [] : autoSuggestedSkills;
-      const nextSelected = [...manualSkills, ...nextAuto.filter((skill) => !manualSkills.includes(skill))];
-      const noChanges =
-        nextAuto.length === prev.answers.autoSelectedSkills.length &&
-        nextAuto.every((skill, idx) => skill === prev.answers.autoSelectedSkills[idx]) &&
-        nextSelected.length === prev.answers.selectedSkills.length &&
-        nextSelected.every((skill, idx) => skill === prev.answers.selectedSkills[idx]);
-      if (noChanges) return prev;
-      return {
-        ...prev,
-        answers: {
-          ...prev.answers,
-          autoSelectedSkills: nextAuto,
-          selectedSkills: nextSelected,
-        },
-      };
+    queueMicrotask(() => {
+      setState((prev) => {
+        const manualSkills = prev.answers.selectedSkills.filter((skill) => !prev.answers.autoSelectedSkills.includes(skill));
+        const nextAuto = prev.answers.selectedRoles.length === 0 ? [] : autoSuggestedSkills;
+        const nextSelected = [...manualSkills, ...nextAuto.filter((skill) => !manualSkills.includes(skill))];
+        const noChanges =
+          nextAuto.length === prev.answers.autoSelectedSkills.length &&
+          nextAuto.every((skill, idx) => skill === prev.answers.autoSelectedSkills[idx]) &&
+          nextSelected.length === prev.answers.selectedSkills.length &&
+          nextSelected.every((skill, idx) => skill === prev.answers.selectedSkills[idx]);
+        if (noChanges) return prev;
+        return {
+          ...prev,
+          answers: {
+            ...prev.answers,
+            autoSelectedSkills: nextAuto,
+            selectedSkills: nextSelected,
+          },
+        };
+      });
     });
   }, [autoSuggestedSkills, state.answers.selectedRoles]);
 
@@ -581,43 +586,6 @@ export default function ProfileWizardPage() {
 
   const sectionLabel = (label, filled) => <p className={`micro-label ${filled ? "is-filled" : ""}`}>{label}</p>;
 
-  const renderTagSearch = (field, queryField, options, placeholder) => {
-    const selectedValues = state.answers[field];
-    const visible = options.filter((item) => !selectedValues.includes(item));
-    return (
-      <>
-        <div className="tag-input-wrap">
-          <div className="selected-tag-list">
-            {selectedValues.map((tag) => (
-              <span key={tag} className="selected-tag">
-                {tag}
-                <button type="button" className="tag-remove-button" onClick={() => toggleMulti(field, tag)}>
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-          <input
-            value={state.answers[queryField]}
-            onChange={(e) => setAnswer(queryField, e.target.value)}
-            placeholder={placeholder}
-          />
-        </div>
-        <div className="suggestion-list">
-          {visible.length === 0 ? (
-            <div className="suggestion-empty">No matching keywords</div>
-          ) : (
-            visible.map((item) => (
-              <button key={item} type="button" className="suggestion-row" onClick={() => toggleMulti(field, item)}>
-                <span>{item}</span>
-              </button>
-            ))
-          )}
-        </div>
-      </>
-    );
-  };
-
   const renderRoleSelector = () => {
     const selectedValues = state.answers.selectedRoles;
     const visible = roleOptions.filter((item) => !selectedValues.includes(item));
@@ -698,7 +666,7 @@ export default function ProfileWizardPage() {
           ))}
           {query && !hasExact ? (
             <button type="button" className="suggestion-row suggestion-row--custom" onClick={() => addSkill(query)}>
-              <span>Add "{query}"</span>
+              <span>{`Add "${query}"`}</span>
             </button>
           ) : null}
           {!query && visible.length === 0 ? <div className="suggestion-empty">No matching keywords</div> : null}
