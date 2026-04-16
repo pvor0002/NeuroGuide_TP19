@@ -1,4 +1,4 @@
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import "./SitePasswordGate.css";
 
 const STORAGE_KEY = "ng_site_unlock_v1";
@@ -11,6 +11,14 @@ function readRequiredPassword() {
 
 export default function SitePasswordGate({ children }) {
   const required = readRequiredPassword();
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || required) return;
+    console.info(
+      "[NeuroGuide] Site password gate is off: set VITE_SITE_PASSWORD in frontend/.env or the repo root .env, then restart the dev server."
+    );
+  }, [required]);
+
   const [unlocked, setUnlocked] = useState(() => {
     if (!required) return true;
     try {
