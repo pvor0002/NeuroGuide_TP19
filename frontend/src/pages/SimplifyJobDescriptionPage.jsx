@@ -212,6 +212,7 @@ function renderImportantLines(text) {
 function SimplifyFlipCard({ cardKey, label, emoji, body }) {
   const [flipped, setFlipped] = useState(false);
   const { text, points } = getCardViewModel(cardKey, body);
+  const hasPoints = points.length > 0;
   const focusHint = "Quick view";
   const toggle = () => setFlipped((v) => !v);
   const onKeyDown = (e) => {
