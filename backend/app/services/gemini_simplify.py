@@ -43,11 +43,53 @@ Rules:
 
 
 def _parse_json_loose(text: str) -> dict[str, Any]:
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-    return json.loads(text)
+    """
+    Gemini sometimes wraps the JSON in code fences or adds a short preface/suffix.
+    Try to recover the first JSON object from the response text before parsing.
+    """
+
+    def _strip_code_fences(src: str) -> str:
+        s = src.strip()
+        if s.startswith("```"):
+            s = re.sub(r"^```(?:json)?\s*", "", s)
+            s = re.sub(r"\s*```$", "", s)
+        return s.strip()
+
+    def _extract_first_json_object(src: str) -> str:
+        s = src.lstrip("\ufeff").strip()
+        start = s.find("{")
+        if start < 0:
+            return s
+        depth = 0
+        in_str = False
+        escape = False
+        for i in range(start, len(s)):
+            ch = s[i]
+            if in_str:
+                if escape:
+                    escape = False
+                    continue
+                if ch == "\\":
+                    escape = True
+                    continue
+                if ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+                continue
+            if ch == "{":
+                depth += 1
+                continue
+            if ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return s[start : i + 1]
+        return s[start:]
+
+    cleaned = _strip_code_fences(text)
+    candidate = _extract_first_json_object(cleaned)
+    return json.loads(candidate)
 
 
 def _extract_text_from_gemini_response(response: Any) -> str:
@@ -137,7 +179,10 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
     except json.JSONDecodeError as exc:
         raise HTTPException(
             status_code=502,
-            detail="Could not parse model response as JSON.",
+            detail=(
+                "Could not parse model response as JSON. "
+                "The model may have returned extra text around the JSON; try again or shorten the input."
+            ),
         ) from exc
 
     if not data.get("is_job_description"):
