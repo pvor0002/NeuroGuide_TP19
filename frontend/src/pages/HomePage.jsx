@@ -75,6 +75,27 @@ const FAQ_ITEMS = [
   },
 ];
 
+const DATA_SOURCES = [
+  {
+    iconSrc: "/images/datasets/au-jobs-skills-taxonomy.png",
+    name: "Australian Jobs & Skills Taxonomy",
+    href: "https://www.jobsandskills.gov.au/data/occupation-and-industry-profiles",
+    note: "Official occupation and industry profiles",
+  },
+  {
+    iconSrc: "/images/datasets/adhd-task-productivity.png",
+    name: "ADHD Task Productivity Dataset",
+    href: "https://www.kaggle.com/datasets/nisaaas/adhd-task-productivity-csv",
+    note: "Kaggle open dataset (CSV)",
+  },
+  {
+    iconSrc: "/images/datasets/adhd-4-class.png",
+    name: "ADHD 4-Class Dataset",
+    href: "https://www.kaggle.com/datasets/a7md19/adhd-dataset-4-classes-u2",
+    note: "Kaggle open dataset (4-class labels)",
+  },
+];
+
 export default function HomePage() {
   const [stickyVisible, setStickyVisible] = useState(false);
 
@@ -144,30 +165,41 @@ export default function HomePage() {
           </header>
 
           <ul className="home-focus-grid">
-            {FOCUS_VISUALS.map((item, index) => (
-              <li key={item.title} className="home-focus-tile">
-                <article className="home-focus-card">
-                  <figure className="home-focus-figure">
-                    <img
-                      src={item.src}
-                      alt={item.alt}
-                      className="home-focus-img"
-                      width={960}
-                      height={540}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <figcaption className="home-focus-cap">
-                      <span className="home-focus-index" aria-hidden="true">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <h3 className="home-focus-card-title">{item.title}</h3>
-                      <p className="home-focus-card-caption">{item.caption}</p>
-                    </figcaption>
-                  </figure>
-                </article>
-              </li>
-            ))}
+            {FOCUS_VISUALS.flatMap((item, index) => {
+              const node = (
+                <li key={item.title} className="home-focus-tile">
+                  <article className="home-focus-card">
+                    <figure className="home-focus-figure">
+                      <img
+                        src={item.src}
+                        alt={item.alt}
+                        className="home-focus-img"
+                        width={960}
+                        height={540}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <figcaption className="home-focus-cap">
+                        <span className="home-focus-index" aria-hidden="true">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <h3 className="home-focus-card-title">{item.title}</h3>
+                        <p className="home-focus-card-caption">{item.caption}</p>
+                      </figcaption>
+                    </figure>
+                  </article>
+                </li>
+              );
+
+              if (index === FOCUS_VISUALS.length - 1) return [node];
+
+              return [
+                node,
+                <li key={`arrow-${item.title}`} className="home-focus-arrow-tile" aria-hidden="true">
+                  <span className="home-focus-arrow">→</span>
+                </li>,
+              ];
+            })}
           </ul>
 
           <p className="home-focus-note">Reading tool only—not medical or career advice.</p>
@@ -219,6 +251,47 @@ export default function HomePage() {
               </details>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="home-band home-band--white home-data" aria-labelledby="home-data-title">
+        <div className="home-band-inner home-band-inner--wide">
+          <h2 id="home-data-title" className="home-section-title">
+            Data sources
+          </h2>
+          <p className="home-section-lead">
+            NeuroGuide uses open datasets to support role and skill suggestions. Links below reference the original sources.
+          </p>
+          <ul className="home-data-grid" aria-label="Open datasets used">
+            {DATA_SOURCES.map((source) => (
+              <li key={source.href} className="home-data-item">
+                <a
+                  className="home-data-card"
+                  href={source.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <img
+                    className="home-data-icon"
+                    src={source.iconSrc}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    decoding="async"
+                    width={64}
+                    height={64}
+                  />
+                  <span className="home-data-copy">
+                    <span className="home-data-title">{source.name}</span>
+                    <span className="home-data-note">{source.note}</span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className="home-data-footnote">
+            Sources are provided for transparency. Dataset licensing and terms remain with the original publishers.
+          </p>
         </div>
       </section>
 

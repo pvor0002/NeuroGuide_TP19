@@ -1094,6 +1094,9 @@ export default function ProfileWizardPage() {
                 >
                   Check job suitability score
                 </button>
+                <Link to="/simplify-job-description" className="button primary">
+                  Explore job description simplification
+                </Link>
                 {showSuitabilityPlaceholder ? (
                   <p className="error-message" data-tone="info">
                     Functionality part of iteration 3 development
