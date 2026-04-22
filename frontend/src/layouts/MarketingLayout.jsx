@@ -36,7 +36,7 @@ function AppHeader() {
             Home
           </Link>
           <Link to="/profile" aria-current={location.pathname === "/profile" ? "page" : undefined}>
-            Profile builder
+            Career Profile
           </Link>
           <Link
             to="/simplify-job-description"

@@ -129,7 +129,7 @@ export default function HomePage() {
             </div>
           </div>
           <nav className="home-sticky-bar-nav" aria-label="Quick links">
-            <Link to="/profile">Profile builder</Link>
+            <Link to="/profile">Career Profile</Link>
             <Link to="/simplify-job-description">Simplify Job Description</Link>
           </nav>
         </div>
@@ -138,7 +138,7 @@ export default function HomePage() {
       <section className="home-hero" aria-labelledby="home-hero-title">
         <img src={heroBg} alt="" className="home-hero-img" width={1920} height={1080} decoding="async" fetchPriority="high" />
         <nav className="home-hero-nav" aria-label="Quick links">
-          <Link to="/profile">Profile builder</Link>
+          <Link to="/profile">Career Profile</Link>
           <Link to="/simplify-job-description">Simplify Job Description</Link>
         </nav>
         <div className={`home-hero-inner ${stickyVisible ? "home-hero-inner--dimmed" : ""}`}>
