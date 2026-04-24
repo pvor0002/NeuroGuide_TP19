@@ -149,3 +149,238 @@ body {
     font-size: 1.24rem;
   }
 }
+
+/* =========================================================================
+   User ID entry modal — used on Career Profile and Simplify Job Description
+   pages. Kept in shared.css so it renders consistently on both.
+   ========================================================================= */
+
+.userid-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(28, 24, 22, 0.48);
+  backdrop-filter: blur(4px);
+  animation: useridModalBackdropIn 200ms ease-out;
+}
+
+@keyframes useridModalBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.userid-modal-dialog {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 30px 60px rgba(28, 24, 22, 0.28);
+  padding: clamp(22px, 4vw, 32px);
+  font-family: "Montserrat", system-ui, -apple-system, sans-serif;
+  color: #2d2926;
+  animation: useridModalDialogIn 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes useridModalDialogIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+.userid-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(45, 41, 38, 0.06);
+  color: #2d2926;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.userid-modal-close:hover {
+  background: rgba(45, 41, 38, 0.14);
+}
+
+.userid-modal-eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: #2f7ce0;
+}
+
+.userid-modal-title {
+  margin: 0 0 10px;
+  font-size: clamp(1.3rem, 2.4vw, 1.6rem);
+  line-height: 1.25;
+  color: #2d2926;
+}
+
+.userid-modal-desc {
+  margin: 0 0 18px;
+  color: #5a544f;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.userid-modal-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.userid-modal-option {
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 2px solid #efe4dc;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  color: #2d2926;
+  font-family: inherit;
+}
+
+.userid-modal-option:hover {
+  transform: translateY(-1px);
+  border-color: #e8cfc2;
+  box-shadow: 0 12px 24px rgba(45, 41, 38, 0.1);
+}
+
+.userid-modal-option:focus-visible {
+  outline: 2px solid #2f7ce0;
+  outline-offset: 2px;
+}
+
+.userid-modal-option--secondary {
+  background: #faf3f0;
+}
+
+.userid-modal-option-label {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.userid-modal-option-desc {
+  font-size: 0.88rem;
+  color: #5a544f;
+  line-height: 1.45;
+}
+
+.userid-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.userid-modal-input-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #2d2926;
+}
+
+.userid-modal-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #efe4dc;
+  background: #fff;
+  font-size: 1.05rem;
+  font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #2d2926;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.userid-modal-input:focus-visible {
+  outline: none;
+  border-color: #2f7ce0;
+  box-shadow: 0 0 0 3px rgba(47, 124, 224, 0.2);
+}
+
+.userid-modal-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.userid-modal-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #5a544f;
+}
+
+.userid-modal-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fdecea;
+  border: 1px solid #f4c4bf;
+  color: #b85c4e;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.userid-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.userid-modal-actions .userid-modal-back {
+  margin-right: auto;
+}
+
+.userid-modal-skiplink {
+  margin: 14px auto 0;
+  display: block;
+  background: transparent;
+  border: none;
+  color: #5a544f;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: inherit;
+}
+
+.userid-modal-skiplink:hover {
+  color: #2d2926;
+}
+
+/* The options branch has its own Skip link via the secondary option, so hide
+   the footer skip link when the primary choose view is visible. */
+
+.userid-modal-options ~ .userid-modal-skiplink {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .userid-modal-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .userid-modal-actions .userid-modal-back {
+    margin-right: 0;
+  }
+}

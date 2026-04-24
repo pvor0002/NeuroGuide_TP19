@@ -1511,3 +1511,620 @@ button:disabled {
   }
 }
 
+/* =========================================================================
+   Cross-browser Profile ID: load-by-ID panel (step 1) and the Profile ID
+   card shown on the overview.
+   ========================================================================= */
+
+.q-load-id-panel {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--line);
+}
+
+.q-load-id-toggle {
+  background: transparent;
+  border: none;
+  padding: 6px 0;
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.q-load-id-toggle:hover {
+  color: #1f5eb0;
+}
+
+.q-load-id-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+
+.q-load-id-label {
+  display: block;
+  margin: 0 0 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+  border: none;
+}
+
+.q-load-id-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.q-load-id-input {
+  flex: 1 1 200px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  font-size: 1rem;
+  margin-bottom: 0;
+}
+
+.q-load-id-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.q-load-id-error {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+/* Overview: Profile ID card */
+
+.profile-id-card {
+  margin: 16px 0 20px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(135deg, #fff 0%, var(--peach-50) 100%);
+  box-shadow: 0 12px 30px var(--shadow-warm);
+}
+
+.profile-id-card--ready {
+  border-color: #9ed9b0;
+  background: linear-gradient(135deg, #f7fffa 0%, #fff 50%, var(--peach-50) 100%);
+}
+
+.profile-id-card--saving {
+  border-color: var(--peach-400);
+}
+
+.profile-id-card--error {
+  border-color: #f4c4bf;
+  background: #fff6f4;
+}
+
+.profile-id-card-eyebrow {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--accent-strong);
+  background: #eef4ff;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.profile-id-card-title {
+  margin: 10px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.profile-id-card-body {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-id-code {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.profile-id-code code {
+  font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--ink);
+  background: #fff;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(45, 41, 38, 0.06);
+}
+
+.profile-id-copy {
+  padding: 8px 16px;
+  min-width: 88px;
+}
+
+.profile-id-card-note {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.profile-id-card-note em {
+  font-style: normal;
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.profile-id-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.profile-id-synced-at {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.profile-id-card-status {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.profile-id-card-status[data-tone="info"] {
+  background: var(--success-bg);
+  border: 1px solid var(--success-line);
+  color: var(--info);
+}
+
+.profile-id-card-status[data-tone="error"] {
+  background: #fdecea;
+  border: 1px solid #f4c4bf;
+  color: var(--danger);
+}
+
+
+
+/* =========================================================================
+   Profile quiz — minimal block-segmented layout (v3)
+   --------------------------------------------------------------------------
+   Replaces the old "Question 17 of 17" bar with a segmented stepper for the
+   five blocks (Type Classification → Work Style → Support Setup → Jobs &
+   Skills → User Profile) and a two-column layout matching the reference
+   quiz screenshot. ADHD-friendly: short text, strong focus states, generous
+   white space.
+   ========================================================================= */
+
+.q-blocks {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 16px clamp(16px, 4vw, 40px) 14px;
+  background: linear-gradient(180deg, rgba(255, 251, 248, 0.97) 0%, rgba(255, 251, 248, 0.72) 100%);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(45, 41, 38, 0.06);
+}
+
+.q-blocks-list {
+  list-style: none;
+  margin: 0 auto 12px;
+  padding: 0;
+  display: flex;
+  gap: 6px;
+  max-width: 1100px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.q-blocks-list::-webkit-scrollbar { display: none; }
+
+.q-blocks-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(45, 41, 38, 0.04);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+  flex-shrink: 0;
+}
+
+.q-blocks-item.is-active {
+  background: var(--accent-strong);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(47, 124, 224, 0.28);
+}
+
+.q-blocks-item.is-done {
+  background: var(--success-bg);
+  color: var(--info);
+}
+
+.q-blocks-item.is-started {
+  background: rgba(47, 124, 224, 0.12);
+  color: var(--accent-strong);
+}
+
+.q-blocks-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  font-size: 0.72rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.q-blocks-item.is-done .q-blocks-dot {
+  background: var(--info);
+  color: #fff;
+}
+
+.q-blocks-item.is-future .q-blocks-dot {
+  background: rgba(45, 41, 38, 0.12);
+}
+
+.q-blocks-label {
+  line-height: 1;
+}
+
+.q-blocks-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(45, 41, 38, 0.08);
+  overflow: hidden;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.q-blocks-track-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-strong) 0%, var(--btn-peach) 100%);
+  transition: width 440ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.q-blocks-track.is-bumping .q-blocks-track-fill {
+  animation: qProgressPulse 420ms ease-out;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Two-column layout: main question + right-hand "Questions in this block"   */
+/* ------------------------------------------------------------------------- */
+
+.q-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: clamp(20px, 3vw, 36px);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 48px) clamp(16px, 4vw, 32px) 64px;
+  align-items: start;
+  width: 100%;
+}
+
+.q-main {
+  min-width: 0;
+}
+
+.q-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px dashed rgba(45, 41, 38, 0.1);
+  padding-bottom: 12px;
+}
+
+.q-card-head-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.q-card-head-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: rgba(45, 41, 38, 0.06);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Lettered A/B/C/D option cards — minimal, matches the reference quiz UI    */
+/* ------------------------------------------------------------------------- */
+
+.q-choice-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.q-choice {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(45, 41, 38, 0.1);
+  background: #fff;
+  font-family: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+  animation: qChoiceIn 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Cascade entry animation for stacked option cards. */
+.q-choice-stack > .q-choice:nth-child(1) { animation-delay: 60ms;  }
+.q-choice-stack > .q-choice:nth-child(2) { animation-delay: 120ms; }
+.q-choice-stack > .q-choice:nth-child(3) { animation-delay: 180ms; }
+.q-choice-stack > .q-choice:nth-child(4) { animation-delay: 240ms; }
+.q-choice-stack > .q-choice:nth-child(5) { animation-delay: 300ms; }
+
+@keyframes qChoiceIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.q-choice:hover {
+  border-color: rgba(47, 124, 224, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(45, 41, 38, 0.08);
+}
+
+.q-choice:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.q-choice.is-selected {
+  border-color: #22a06b;
+  background: linear-gradient(180deg, #ffffff 0%, #ecfaf1 100%);
+  box-shadow: 0 12px 28px rgba(34, 160, 107, 0.18);
+}
+
+.q-choice-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(45, 41, 38, 0.06);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--ink);
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.q-choice.is-selected .q-choice-letter {
+  background: #22a06b;
+  color: #fff;
+}
+
+.q-choice-label {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.q-choice-check {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  background: transparent;
+  transition: background 220ms ease, color 220ms ease, transform 220ms ease;
+}
+
+.q-choice-check.is-on {
+  background: #22a06b;
+  color: #fff;
+  transform: scale(1);
+  animation: qCheckPop 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes qCheckPop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Right-hand "Questions in this block" panel                                */
+/* ------------------------------------------------------------------------- */
+
+.q-sidepanel {
+  position: sticky;
+  top: 92px;
+  align-self: start;
+  background: #fff;
+  border: 1px solid rgba(45, 41, 38, 0.08);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 10px 24px rgba(45, 41, 38, 0.06);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.q-sidepanel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed rgba(45, 41, 38, 0.12);
+}
+
+.q-sidepanel-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.q-sidepanel-sub {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.q-sidepanel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.q-sidepanel-item { width: 100%; }
+
+.q-sidepanel-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(45, 41, 38, 0.03);
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.q-sidepanel-btn:hover {
+  background: rgba(47, 124, 224, 0.08);
+  color: var(--ink);
+}
+
+.q-sidepanel-item.is-current .q-sidepanel-btn {
+  background: var(--accent-strong);
+  color: #fff;
+  border-color: var(--accent-strong);
+  box-shadow: 0 6px 14px rgba(47, 124, 224, 0.24);
+}
+
+.q-sidepanel-item.is-done .q-sidepanel-btn {
+  background: var(--success-bg);
+  color: var(--info);
+}
+
+.q-sidepanel-item.is-done.is-current .q-sidepanel-btn {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.q-sidepanel-btn-label { flex: 1; min-width: 0; }
+
+.q-sidepanel-btn-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: rgba(45, 41, 38, 0.1);
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.q-sidepanel-item.is-done .q-sidepanel-btn-check {
+  background: #22a06b;
+  color: #fff;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Responsive — collapse the side panel below the main column on small     */
+/* screens so the question itself always gets the full width.               */
+/* ------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .q-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .q-sidepanel {
+    position: static;
+    max-height: none;
+    order: 2;
+  }
+
+  .q-blocks-item {
+    font-size: 0.76rem;
+    padding: 6px 10px;
+  }
+
+  .q-blocks-label {
+    display: none;
+  }
+
+  .q-blocks-item.is-active .q-blocks-label {
+    display: inline;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Slightly richer question-to-question transition — longer travel + softer */
+/* blur so the change feels smooth rather than snappy.                       */
+/* ------------------------------------------------------------------------- */
+
+.q-phase-in        { animation: qEnterRight 360ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.q-phase-out-forward { animation: qExitLeft  220ms ease-in both; }
+.q-phase-out-back    { animation: qExitRight 220ms ease-in both; }
+

@@ -1,7 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
+import UserIdEntryModal from "../components/UserIdEntryModal.jsx";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
+
+const USER_ID_PROMPT_DISMISSED_KEY = "neuroguide.userIdPrompt.simplifyJob.dismissed";
 import {
   buildExportPdfFilename,
   buildExportTxtFilename,
@@ -461,6 +464,30 @@ export default function SimplifyJobDescriptionPage() {
   const [scrollToOutputOnResult, setScrollToOutputOnResult] = useState(false);
   const [showInterviewPrepPrompt, setShowInterviewPrepPrompt] = useState(false);
 
+  // Welcome modal asking whether the visitor already has a saved User ID.
+  // Retrieval-by-id for this page isn't wired yet, so the modal runs in
+  // informational mode (loadEnabled=false) and simply acknowledges + closes.
+  const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
+
+  useEffect(() => {
+    let dismissed = false;
+    try {
+      dismissed = window.sessionStorage.getItem(USER_ID_PROMPT_DISMISSED_KEY) === "1";
+    } catch {
+      dismissed = false;
+    }
+    if (!dismissed) setWelcomeModalOpen(true);
+  }, []);
+
+  const handleWelcomeDismiss = () => {
+    try {
+      window.sessionStorage.setItem(USER_ID_PROMPT_DISMISSED_KEY, "1");
+    } catch {
+      /* storage unavailable — ignore */
+    }
+    setWelcomeModalOpen(false);
+  };
+
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
   useEffect(() => {
@@ -478,6 +505,15 @@ export default function SimplifyJobDescriptionPage() {
     <div className="simplify-page">
       <DataConsentModal />
       <div className="simplify-page-noise" aria-hidden="true" />
+
+      <UserIdEntryModal
+        open={welcomeModalOpen}
+        onDismiss={handleWelcomeDismiss}
+        loadEnabled={false}
+        title="Do you already have a User ID?"
+        description="If you've used NeuroGuide before, tell us your User ID so we can remember your preferences next time you're here."
+        unavailableMessage="Loading saved work by User ID isn't wired into this page yet — it's coming soon. For now, feel free to paste or upload a job description below."
+      />
 
       <header className="simplify-hero" aria-labelledby="simplify-title">
         <div className="simplify-hero-grid">

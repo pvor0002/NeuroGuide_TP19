@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-2.5-flash"
 
+    # Where the anonymous Career Profile SQLite DB lives. Override with the
+    # PROFILE_STORE_PATH env var in deployments that need a writable volume.
+    profile_store_path: Path = Field(default=_BACKEND_ROOT / "data" / "profiles.db")
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def normalize_cors_origins(cls, v: object) -> str:

@@ -11,3 +11,7 @@ dist/
 backend/.env
 .idea/
 .vscode/
+
+# Local profile store (anonymous; see backend/app/services/profile_store.py)
+backend/data/profiles.db
+backend/data/profiles.db-*
