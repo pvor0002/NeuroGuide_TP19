@@ -384,3 +384,1070 @@ body {
     margin-right: 0;
   }
 }
+
+/* =========================================================================
+   Inline User ID entry box — used at the top of the Career Profile wizard's
+   first step and at the top of the Simplify Job Description page.
+   Visually distinct from the question option cards (dashed border, soft
+   blue tint, key icon) so visitors can tell it's an optional shortcut.
+   ========================================================================= */
+
+.userid-box {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 14px 16px;
+  border: 1.5px dashed rgba(47, 124, 224, 0.45);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f4f8ff 0%, #ecf2ff 100%);
+  font-family: "Montserrat", system-ui, -apple-system, sans-serif;
+  color: #2d2926;
+  margin: 0;
+}
+
+.userid-box-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(47, 124, 224, 0.14);
+  color: #2f7ce0;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.userid-box-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.userid-box-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #2d2926;
+  line-height: 1.25;
+}
+
+.userid-box-desc {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #5a544f;
+  line-height: 1.45;
+}
+
+.userid-box-toggle {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 8px 14px;
+  border: 1px solid rgba(47, 124, 224, 0.4);
+  background: #fff;
+  color: #2f7ce0;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.userid-box-toggle:hover {
+  background: #2f7ce0;
+  color: #fff;
+  border-color: #2f7ce0;
+  transform: translateY(-1px);
+}
+
+.userid-box-toggle:focus-visible {
+  outline: 2px solid #2f7ce0;
+  outline-offset: 2px;
+}
+
+.userid-box-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.visually-hidden-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.userid-box-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.userid-box-input {
+  flex: 1 1 200px;
+  min-width: 160px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(47, 124, 224, 0.35);
+  background: #fff;
+  font-size: 1rem;
+  font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #2d2926;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.userid-box-input:focus-visible {
+  outline: none;
+  border-color: #2f7ce0;
+  box-shadow: 0 0 0 3px rgba(47, 124, 224, 0.18);
+}
+
+.userid-box-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.userid-box-submit {
+  flex-shrink: 0;
+}
+
+.userid-box-cancel {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #5a544f;
+  font-size: 0.86rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.userid-box-cancel:hover {
+  background: rgba(45, 41, 38, 0.06);
+  color: #2d2926;
+}
+
+.userid-box-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.userid-box-error,
+.userid-box-info {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.userid-box-error {
+  background: #fdecea;
+  border: 1px solid #f4c4bf;
+  color: #b85c4e;
+}
+
+.userid-box-info {
+  background: #eef5ff;
+  border: 1px solid #c8dcf7;
+  color: #2f7ce0;
+}
+
+@media (max-width: 520px) {
+  .userid-box {
+    padding: 12px;
+  }
+
+  .userid-box-row {
+    flex-direction: column;
+  }
+
+  .userid-box-submit,
+  .userid-box-cancel {
+    width: 100%;
+  }
+}
+
+/* ======================================================================== */
+/* Settings page                                                            */
+/* ======================================================================== */
+
+.settings-page,
+.interview-page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* -- Menu list (root view) --------------------------------------------- */
+.settings-menu {
+  display: block;
+}
+
+.settings-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid rgba(45, 41, 38, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 28px -22px rgba(45, 41, 38, 0.18);
+}
+
+.settings-menu-item + .settings-menu-item {
+  border-top: 1px solid rgba(45, 41, 38, 0.07);
+}
+
+.settings-menu-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  transition: background 140ms ease;
+}
+
+.settings-menu-row:hover {
+  background: #fafaf7;
+}
+
+.settings-menu-row:focus-visible {
+  outline: 2px solid #d97a3b;
+  outline-offset: -2px;
+}
+
+.settings-menu-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(217, 122, 59, 0.12);
+  color: #d97a3b;
+}
+
+.settings-menu-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.settings-menu-icon.is-danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.settings-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-menu-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d2926;
+}
+
+.settings-menu-row.is-danger .settings-menu-title {
+  color: #b91c1c;
+}
+
+.settings-menu-sub {
+  font-size: 0.86rem;
+  color: #8a837c;
+  line-height: 1.4;
+}
+
+.settings-menu-chevron {
+  color: #c6bdb5;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding-right: 2px;
+}
+
+/* -- Sub-page header --------------------------------------------------- */
+.settings-subhead {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 0;
+}
+
+.settings-back {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  padding: 6px 10px 6px 4px;
+  color: #d97a3b;
+  font-family: inherit;
+  font-size: 0.96rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.settings-back:hover {
+  background: rgba(217, 122, 59, 0.1);
+  color: #b9662f;
+}
+
+.settings-back span:first-child {
+  font-size: 1.3rem;
+  line-height: 1;
+  margin-top: -2px;
+}
+
+.settings-subhead-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.5vw, 1.9rem);
+  font-weight: 700;
+  color: #2d2926;
+  letter-spacing: -0.01em;
+}
+
+.settings-subhead-sub {
+  margin: 0;
+  color: #6b635c;
+  line-height: 1.55;
+  max-width: 60ch;
+}
+
+@media (max-width: 520px) {
+  .settings-menu-row {
+    grid-template-columns: 40px 1fr auto;
+    padding: 12px 14px;
+    gap: 12px;
+  }
+  .settings-menu-icon { width: 36px; height: 36px; }
+  .settings-menu-icon svg { width: 20px; height: 20px; }
+  .settings-menu-title { font-size: 0.96rem; }
+  .settings-menu-sub { font-size: 0.82rem; }
+}
+
+.settings-hero,
+.interview-hero {
+  padding: 28px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-eyebrow,
+.interview-eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d97a3b;
+}
+
+.settings-title,
+.interview-title {
+  margin: 0;
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+  font-weight: 700;
+  color: #2d2926;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.settings-lead,
+.interview-lead {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  color: #6b635c;
+  line-height: 1.55;
+  max-width: 62ch;
+}
+
+.settings-toast {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.settings-card {
+  background: #ffffff;
+  border: 1px solid rgba(45, 41, 38, 0.08);
+  border-radius: 18px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 10px 28px -22px rgba(45, 41, 38, 0.18);
+}
+
+.settings-card--danger {
+  border-color: rgba(220, 38, 38, 0.18);
+  background: #fff9f8;
+}
+
+.settings-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-card-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2d2926;
+}
+
+.settings-card-sub {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #8a837c;
+}
+
+.settings-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #3f3a35;
+  line-height: 1.55;
+  font-size: 0.96rem;
+}
+
+.settings-table {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-row {
+  background: #fafaf7;
+  border: 1px solid rgba(45, 41, 38, 0.06);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.settings-row-title {
+  font-weight: 700;
+  color: #2d2926;
+}
+
+.settings-row-key {
+  font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  color: #6b635c;
+  background: rgba(45, 41, 38, 0.06);
+  padding: 2px 8px;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+.settings-row-purpose {
+  margin: 0;
+  color: #3f3a35;
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.settings-row-where {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #8a837c;
+}
+
+.settings-consent-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.settings-consent-status {
+  margin: 0;
+  font-size: 1rem;
+  color: #2d2926;
+}
+
+.settings-consent-meta {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: #8a837c;
+}
+
+.settings-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.settings-badge--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.settings-badge--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.settings-badge--muted {
+  background: rgba(45, 41, 38, 0.08);
+  color: #6b635c;
+}
+
+.settings-actions-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease,
+    border-color 120ms ease, color 120ms ease;
+  border: 1px solid transparent;
+}
+
+.settings-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.settings-btn--primary {
+  background: #d97a3b;
+  color: #ffffff;
+}
+
+.settings-btn--primary:hover:not(:disabled) {
+  background: #b9662f;
+}
+
+.settings-btn--ghost {
+  background: #ffffff;
+  color: #3f3a35;
+  border-color: rgba(45, 41, 38, 0.18);
+}
+
+.settings-btn--ghost:hover:not(:disabled) {
+  background: #fafaf7;
+  border-color: rgba(45, 41, 38, 0.3);
+}
+
+.settings-btn--warn {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.settings-btn--warn:hover:not(:disabled) {
+  background: #fde68a;
+}
+
+.settings-btn--danger {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.settings-btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.settings-id-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-id-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-id-label {
+  font-size: 0.8rem;
+  color: #8a837c;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
+.settings-id-value {
+  font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  font-size: 1rem;
+  background: #fafaf7;
+  border: 1px solid rgba(45, 41, 38, 0.08);
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #2d2926;
+  word-break: break-all;
+}
+
+.settings-id-meta {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #8a837c;
+}
+
+.settings-empty {
+  margin: 0;
+  color: #6b635c;
+  line-height: 1.55;
+  font-size: 0.96rem;
+}
+
+.settings-empty a {
+  color: #d97a3b;
+  text-decoration: underline;
+}
+
+.settings-danger-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.settings-danger-item {
+  background: #ffffff;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-danger-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #2d2926;
+}
+
+.settings-danger-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b635c;
+  line-height: 1.5;
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .settings-danger-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ======================================================================== */
+/* Interview Prep page                                                       */
+/* ======================================================================== */
+
+/* --- Coming-soon placeholder variant ----------------------------------- */
+.interview-page--soon {
+  min-height: calc(100vh - 140px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.interview-soon {
+  max-width: 560px;
+  width: 100%;
+  text-align: center;
+  padding: 56px 40px;
+  background: #ffffff;
+  border: 1px solid rgba(45, 41, 38, 0.08);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px -28px rgba(45, 41, 38, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.interview-soon-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #d97a3b 0%, #c2561f 100%);
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.interview-soon-title {
+  margin: 4px 0 0;
+  font-size: clamp(1.8rem, 3.2vw, 2.4rem);
+  font-weight: 700;
+  color: #2d2926;
+  letter-spacing: -0.01em;
+}
+
+.interview-soon-text {
+  margin: 0;
+  color: #6b635c;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.interview-wip {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #fff3e4 0%, #ffe1c2 100%);
+  border: 1px solid rgba(217, 122, 59, 0.35);
+  border-radius: 999px;
+  align-self: flex-start;
+  color: #92400e;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.interview-wip-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  background: #d97a3b;
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.interview-wip-text {
+  color: #6b4a20;
+  font-weight: 600;
+}
+
+.interview-progress {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.interview-progress-track {
+  height: 10px;
+  background: rgba(45, 41, 38, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.interview-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d97a3b 0%, #f4a462 100%);
+  transition: width 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  border-radius: 999px;
+}
+
+.interview-progress-label {
+  font-size: 0.84rem;
+  color: #6b635c;
+  font-weight: 600;
+}
+
+.interview-card {
+  background: #ffffff;
+  border: 1px solid rgba(45, 41, 38, 0.08);
+  border-radius: 18px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 10px 28px -22px rgba(45, 41, 38, 0.18);
+}
+
+.interview-card--soft {
+  background: linear-gradient(135deg, #fff8f0 0%, #fff3e4 100%);
+  border-color: rgba(217, 122, 59, 0.2);
+}
+
+.interview-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.interview-card-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2d2926;
+}
+
+.interview-card-sub {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #8a837c;
+}
+
+.interview-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  counter-reset: ip;
+}
+
+.interview-stage {
+  background: #fafaf7;
+  border: 1px solid rgba(45, 41, 38, 0.08);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.interview-stage.is-done {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: #f0fdf4;
+}
+
+.interview-stage-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.interview-stage-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(217, 122, 59, 0.14);
+  color: #d97a3b;
+  font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.interview-stage.is-done .interview-stage-num {
+  background: rgba(16, 185, 129, 0.18);
+  color: #047857;
+}
+
+.interview-stage-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2d2926;
+  flex: 1;
+}
+
+.interview-stage-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #6b635c;
+  cursor: pointer;
+  user-select: none;
+}
+
+.interview-stage-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #d97a3b;
+}
+
+.interview-stage.is-done .interview-stage-check {
+  color: #047857;
+}
+
+.interview-stage-summary {
+  margin: 0;
+  font-size: 0.96rem;
+  color: #3f3a35;
+  line-height: 1.55;
+}
+
+.interview-tip-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #3f3a35;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.interview-qa {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.interview-qa-item {
+  border: 1px solid rgba(45, 41, 38, 0.1);
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.interview-qa-item.is-open {
+  border-color: rgba(217, 122, 59, 0.4);
+  box-shadow: 0 6px 18px -12px rgba(217, 122, 59, 0.5);
+}
+
+.interview-qa-q {
+  width: 100%;
+  background: transparent;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #2d2926;
+  text-align: left;
+  cursor: pointer;
+}
+
+.interview-qa-q:hover {
+  background: #fafaf7;
+}
+
+.interview-qa-caret {
+  color: #d97a3b;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.interview-qa-a {
+  margin: 0;
+  padding: 0 14px 14px;
+  color: #3f3a35;
+  line-height: 1.55;
+  font-size: 0.94rem;
+}
+
+.interview-next-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.interview-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 16px;
+  text-decoration: none;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+  border: 1px solid transparent;
+}
+
+.interview-btn--primary {
+  background: #d97a3b;
+  color: #ffffff;
+}
+
+.interview-btn--primary:hover {
+  background: #b9662f;
+}
+
+.interview-btn--ghost {
+  background: #ffffff;
+  color: #3f3a35;
+  border-color: rgba(45, 41, 38, 0.18);
+}
+
+.interview-btn--ghost:hover {
+  background: #fafaf7;
+  border-color: rgba(45, 41, 38, 0.3);
+}

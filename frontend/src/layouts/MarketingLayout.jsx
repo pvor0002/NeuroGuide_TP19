@@ -44,6 +44,18 @@ function AppHeader() {
           >
             Simplify Job Description
           </Link>
+          <Link
+            to="/interview-prep"
+            aria-current={location.pathname === "/interview-prep" ? "page" : undefined}
+          >
+            Interview Prep
+          </Link>
+          <Link
+            to="/settings"
+            aria-current={location.pathname === "/settings" ? "page" : undefined}
+          >
+            Settings
+          </Link>
         </nav>
       </div>
     </header>

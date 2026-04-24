@@ -3,7 +3,7 @@
  *
  * The backend issues a short server-generated code (e.g. `K7X2-M4QR`) on
  * create; we use it to read or update the same profile from any browser.
- * No personal info is sent or stored — only the wizard's JSON payload.
+ * No personal info is sent or stored - only the wizard's JSON payload.
  */
 
 const DEFAULT_API_BASE = "http://127.0.0.1:8000/api/v1";

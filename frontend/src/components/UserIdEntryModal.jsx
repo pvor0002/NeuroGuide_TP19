@@ -28,9 +28,9 @@ export default function UserIdEntryModal({
   onDismiss,
   onSubmit,
   title = "Do you already have a User ID?",
-  description = "If you've used NeuroGuide before, enter your User ID to continue where you left off. We'll pull back the answers you saved — no other personal info required.",
+  description = "If you've used NeuroGuide before, enter your User ID to continue where you left off. We'll pull back the answers you saved - no other personal info required.",
   loadEnabled = true,
-  unavailableMessage = "Loading saved work by User ID isn't wired into this page yet — it's coming soon. For now, continue and we'll keep any work you do on this page locally.",
+  unavailableMessage = "Loading saved work by User ID isn't wired into this page yet - it's coming soon. For now, continue and we'll keep any work you do on this page locally.",
 }) {
   const [branch, setBranch] = useState("choose"); // "choose" | "enter-id"
   const [idInput, setIdInput] = useState("");

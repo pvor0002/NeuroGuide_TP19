@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { NeuroBrandFlower } from "../components/NeuroBrandFlower.jsx";
 
@@ -45,6 +45,75 @@ const FOCUS_VISUALS = [
     alt: "Two professionals shaking hands across a desk after reviewing a fit",
     title: "Decide",
     caption: "Know if it fits you, then invest your time.",
+  },
+];
+
+// Four-step "How NeuroGuide works" flow shown on the home page.
+// Each step renders an inline SVG icon (Feather-style, stroke-based) so
+// we don't pull in a dependency or extra image requests.
+const HOW_IT_WORKS = [
+  {
+    id: "profile",
+    label: "Set up",
+    title: "Build your Career Profile",
+    description:
+      "Tell us how your brain works best - focus profile, support preferences, and the skills you bring. No resume needed.",
+    to: "/profile",
+    linkLabel: "Start your profile",
+    // Person + subtle flower petals around the head - stylised "you"
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="24" cy="18" r="6" />
+        <path d="M10 40c2-7 8-11 14-11s12 4 14 11" />
+        <circle cx="24" cy="18" r="1.6" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+  },
+  {
+    id: "paste",
+    label: "Paste",
+    title: "Drop in any job post",
+    description:
+      "Paste a dense job ad or upload a file. Long paragraphs, jargon, and buzzwords welcome - we take it as-is.",
+    to: "/simplify-job-description",
+    linkLabel: "Open simplifier",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M14 8h14l8 8v24a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" />
+        <path d="M28 8v8h8" />
+        <path d="M18 24h12M18 30h12M18 36h8" />
+      </svg>
+    ),
+  },
+  {
+    id: "simplify",
+    label: "Simplify",
+    title: "Read a calmer version",
+    description:
+      "Get the posting split into short, scannable sections - what you'll do, what you need, and what's on offer.",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M14 28h20M14 22h20M14 16h14" />
+        <path d="M36 8l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" />
+        <path d="M10 38l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" />
+      </svg>
+    ),
+  },
+  {
+    id: "score",
+    label: "Compare",
+    title: "See your fit score",
+    description:
+      "We match the role against your profile, score the fit, and line it up next to your last two postings so you can compare.",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M10 38V22" />
+        <path d="M22 38V14" />
+        <path d="M34 38V26" />
+        <path d="M6 42h38" />
+        <circle cx="22" cy="10" r="3" />
+      </svg>
+    ),
   },
 ];
 
@@ -98,6 +167,8 @@ const DATA_SOURCES = [
 
 export default function HomePage() {
   const [stickyVisible, setStickyVisible] = useState(false);
+  const howStepsRef = useRef(null);
+  const [howRevealed, setHowRevealed] = useState(false);
 
   useEffect(() => {
     const threshold = 64;
@@ -108,6 +179,31 @@ export default function HomePage() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    const target = howStepsRef.current;
+    if (!target || howRevealed) return undefined;
+
+    // Fallback for browsers without IntersectionObserver - reveal immediately.
+    if (typeof window === "undefined" || typeof window.IntersectionObserver === "undefined") {
+      setHowRevealed(true);
+      return undefined;
+    }
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setHowRevealed(true);
+            obs.disconnect();
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: "0px 0px -10% 0px" }
+    );
+    obs.observe(target);
+    return () => obs.disconnect();
+  }, [howRevealed]);
 
   return (
     <div className="home">
@@ -131,16 +227,14 @@ export default function HomePage() {
           <nav className="home-sticky-bar-nav" aria-label="Quick links">
             <Link to="/profile">Career Profile</Link>
             <Link to="/simplify-job-description">Simplify Job Description</Link>
+            <Link to="/interview-prep">Interview Prep</Link>
+            <Link to="/settings">Settings</Link>
           </nav>
         </div>
       </header>
 
       <section className="home-hero" aria-labelledby="home-hero-title">
         <img src={heroBg} alt="" className="home-hero-img" width={1920} height={1080} decoding="async" fetchPriority="high" />
-        <nav className="home-hero-nav" aria-label="Quick links">
-          <Link to="/profile">Career Profile</Link>
-          <Link to="/simplify-job-description">Simplify Job Description</Link>
-        </nav>
         <div className={`home-hero-inner ${stickyVisible ? "home-hero-inner--dimmed" : ""}`}>
           <div className="home-hero-brand">
             <BrandMark className="home-hero-mark" />
@@ -155,6 +249,58 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="home-band home-band--how" aria-labelledby="home-how-title">
+        <div className="home-band-inner home-band-inner--wide home-how-inner">
+          <header className="home-how-head">
+            <p className="home-how-eyebrow">How NeuroGuide works</p>
+            <h2 id="home-how-title" className="home-section-title home-how-title">
+              From dense job post to a fit score - in four calm steps.
+            </h2>
+            <p className="home-how-lead">
+              Built for ADHD brains. Every step is short, scannable, and you
+              can pause or come back anytime.
+            </p>
+          </header>
+
+          <ol
+            ref={howStepsRef}
+            className={`home-how-steps ${howRevealed ? "is-revealed" : ""}`}
+            role="list"
+          >
+            {HOW_IT_WORKS.map((step, i) => (
+              <li key={step.id} className="home-how-step">
+                <div className="home-how-card">
+                  <div className="home-how-number-row">
+                    <span className="home-how-number" aria-hidden="true">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="home-how-label">{step.label}</span>
+                  </div>
+                  <div className="home-how-icon" aria-hidden="true">
+                    {step.icon}
+                  </div>
+                  <h3 className="home-how-step-title">{step.title}</h3>
+                  <p className="home-how-step-desc">{step.description}</p>
+                  {step.to ? (
+                    <Link to={step.to} className="home-how-step-link">
+                      {step.linkLabel}
+                      <span aria-hidden="true">→</span>
+                    </Link>
+                  ) : null}
+                </div>
+                {i < HOW_IT_WORKS.length - 1 ? (
+                  <span className="home-how-arrow" aria-hidden="true">→</span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+
+          <p className="home-how-note">
+            Your answers stay on your device. No account, no resume upload, no personal info leaves the browser.
+          </p>
+        </div>
+      </section>
+
       <section className="home-band home-band--focus" aria-labelledby="home-focus-title">
         <div className="home-band-inner home-band-inner--wide home-focus-inner">
           <header className="home-focus-head">
@@ -165,44 +311,33 @@ export default function HomePage() {
           </header>
 
           <ul className="home-focus-grid">
-            {FOCUS_VISUALS.flatMap((item, index) => {
-              const node = (
-                <li key={item.title} className="home-focus-tile">
-                  <article className="home-focus-card">
-                    <figure className="home-focus-figure">
-                      <img
-                        src={item.src}
-                        alt={item.alt}
-                        className="home-focus-img"
-                        width={960}
-                        height={540}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <figcaption className="home-focus-cap">
-                        <span className="home-focus-index" aria-hidden="true">
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                        <h3 className="home-focus-card-title">{item.title}</h3>
-                        <p className="home-focus-card-caption">{item.caption}</p>
-                      </figcaption>
-                    </figure>
-                  </article>
-                </li>
-              );
-
-              if (index === FOCUS_VISUALS.length - 1) return [node];
-
-              return [
-                node,
-                <li key={`arrow-${item.title}`} className="home-focus-arrow-tile" aria-hidden="true">
-                  <span className="home-focus-arrow">→</span>
-                </li>,
-              ];
-            })}
+            {FOCUS_VISUALS.map((item, index) => (
+              <li key={item.title} className="home-focus-tile">
+                <article className="home-focus-card">
+                  <figure className="home-focus-figure">
+                    <img
+                      src={item.src}
+                      alt={item.alt}
+                      className="home-focus-img"
+                      width={960}
+                      height={540}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <figcaption className="home-focus-cap">
+                      <span className="home-focus-index" aria-hidden="true">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <h3 className="home-focus-card-title">{item.title}</h3>
+                      <p className="home-focus-card-caption">{item.caption}</p>
+                    </figcaption>
+                  </figure>
+                </article>
+              </li>
+            ))}
           </ul>
 
-          <p className="home-focus-note">Reading tool only—not medical or career advice.</p>
+          <p className="home-focus-note">Reading tool only-not medical or career advice.</p>
         </div>
       </section>
 

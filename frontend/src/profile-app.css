@@ -238,6 +238,16 @@
   margin-top: clamp(0.5rem, 2vw, 1rem);
 }
 
+/* Let the Career Profile wizard break out of the shell's 1400px cap and
+   use the full page width, matching the attached layout reference. */
+.profile-app--fullscreen .app-shell {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0;
+}
+
 .wizard-layout {
   margin-top: 14px;
   display: flex;
@@ -781,6 +791,117 @@ textarea {
   overflow-y: auto;
 }
 
+.suggestion-list--roles {
+  margin-top: 10px;
+}
+
+/* IT / software role: single choice shown as a highlight field, not a chip */
+.roles-step-theme .tag-input-wrap.role-search-wrap {
+  padding: 0;
+  border: none;
+  background: transparent;
+  margin: 0;
+}
+
+.role-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--peach-300);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.role-search-input::placeholder {
+  color: var(--muted);
+}
+
+.role-search-input:focus {
+  outline: 2px solid rgba(126, 65, 219, 0.35);
+  outline-offset: 0;
+  border-color: #7e41db;
+}
+
+/* Skills step: same search field + suggestion spacing as role search */
+.skills-step-theme .tag-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skill-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--peach-300);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.skill-search-input::placeholder {
+  color: var(--muted);
+}
+
+.skill-search-input:focus {
+  outline: 2px solid rgba(126, 65, 219, 0.35);
+  outline-offset: 0;
+  border-color: #7e41db;
+}
+
+.suggestion-list--skills {
+  margin-top: 10px;
+}
+
+.role-selected-field {
+  margin: 0 0 12px;
+  border-radius: 12px;
+  border: 1.5px solid #7e41db;
+  background: linear-gradient(145deg, rgba(126, 65, 219, 0.12) 0%, rgba(79, 115, 232, 0.1) 100%);
+  box-shadow: 0 4px 16px rgba(79, 115, 232, 0.12);
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+.role-selected-field__eyebrow {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #5a3aa8;
+  margin-bottom: 4px;
+}
+
+.role-selected-field__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.role-selected-field__name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #2d1f52;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.role-selected-field__change {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .role-limit-note {
   margin: 8px 0 0;
   font-size: 0.8rem;
@@ -1034,6 +1155,27 @@ textarea {
   color: var(--ink-soft);
 }
 
+/* Multi-select / comma-separated answers on Profile Ready */
+.summary-value-list {
+  margin: 0.15rem 0 0;
+  padding: 0 0 0 1.1rem;
+  list-style: disc;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.summary-value-list li {
+  margin: 0 0 0.2rem 0;
+  padding-left: 0.2rem;
+}
+
+.summary-value-list li:last-child {
+  margin-bottom: 0;
+}
+
 .summary-block .button {
   padding: 7px 10px;
   font-size: 0.78rem;
@@ -1099,9 +1241,10 @@ button:disabled {
   position: sticky;
   top: 0;
   z-index: 5;
-  padding: 14px clamp(16px, 4vw, 40px) 10px;
-  background: linear-gradient(180deg, rgba(255, 251, 248, 0.95) 0%, rgba(255, 251, 248, 0.6) 100%);
-  backdrop-filter: blur(6px);
+  padding: 14px clamp(24px, 4vw, 56px) 10px;
+  background: #ffffff;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .q-top-progress-meta {
@@ -1110,7 +1253,8 @@ button:disabled {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
-  max-width: 860px;
+  max-width: min(1480px, 100%);
+  width: 100%;
   margin-left: auto;
   margin-right: auto;
 }
@@ -1137,7 +1281,8 @@ button:disabled {
   border-radius: 999px;
   background: var(--peach-300);
   overflow: hidden;
-  max-width: 860px;
+  max-width: min(1480px, 100%);
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -1169,7 +1314,8 @@ button:disabled {
 
 .q-screen-inner {
   width: 100%;
-  max-width: 760px;
+  /* No max-width - let the card fill its grid cell so the layout uses the
+     full horizontal space instead of stranding the right sidebar far away. */
   will-change: transform, opacity;
 }
 
@@ -1216,6 +1362,543 @@ button:disabled {
   gap: 18px;
 }
 
+/* Profile Ready (step 5) — full-width main column, no inner “card” chrome. */
+.q-card--profileready {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.q-card-body--profile-ready {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.5rem, 2.5vw, 2.25rem);
+  max-width: none;
+  width: 100%;
+  padding: 0;
+  min-width: 0;
+}
+
+.q-profile-ready {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.5rem, 2.5vw, 2.25rem);
+  width: 100%;
+  text-align: left;
+}
+
+/* Profile Ready — dashboard layout (reference: staff-detail style: hero + 2 columns) */
+.q-profile-dashboard {
+  position: relative;
+}
+
+.q-profile-hero-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: clamp(1rem, 2vw, 1.75rem) clamp(1.25rem, 2.5vw, 2rem);
+  width: 100%;
+  box-sizing: border-box;
+  padding: clamp(1.25rem, 2.2vw, 1.75rem) clamp(1.25rem, 2.2vw, 1.75rem) clamp(1.25rem, 2.2vw, 1.5rem);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #fff 0%, var(--peach-50) 100%);
+  box-shadow: 0 8px 28px rgba(45, 41, 38, 0.06);
+  overflow: hidden;
+}
+
+/* Dev illustration + four summary cards: image left, grid right (Profile Ready) */
+.q-profile-summary-and-dev {
+  display: grid;
+  grid-template-columns: minmax(min(360px, 100%), 0.55fr) minmax(0, 1fr);
+  gap: clamp(1.25rem, 2.8vw, 2.25rem);
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.q-profile-dev-panel {
+  min-width: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #fff 0%, var(--peach-50) 100%);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 18px rgba(45, 41, 38, 0.06);
+}
+
+.q-profile-dev-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 460px;
+  max-height: min(880px, 88vh);
+  object-fit: contain;
+  object-position: center center;
+  vertical-align: bottom;
+}
+
+.q-profile-summary-col {
+  min-width: 0;
+}
+
+.q-profile-hero-left {
+  min-width: 0;
+  z-index: 1;
+}
+
+.q-profile-hero-identity {
+  display: flex;
+  gap: 1.1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.q-profile-avatar-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.q-profile-hero-copy {
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.q-profile-hero-right {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  z-index: 1;
+  max-width: min(100%, 320px);
+}
+
+.q-profile-id-inline--hero {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.q-profile-ready-sync {
+  margin: 0 0 0.75rem;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+/* Under Create Profile ID / hero ID row — stack below the primary action. */
+.q-profile-hero-right .q-profile-ready-sync--hero {
+  margin: 0.5rem 0 0;
+  max-width: 100%;
+  text-align: right;
+  align-self: flex-end;
+}
+
+.q-profile-ready-sync[data-tone="error"] {
+  color: #b85c4e;
+  font-weight: 600;
+}
+
+.q-profile-ready-sync[data-tone="info"] {
+  color: var(--ink-soft);
+}
+
+.q-profile-dashboard-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+  align-items: start;
+  gap: clamp(1.5rem, 2.5vw, 2.25rem);
+  width: 100%;
+}
+
+.q-profile-primary {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.5rem, 2vw, 2rem);
+}
+
+.q-profile-next-aside {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: stretch;
+  position: relative;
+}
+
+.summary-block--dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: clamp(0.9rem, 1.2vw, 1.1rem) clamp(1rem, 1.4vw, 1.15rem);
+  box-shadow: 0 4px 18px rgba(45, 41, 38, 0.05);
+}
+
+.summary-block--dashboard .summary-list {
+  line-height: 1.7;
+  margin: 0;
+}
+
+.summary-block--dashboard .summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.summary-block-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+}
+
+.summary-block-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.summary-block--dashboard h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.summary-block-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--peach-200);
+  border: 1px solid var(--peach-300);
+  color: var(--accent-strong);
+  flex-shrink: 0;
+}
+
+.pr-sec-ico {
+  display: block;
+}
+
+.summary-block-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0.35rem 0.5rem 0.35rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: transparent;
+  border: 1px solid rgba(45, 41, 38, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.summary-block-edit:hover {
+  background: rgba(45, 41, 38, 0.04);
+  border-color: rgba(45, 41, 38, 0.18);
+}
+
+.summary-block-edit-ico {
+  display: flex;
+  opacity: 0.85;
+}
+
+.q-profile-cta-section {
+  padding: clamp(1.1rem, 1.6vw, 1.35rem) clamp(1.1rem, 1.6vw, 1.35rem) clamp(1rem, 1.4vw, 1.2rem);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(45, 41, 38, 0.05);
+}
+
+.q-profile-cta-heading {
+  margin: 0 0 0.9rem 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.q-profile-cta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem 0.5rem;
+}
+
+.q-profile-cta-item {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Same look + full width for all “What next” actions. */
+.q-profile-cta-item .q-profile-cta-btn {
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: center;
+  text-align: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.q-profile-cta-hint {
+  width: 100%;
+  margin: 0.2rem 0 0.35rem 0;
+}
+
+.q-profile-next-sync {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-top: 0.1rem;
+}
+
+.q-profile-next-synced-at {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.q-profile-ready-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  width: 100%;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(45, 41, 38, 0.08);
+}
+
+.q-profile-ready .profile-top,
+.q-profile-ready-top {
+  display: flex;
+  flex: 1 1 280px;
+  gap: 1rem;
+  align-items: flex-start;
+  text-align: left;
+  min-width: 0;
+}
+
+.q-profile-ready-id-slot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.q-profile-id-create {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.q-profile-id-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  justify-content: flex-end;
+}
+
+.q-profile-id-inline-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.q-profile-id-code-compact {
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(45, 41, 38, 0.06);
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+
+.q-profile-id-copy--compact {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  border-radius: 8px;
+}
+
+.q-title--profile-summary {
+  margin: 0 0 0.5rem 0;
+}
+
+.profile-id-card--inline .profile-id-card-title {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.profile-id-card-body--tight {
+  padding-top: 8px;
+}
+
+/* Profile Ready full-width rules live with .q-layout (below) so they override the 1480px cap. */
+
+/* ----------------------------------------------------------------------- */
+/* Two-column layout when a scene is present:                              */
+/*   left  - "Question n/m" + illustration                                 */
+/*   right - block label + question + options                              */
+/* ----------------------------------------------------------------------- */
+
+.q-card-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 400px) minmax(0, 1.65fr);
+  column-gap: clamp(32px, 5vw, 80px);
+  row-gap: 0;
+  align-items: start;
+}
+
+.q-card-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.q-card--withscene .q-card-col {
+  gap: clamp(0.65rem, 0.2lh + 0.45rem, 0.9rem);
+}
+
+/* Actions sit in the right column (under answers) so a tall left image
+   does not leave a large gap to Back / Save & exit. Space scales with
+   line-height and viewport. */
+.q-card--withscene .q-card-col > .q-card-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  /* Extra air between answers and Back / Save & exit (see q-card-col gap) */
+  margin-top: clamp(1.1rem, 0.5lh + 0.6rem + 0.4vmin, 2.25rem);
+}
+
+.q-card--withscene .q-card-col > .q-card-foot .q-message {
+  margin: 0;
+}
+
+.q-card--withscene .q-card-col > .q-card-foot .q-actions {
+  margin-top: 0;
+}
+
+.q-scene-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.q-scene-count {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+  background: rgba(45, 41, 38, 0.06);
+  padding: 6px 12px;
+  border-radius: 999px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* The illustration sits transparently beside the question - no background,
+   no frame, no card. Only the floating dots/bubbles add motion. */
+.q-scene {
+  position: relative;
+  align-self: stretch;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  isolation: isolate;
+  width: 100%;
+}
+
+.q-scene::before,
+.q-scene::after {
+  content: none;
+}
+
+.q-scene-frame {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The illustration sits directly on the card - no drop-shadow, no float
+   animation. The PNGs themselves are visually active enough. */
+.q-scene-art {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* --- Tablet: illustration column first (left in LTR), question column flexible. */
+@media (max-width: 980px) {
+  .q-card-grid {
+    grid-template-columns: minmax(220px, 320px) minmax(0, 1.5fr);
+    column-gap: clamp(24px, 3.5vw, 48px);
+  }
+  .q-scene-frame { max-width: 300px; }
+}
+
+/* --- Mobile: stack - scene (first in source) on top, then the question. --- */
+@media (max-width: 720px) {
+  .q-card-grid {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+    row-gap: 18px;
+  }
+  .q-scene-frame { max-width: 260px; }
+}
+
 .q-card-body {
   display: flex;
   flex-direction: column;
@@ -1233,17 +1916,162 @@ button:disabled {
 
 .q-title {
   margin: 0;
-  font-size: clamp(1.35rem, 2.6vw, 1.9rem);
+  font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   line-height: 1.25;
   color: var(--ink);
 }
 
+/* Question titles beside the image: calmer, smaller, medium weight. */
+.q-card--withscene .q-title {
+  font-size: clamp(1.1rem, 1.5vw, 1.32rem);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  font-style: normal;
+  color: var(--ink);
+  margin-bottom: 0.2rem;
+}
+
+.q-card--withscene .q-subtitle {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* Spacing: question text → options, and more room above the first option / below Clear all. */
+.q-card--withscene .q-card-body {
+  gap: 1.5rem;
+}
+
+.q-card--withscene .q-subtitle,
+.q-card--withscene .q-footnote {
+  margin-top: 0.15rem;
+  margin-bottom: 0.35rem;
+}
+
+.q-card--withscene .q-clear-row {
+  margin-top: 0.25rem;
+  margin-bottom: 1.1rem;
+}
+
+.q-card--withscene .q-choice-stack {
+  gap: 0.8rem;
+}
+
+/* One size for all tap targets / multiple-choice copy in the wizard. */
+.q-card--withscene {
+  --q-option-text-size: 0.9rem;
+  --q-option-line: 1.45;
+  --q-option-weight: 500;
+}
+
+.q-card--withscene .q-choice,
+.q-card--withscene .q-scale-btn,
+.q-card--withscene .energy-check-item,
+.q-card--withscene .choice-chip,
+.q-card--withscene .suggestion-row,
+.q-card--withscene .q-option-big {
+  font-size: var(--q-option-text-size);
+  line-height: var(--q-option-line);
+}
+
+.q-card--withscene .q-choice-label {
+  font-size: var(--q-option-text-size);
+  font-weight: var(--q-option-weight);
+  line-height: var(--q-option-line);
+}
+
+.q-card--withscene .q-scale-label {
+  font-size: var(--q-option-text-size);
+  font-weight: 600;
+  line-height: var(--q-option-line);
+}
+
+.q-card--withscene .energy-check-label {
+  font-size: var(--q-option-text-size);
+  font-weight: var(--q-option-weight);
+  line-height: var(--q-option-line);
+}
+
+.q-card--withscene .choice-chip {
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+.q-card--withscene .q-option-big-label {
+  font-size: var(--q-option-text-size);
+  line-height: var(--q-option-line);
+}
+
+.q-card--withscene .q-option-big-desc {
+  font-size: 0.86rem;
+  line-height: 1.4;
+  opacity: 0.95;
+}
+
+.q-card--withscene .q-choice-letter {
+  font-size: 0.9rem;
+}
+
+.q-card--withscene .q-scale-row {
+  margin-top: 0.4rem;
+  gap: 12px;
+}
+
+.q-card--withscene .chip-grid {
+  gap: 10px;
+}
+
+.q-card--withscene .energy-check-grid {
+  gap: 10px;
+  margin-top: 0.1rem;
+}
+
+/* Match work-style: pill rows, mini checkbox, gradient when selected (same as former choice-chips) */
+.q-card--withscene .energy-check-item {
+  border-radius: 999px;
+  border: 1px solid var(--peach-300);
+  background: #fff;
+  font-weight: 600;
+  padding: 8px 12px 8px 10px;
+}
+
+.q-card--withscene .energy-check-item:hover {
+  box-shadow: 0 4px 12px rgba(45, 41, 38, 0.08);
+}
+
+.q-card--withscene .energy-check-item.is-selected {
+  border-color: transparent;
+  background: linear-gradient(140deg, #4f73e8 0%, #7e41db 58%, #d14fd8 100%);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(79, 115, 232, 0.28);
+}
+
+.q-card--withscene .energy-check-item.is-selected .energy-check-box {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.q-card--withscene .energy-check-item.is-selected .energy-check-label {
+  color: #fff;
+}
+
+.q-card--withscene .energy-check-item:focus-visible {
+  outline: 2px solid rgba(79, 115, 232, 0.65);
+  outline-offset: 2px;
+}
+
 .q-title em {
   font-style: normal;
+  font-weight: 600;
   color: var(--accent-strong);
-  background: var(--peach-200);
-  padding: 0 8px;
-  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  border-bottom: 2px solid rgba(47, 124, 224, 0.35);
 }
 
 .q-subtitle {
@@ -1266,6 +2094,103 @@ button:disabled {
 .q-footnote--muted {
   color: #8b7d72;
   font-style: italic;
+}
+
+/* Type Classification — quiz outcome: result label, disclaimer, focal profile card */
+.q-quiz-result {
+  max-width: 100%;
+  text-align: left;
+}
+
+.q-quiz-result-eyebrow {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.q-quiz-result-footnote {
+  margin: clamp(1.1rem, 2.2vh, 1.75rem) 0 0;
+  max-width: 42rem;
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: #8a7e74;
+  font-style: normal;
+  letter-spacing: 0.01em;
+}
+
+.q-quiz-result-footnote-mark {
+  font-weight: 800;
+  color: #7a6d66;
+  margin-right: 0.15em;
+}
+
+.q-quiz-result-focal {
+  margin: 0;
+  padding: 0.9rem 1.05rem 1.05rem;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(79, 115, 232, 0.08) 0%, rgba(126, 65, 219, 0.1) 55%, rgba(209, 79, 216, 0.08) 100%);
+  border: 1px solid rgba(79, 115, 232, 0.22);
+  box-shadow: 0 8px 24px rgba(47, 124, 224, 0.12);
+}
+
+.q-quiz-result-focal-heading {
+  margin: 0 0 0.55rem;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.q-quiz-result-focal-prefix {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: clamp(0.92rem, 1.1vw, 1rem);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+
+.q-quiz-result-focal-type {
+  display: block;
+  font-size: clamp(1.5rem, 2.8vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.12;
+  color: #4f2fa8;
+  /* Gradient tint on the letters where supported, with solid fallbacks. */
+  background: linear-gradient(120deg, #2560df 0%, #6a30c2 50%, #b038a8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .q-quiz-result-focal-type {
+    background: none;
+    -webkit-text-fill-color: #4f2fa8;
+    color: #4f2fa8;
+  }
+}
+
+/* Profile-type blurb, inside the colored box, visually secondary to the type name */
+.q-quiz-result-focal-desc {
+  margin: 0;
+  padding: 0.5rem 0 0;
+  border-top: 1px solid rgba(79, 115, 232, 0.15);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  font-weight: 500;
+  color: #5c534c;
+  max-width: 48ch;
+}
+
+.q-card--withscene .q-quiz-result-focal-desc {
+  font-size: 0.82rem;
+  line-height: 1.52;
+  color: #625750;
 }
 
 /* Big option cards (awareness gate, type-known, quiz-result override) */
@@ -1467,19 +2392,28 @@ button:disabled {
 }
 
 .q-clear-link {
-  align-self: flex-start;
   background: transparent;
   border: none;
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-  text-decoration: underline;
+  color: #3b82f6;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
+  text-decoration: none;
   cursor: pointer;
-  padding: 4px 0;
-  margin-top: 2px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 160ms ease;
 }
 
 .q-clear-link:hover {
-  color: var(--danger);
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.q-clear-link:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 /* Mobile tweaks */
@@ -1610,6 +2544,23 @@ button:disabled {
 .profile-id-card--error {
   border-color: #f4c4bf;
   background: #fff6f4;
+}
+
+/* Profile Ready step: flat strip under the top bar, not a second boxed card. */
+.profile-id-card.profile-id-card--inline {
+  margin: 0 0 0.5rem 0;
+  padding: 0 0 12px 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.profile-id-card--inline.profile-id-card--ready,
+.profile-id-card--inline.profile-id-card--saving,
+.profile-id-card--inline.profile-id-card--error {
+  background: transparent;
+  border: none;
 }
 
 .profile-id-card-eyebrow {
@@ -1828,12 +2779,94 @@ button:disabled {
 .q-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
-  gap: clamp(20px, 3vw, 36px);
-  max-width: 1100px;
+  gap: clamp(20px, 2.5vw, 36px);
+  max-width: min(1480px, 100%);
   margin: 0 auto;
-  padding: clamp(24px, 5vw, 48px) clamp(16px, 4vw, 32px) 64px;
+  padding: clamp(24px, 4vw, 40px) clamp(24px, 4vw, 56px) 72px;
   align-items: start;
   width: 100%;
+}
+
+/* Profile Ready: use the full content width (no 1480px cap) and stretch four summary cards. */
+.q-layout.q-layout--profile-ready {
+  grid-template-columns: 1fr;
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+  padding: clamp(20px, 3.5vw, 36px) clamp(12px, 2.5vw, 36px) 64px;
+  box-sizing: border-box;
+}
+
+.q-layout--profile-ready .q-main,
+.q-layout--profile-ready .q-screen-inner,
+.q-layout--profile-ready .q-card--profileready,
+.q-layout--profile-ready .q-card-body--profile-ready,
+.q-layout--profile-ready .q-profile-ready {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.q-layout--profile-ready .q-profile-summary-col .q-profile-summary-grid,
+.q-layout--profile-ready .q-profile-primary .q-profile-summary-grid {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin-top: 0;
+  box-sizing: border-box;
+  gap: clamp(12px, 1.4vw, 18px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  justify-content: stretch;
+  justify-items: stretch;
+}
+
+.q-layout--profile-ready .q-profile-primary .q-profile-summary-grid .summary-block {
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .q-profile-dashboard-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .q-profile-summary-and-dev {
+    grid-template-columns: 1fr;
+  }
+
+  .q-profile-dev-panel {
+    max-width: 100%;
+  }
+
+  .q-profile-dev-img {
+    min-height: 320px;
+    max-height: min(680px, 68vh);
+  }
+}
+
+@media (max-width: 700px) {
+  .q-layout--profile-ready .q-profile-primary .q-profile-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .q-profile-hero-card {
+    grid-template-columns: 1fr;
+  }
+
+  .q-profile-hero-right {
+    max-width: none;
+    align-items: flex-start;
+  }
+
+  .q-profile-id-inline--hero {
+    justify-content: flex-start;
+  }
 }
 
 .q-main {
@@ -1866,6 +2899,20 @@ button:disabled {
   padding: 3px 10px;
   border-radius: 999px;
 }
+
+.q-clear-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 -4px;
+}
+
+/* Place the clear-row visually between the question heading/subtitle
+   and the answer options inside the card body. */
+.q-card-body > * { order: 4; }
+.q-card-body > .q-title { order: 1; }
+.q-card-body > .q-subtitle,
+.q-card-body > .q-footnote { order: 2; }
+.q-card-body > .q-clear-row { order: 3; }
 
 /* ------------------------------------------------------------------------- */
 /* Lettered A/B/C/D option cards — minimal, matches the reference quiz UI    */
@@ -2128,3 +3175,355 @@ button:disabled {
 .q-phase-out-forward { animation: qExitLeft  220ms ease-in both; }
 .q-phase-out-back    { animation: qExitRight 220ms ease-in both; }
 
+
+/* =========================================================================
+   Pre-wizard "login" gate — appears once per tab-session before the quiz
+   starts. Intentionally does NOT use q-blocks / q-card / q-sidepanel styles,
+   so visitors see this as a simple returning-user login screen rather than
+   another quiz question.
+   ========================================================================= */
+
+.login-gate {
+  min-height: calc(100vh - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background:
+    radial-gradient(1200px 600px at 10% 10%, rgba(47, 124, 224, 0.08), transparent 60%),
+    radial-gradient(1000px 500px at 90% 80%, rgba(247, 184, 1, 0.08), transparent 60%),
+    #fdfaf4;
+  font-family: "Montserrat", system-ui, -apple-system, sans-serif;
+}
+
+.login-gate-card {
+  width: min(520px, 100%);
+  background: #ffffff;
+  border-radius: 22px;
+  border: 1px solid rgba(45, 41, 38, 0.08);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 18px 40px -24px rgba(45, 41, 38, 0.25);
+  padding: 32px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+  animation: loginGateIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes loginGateIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.login-gate-eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #2f7ce0;
+}
+
+.login-gate-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.2vw, 1.9rem);
+  font-weight: 800;
+  line-height: 1.2;
+  color: #2d2926;
+}
+
+.login-gate-sub {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #5a544f;
+}
+
+/* Re-use .userid-box styles but give them a slightly tighter look inside the
+   gate card (no dashed border — this is the primary action here). */
+.login-gate .userid-box {
+  border-style: solid;
+  border-color: rgba(47, 124, 224, 0.28);
+  background: linear-gradient(180deg, #f7faff 0%, #eef3ff 100%);
+  margin-top: 4px;
+}
+
+.login-gate-divider {
+  position: relative;
+  text-align: center;
+  margin: 6px 0;
+  color: #9a938c;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.login-gate-divider::before,
+.login-gate-divider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 28px);
+  height: 1px;
+  background: rgba(45, 41, 38, 0.12);
+}
+
+.login-gate-divider::before { left: 0; }
+.login-gate-divider::after  { right: 0; }
+
+.login-gate-divider > span {
+  position: relative;
+  padding: 0 10px;
+  background: #ffffff;
+}
+
+.login-gate-new {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  font-size: 0.98rem;
+}
+
+.login-gate-foot {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #8a837c;
+}
+
+@media (max-width: 520px) {
+  .login-gate { padding: 28px 14px; }
+  .login-gate-card { padding: 24px 20px; border-radius: 18px; }
+}
+
+/* =========================================================================
+   Progress stepper — "Progress N/M" heading + numbered circle for each
+   block with its STEP N / title caption always visible. The active step's
+   circle and title are blue; completed steps turn green with a check;
+   future steps are muted gray. Every step is a clickable button so
+   visitors can preview upcoming sections or jump back.
+   ========================================================================= */
+
+.q-steps {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  /* Match .q-layout horizontal insets so the full-width stepper lines up with the page grid. */
+  padding: 20px clamp(24px, 4vw, 56px) 24px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(45, 41, 38, 0.06);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.q-steps-header {
+  max-width: min(1480px, 100%);
+  width: 100%;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.q-steps-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.q-steps-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(47, 124, 224, 0.12);
+  color: #2f7ce0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.q-steps-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto;
+  max-width: min(1480px, 100%);
+  width: 100%;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: flex-start;
+}
+
+.q-steps-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-top: 4px;
+  min-width: 0;
+}
+
+/* Connector line from the right edge of the *previous* dot to the left
+   edge of *this* dot. Items are grid-cells that stretch full-width, but
+   each dot sits flush-left inside its cell; that's why the left span is
+   "-100% + dotWidth" and the right span is "100%" (= at the left edge of
+   this item, i.e. the left edge of this dot). */
+.q-steps-connector {
+  position: absolute;
+  top: calc(4px + 16px);          /* vertical center of the 32px dot */
+  left: calc(-100% + 32px);
+  right: 100%;
+  height: 2px;
+  background: rgba(45, 41, 38, 0.14);
+  z-index: 0;
+  transition: background 260ms ease;
+}
+
+.q-steps-connector.is-filled {
+  background: #4eb377;            /* muted green */
+}
+
+/* Whole item is a button so the entire caption (dot + label) is clickable. */
+.q-steps-btn {
+  all: unset;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 8px 4px 0;
+  border-radius: 12px;
+  transition: transform 180ms ease;
+  font-family: inherit;
+}
+
+/* No hover fill — avoids a full-width blue wash behind the step label. */
+.q-steps-btn:hover {
+  transform: translateY(-1px);
+}
+
+.q-steps-btn:focus-visible {
+  outline: 2px solid #2f7ce0;
+  outline-offset: 2px;
+}
+
+.q-steps-dot {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #b9b4ad;                   /* default future: muted gray */
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: background 220ms ease, box-shadow 220ms ease, color 220ms ease;
+}
+
+/* Active (current) — blue filled circle + soft halo. */
+.q-steps-item.is-active .q-steps-dot {
+  background: #2f7ce0;
+  color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(47, 124, 224, 0.18);
+}
+
+/* Done — green filled circle with check. */
+.q-steps-item.is-done .q-steps-dot {
+  background: #4eb377;
+  color: #ffffff;
+  box-shadow: 0 2px 6px -2px rgba(78, 179, 119, 0.4);
+}
+
+/* Started but not active — slightly darker gray so it reads as "touched" */
+.q-steps-item.is-started .q-steps-dot {
+  background: #9a938c;
+}
+
+/* Caption (STEP N / Title) — always visible, color changes by state. */
+.q-steps-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  line-height: 1.2;
+}
+
+.q-steps-caption-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.q-steps-caption-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  letter-spacing: -0.005em;
+  max-width: 180px;
+}
+
+.q-steps-item.is-active .q-steps-caption-eyebrow,
+.q-steps-item.is-active .q-steps-caption-title {
+  color: #2f7ce0;
+}
+
+.q-steps-item.is-done .q-steps-caption-eyebrow {
+  color: var(--ink-soft);
+}
+
+.q-steps-item.is-done .q-steps-caption-title {
+  color: var(--ink);
+}
+
+/* Responsive — stack the dot above the caption on narrower screens and
+   scroll horizontally if labels get too tight. */
+@media (max-width: 760px) {
+  .q-steps { padding: 18px 12px 18px; }
+
+  .q-steps-list {
+    grid-auto-columns: minmax(140px, 1fr);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+
+  .q-steps-list::-webkit-scrollbar { display: none; }
+
+  .q-steps-caption-title {
+    font-size: 0.86rem;
+    max-width: 140px;
+  }
+
+  .q-steps-connector {
+    top: calc(4px + 14px);        /* center of smaller 28px dot */
+    left: calc(-100% + 28px);
+    right: 100%;
+  }
+
+  .q-steps-dot {
+    width: 28px;
+    height: 28px;
+    font-size: 0.82rem;
+  }
+}
+
+/* Hide the legacy .q-blocks markup if it ever re-renders — it no longer
+   appears in the JSX but keeps old CSS rules inert. */
+.q-blocks { display: none; }
