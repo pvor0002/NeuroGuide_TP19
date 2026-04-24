@@ -1076,6 +1076,28 @@ textarea {
   font-size: 0.86rem;
 }
 
+.q-profile-thankyou {
+  margin: 0;
+  max-width: none;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0.01em;
+}
+
+.q-profile-thankyou p {
+  margin: 0;
+}
+
+.q-profile-thankyou p + p {
+  margin-top: 1rem; /* line break + visual gap like a blank line */
+}
+
+.q-profile-next-aside .q-profile-thankyou {
+  padding: 0 0 0.15rem;
+}
+
 .summary-grid {
   margin-top: 12px;
   display: grid;
@@ -1648,6 +1670,39 @@ button:disabled {
   align-items: stretch;
   gap: 0.6rem 0.75rem;
   flex-wrap: wrap;
+}
+
+.q-profile-cta-item--suitability {
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
+.q-profile-cta-gate {
+  margin: 0.4rem 0 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.q-profile-cta-gate-msg {
+  margin: 0;
+  width: 100%;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.q-profile-cta-gate-hint {
+  margin: 0;
+  width: 100%;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 /* Same look + full width for all “What next” actions. */
@@ -2879,7 +2934,7 @@ button:disabled {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 4px;
-  border-bottom: 1px dashed rgba(45, 41, 38, 0.1);
+  border-bottom: 1px dashed rgba(45, 41, 38, 0.24);
   padding-bottom: 12px;
 }
 
@@ -3047,7 +3102,7 @@ button:disabled {
   gap: 4px;
   padding-bottom: 12px;
   margin-bottom: 10px;
-  border-bottom: 1px dashed rgba(45, 41, 38, 0.12);
+  border-bottom: 1px dashed rgba(45, 41, 38, 0.26);
 }
 
 .q-sidepanel-title {

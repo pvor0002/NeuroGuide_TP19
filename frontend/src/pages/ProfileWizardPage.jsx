@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
-import { NeuroBrandFlower } from "../components/NeuroBrandFlower.jsx";
+import SiteAppHeader from "../components/SiteAppHeader.jsx";
 import QuizScene from "../components/QuizScene.jsx";
 import UserIdEntryBox from "../components/UserIdEntryBox.jsx";
 import {
@@ -551,12 +551,12 @@ function validateStep(step, answers) {
 
 export default function ProfileWizardPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [roleTags, setRoleTags] = useState([]);
   const [skillTags, setSkillTags] = useState([]);
   const [state, setState] = useState(loadPersistedState);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState("error");
-  const [brandFlowerActive, setBrandFlowerActive] = useState(false);
   const [phase, setPhase] = useState("in"); // "in" | "out-forward" | "out-back"
   const [progressBump, setProgressBump] = useState(false);
   const transitionTimerRef = useRef(null);
@@ -565,6 +565,7 @@ export default function ProfileWizardPage() {
   const [syncStatus, setSyncStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
   const [syncMessage, setSyncMessage] = useState("");
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [showSuitabilityGate, setShowSuitabilityGate] = useState(false);
 
   // "Login" gate shown once per tab-session before the wizard starts. Not a
   // quiz step - it sits entirely outside buildSteps so it doesn't count toward
@@ -585,18 +586,6 @@ export default function ProfileWizardPage() {
     try { window.sessionStorage.setItem(GATE_SESSION_KEY, "1"); } catch { /* ignore */ }
     setShowLoginGate(false);
   };
-
-  useEffect(() => {
-    let innerId;
-    const outerId = requestAnimationFrame(() => {
-      setBrandFlowerActive(false);
-      innerId = requestAnimationFrame(() => setBrandFlowerActive(true));
-    });
-    return () => {
-      cancelAnimationFrame(outerId);
-      if (innerId !== undefined) cancelAnimationFrame(innerId);
-    };
-  }, []);
 
   useEffect(() => {
     async function loadTaxonomy() {
@@ -628,6 +617,15 @@ export default function ProfileWizardPage() {
   }, []);
 
   const steps = useMemo(() => buildSteps(state.answers), [state.answers]);
+  const canCheckJobSuitability = useMemo(() => {
+    const pre = steps.filter((s) => s.block !== "profile");
+    return pre.length === 0 || pre.every((s) => isStepAnswered(s, state.answers));
+  }, [steps, state.answers]);
+
+  useEffect(() => {
+    if (canCheckJobSuitability) setShowSuitabilityGate(false);
+  }, [canCheckJobSuitability]);
+
   const safeStepIndex = Math.min(state.stepIndex, Math.max(steps.length - 1, 0));
   const currentStep = steps[safeStepIndex];
   const totalSteps = steps.length;
@@ -915,6 +913,15 @@ export default function ProfileWizardPage() {
     if (idx < 0) return;
     setState((prev) => ({ ...prev, view: "wizard", stepIndex: idx }));
     setMessage("");
+  };
+
+  const handleJobSuitabilityClick = () => {
+    if (!canCheckJobSuitability) {
+      setShowSuitabilityGate(true);
+      return;
+    }
+    setShowSuitabilityGate(false);
+    navigate("/simplify-job-description");
   };
 
   const saveAndExit = () => {
@@ -1510,16 +1517,34 @@ export default function ProfileWizardPage() {
               </div>
 
               <aside className="q-profile-next-aside" aria-label="Next steps">
+                <div className="q-profile-thankyou">
+                  <p>Thank you for taking the time to answer honestly !</p>
+                  <p>
+                    Your answers help us understand how you work best, and we are grateful you trusted
+                    us with them.
+                  </p>
+                </div>
                 <div className="q-profile-cta-section">
                   <h3 className="q-profile-cta-heading">What would you like to do next?</h3>
                   <div className="q-profile-cta-list">
-                    <div className="q-profile-cta-item">
-                      <Link
-                        to="/simplify-job-description"
+                    <div className="q-profile-cta-item q-profile-cta-item--suitability">
+                      <button
+                        type="button"
                         className="button primary q-profile-cta-btn"
+                        onClick={handleJobSuitabilityClick}
                       >
                         Check job suitability score
-                      </Link>
+                      </button>
+                      {showSuitabilityGate ? (
+                        <div className="q-profile-cta-gate" role="alert">
+                          <p className="q-profile-cta-gate-msg">
+                            Please complete every profile question before checking job suitability.
+                          </p>
+                          <p className="q-profile-cta-gate-hint">
+                            Use Progress at the top to see and finish any step you have not completed yet.
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="q-profile-cta-item">
                       <button
@@ -1619,42 +1644,7 @@ export default function ProfileWizardPage() {
   return (
     <div className="profile-app profile-app--fullscreen">
       <DataConsentModal />
-      <header className="topbar">
-        <div className="brand-wrap">
-          <Link to="/" className="profile-header-brand-link" aria-label="NeuroGuide home">
-            <div className="home-sticky-bar-brand">
-              <NeuroBrandFlower svgClassName="home-sticky-bar-mark" animationActive={brandFlowerActive} />
-              <div className="home-sticky-bar-copy">
-                <span className="home-sticky-bar-kicker">NeuroGuide</span>
-                <span className="home-sticky-bar-title">Where clarity meets opportunity</span>
-                <span className="home-sticky-bar-tagline">Simplifying jobs and interviews for the way your mind works</span>
-              </div>
-            </div>
-          </Link>
-          <nav className="profile-top-nav" aria-label="Site">
-            <Link to="/" aria-current={location.pathname === "/" ? "page" : undefined}>Home</Link>
-            <Link to="/profile" aria-current={location.pathname === "/profile" ? "page" : undefined}>Career Profile</Link>
-            <Link
-              to="/simplify-job-description"
-              aria-current={location.pathname === "/simplify-job-description" ? "page" : undefined}
-            >
-              Simplify Job Description
-            </Link>
-            <Link
-              to="/interview-prep"
-              aria-current={location.pathname === "/interview-prep" ? "page" : undefined}
-            >
-              Interview Prep
-            </Link>
-            <Link
-              to="/settings"
-              aria-current={location.pathname === "/settings" ? "page" : undefined}
-            >
-              Settings
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteAppHeader />
 
       {showLoginGate && !state.profileId ? (
         <main className="login-gate" aria-labelledby="login-gate-title">
