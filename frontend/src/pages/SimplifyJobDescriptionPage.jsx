@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import DataConsentModal from "../components/DataConsentModal.jsx";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
 import {
   buildExportPdfFilename,
@@ -475,6 +476,7 @@ export default function SimplifyJobDescriptionPage() {
 
   return (
     <div className="simplify-page">
+      <DataConsentModal />
       <div className="simplify-page-noise" aria-hidden="true" />
 
       <header className="simplify-hero" aria-labelledby="simplify-title">

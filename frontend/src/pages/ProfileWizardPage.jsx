@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import DataConsentModal from "../components/DataConsentModal.jsx";
 import { NeuroBrandFlower } from "../components/NeuroBrandFlower.jsx";
 
 const STORAGE_KEY = "neuroguide.skillBackgroundSupportProfile.react.v1";
@@ -782,6 +783,7 @@ export default function ProfileWizardPage() {
 
   return (
     <div className="profile-app">
+      <DataConsentModal />
       <header className="topbar">
         <div className="brand-wrap">
           <Link to="/" className="profile-header-brand-link" aria-label="NeuroGuide home">
