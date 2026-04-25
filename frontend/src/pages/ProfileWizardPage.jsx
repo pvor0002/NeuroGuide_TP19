@@ -1,15 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import { NeuroBrandFlower } from "../components/NeuroBrandFlower.jsx";
+import QuizScene from "../components/QuizScene.jsx";
+import UserIdEntryBox from "../components/UserIdEntryBox.jsx";
+import {
+  createProfile,
+  fetchProfile,
+  normalizeProfileId,
+  updateProfile,
+} from "../services/profileApi.js";
 
-const STORAGE_KEY = "neuroguide.skillBackgroundSupportProfile.react.v1";
+const STORAGE_KEY = "neuroguide.careerProfile.react.v2";
 const MAX_VISIBLE_SKILL_RESULTS = 20;
 const MAX_VISIBLE_ROLE_RESULTS = 18;
-const MAX_SELECTED_ROLES = 3;
+const MAX_SELECTED_ROLES = 1;
+const MAX_ENERGY_PATTERNS = 2;
+const MAX_PICK_ALL_APPLY = 2;
+const TRANSITION_MS = 260;
 
-const DURATION_OPTIONS = ["< 6 months", "6-12 months", "1-2 years", "2-5 years", "5+ years"];
-const EXPERIENCE_LEVEL_OPTIONS = ["Beginner", "Intermediate", "Advanced"];
+// Top-level "blocks" of the wizard. Replaces the old "Question X of N" counter
+// with a segmented progress bar so the quiz feels broken into digestible
+// chunks. Keep this list short - ADHD visitors should be able to see the
+// whole shape of the flow at a glance.
+const BLOCKS = [
+  { id: "type",    label: "Type Classification" },
+  { id: "work",    label: "Work Preferences" },
+  { id: "support", label: "Support Setup" }, // includes Time and Energy
+  { id: "jobs",    label: "Jobs & Skills" },
+  { id: "profile", label: "Profile Ready" },
+];
+const BLOCK_IDS = BLOCKS.map((b) => b.id);
+const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
+const DURATION_OPTIONS = ["Internship", "6 months", "1-2 years"];
 const ENERGY_PATTERN_OPTIONS = [
   "Best with routine",
   "Best with variety",
@@ -22,7 +46,7 @@ const ENERGY_PATTERN_OPTIONS = [
   "Best in quieter settings",
   "Best with body-doubling/accountability",
   "Best with morning deep work",
-  "Best with afternoon deep work"
+  "Best with afternoon deep work",
 ];
 const WORK_STYLE_OPTIONS = [
   "Clear priorities",
@@ -30,7 +54,7 @@ const WORK_STYLE_OPTIONS = [
   "Visual workflow",
   "Low interruptions",
   "Collaborative team",
-  "Quiet work blocks"
+  "Quiet work blocks",
 ];
 const SUPPORT_NEED_OPTIONS = [
   "Written instructions",
@@ -40,38 +64,137 @@ const SUPPORT_NEED_OPTIONS = [
   "Flexible start time",
   "Noise-reduced space",
   "Task batching",
-  "Break prompts"
+  "Break prompts",
 ];
 
-const ROLE_KEYWORDS_FOR_BLUE_COLLAR = [
-  "waiter",
-  "barista",
-  "cafe",
-  "hospitality",
-  "kitchen",
-  "cleaner",
-  "cleaning",
-  "labour",
-  "driver",
-  "warehouse",
-  "carpenter",
-  "plumber",
-  "mechanic",
-  "retail"
+// Short self-report prompts, kept simple and concrete on purpose. Internal
+// cluster tags drive the scoring; the user never sees them.
+const ADHD_QUIZ_QUESTIONS = [
+  { id: "q1", cluster: "inattentive", text: "How often do you have trouble staying focused on a task?" },
+  { id: "q2", cluster: "inattentive", text: "How often do you forget deadlines or where you put things?" },
+  { id: "q3", cluster: "inattentive", text: "How often do activity or noise around you pull your attention?" },
+  { id: "q4", cluster: "inattentive", text: "How often do you struggle to finish tasks after the initial excitement?" },
+  { id: "q5", cluster: "hyperactive", text: "How often do you feel restless or need to move?" },
+  { id: "q6", cluster: "hyperactive", text: "How often do you interrupt others or finish their sentences?" },
+  { id: "q7", cluster: "hyperactive", text: "How often do you act or speak before thinking it through?" },
+  { id: "q8", cluster: "hyperactive", text: "How often do you feel 'on the go', as if driven by a motor?" },
 ];
+const QUIZ_SCALE = [
+  { value: 0, label: "Never" },
+  { value: 1, label: "Sometimes" },
+  { value: 2, label: "Often" },
+  { value: 3, label: "Very often" },
+];
+const QUIZ_CLUSTER_THRESHOLD = 6; // sum >= 6 of 12 flags the cluster
+
+// User-facing labels are intentionally soft - we never call these "ADHD
+// types" in the UI. The internal keys keep the same names so backend
+// storage / analytics stay consistent.
+const ADHD_TYPE_LABELS = {
+  inattentive: "Inattentive",
+  "hyperactive-impulsive": "Hyperactive-Impulsive",
+  combined: "Combined",
+};
+const ADHD_TYPE_DESCRIPTIONS = {
+  inattentive: "Focus drifts and details slip - finishing is harder than starting.",
+  "hyperactive-impulsive": "High energy - restlessness, quick talk, jumping in early.",
+  combined: "A mix of both - attention wanders and there's restlessness driving you.",
+};
+
+function ProfileReadySectionIcon({ sectionId }) {
+  const common = { className: "pr-sec-ico", "aria-hidden": true, width: 22, height: 22, viewBox: "0 0 24 24" };
+  switch (sectionId) {
+    case "type":
+      return (
+        <svg {...common}>
+          <path
+            d="M12 12c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <path
+            d="M6.2 20.1c.4-2.4 2.5-4.1 5.1-4.1h1.4c2.5 0 4.6 1.6 5.1 4.1"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "work":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M12 7v4.5L15 15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    case "support":
+      return (
+        <svg {...common}>
+          <path
+            d="M12 3.2 20 6.5V12c0 4.5-3.1 7.2-7.4 8.8C8.1 19.1 4 16.2 4 12V6.5L12 3.2Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path d="M9.2 12.3l1.5 1.4 3.1-2.8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "jobs":
+      return (
+        <svg {...common}>
+          <path
+            d="M4.5 9.5h15v8a1.2 1.2 0 0 1-1.2 1.2H5.7a1.2 1.2 0 0 1-1.2-1.2v-8Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path d="M8.5 9.3V7.1a1.1 1.1 0 0 1 1-1.1h5a1.1 1.1 0 0 1 1 1.1v2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+/** ANZSCO-style titles: only IT / software and closely related technology roles. */
+const IT_SOFTWARE_ROLE_BLOCKLIST = /photographic|motion picture|film /i;
+function isItSoftwareRoleName(role) {
+  if (typeof role !== "string" || !role.trim() || IT_SOFTWARE_ROLE_BLOCKLIST.test(role)) {
+    return false;
+  }
+  const t = role.toLowerCase();
+  if (/\bict\b/.test(t) || t.includes("ict ")) return true;
+  if (t.includes("software")) return true;
+  if (t.includes("web developer") || t.includes("web developers")) return true;
+  if (t.includes("web designer") || t.includes("web designers") || t.includes("web admin")) return true;
+  if (t.includes("computer network")) return true;
+  if (t.includes("database ")) return true;
+  if (t.startsWith("database ")) return true;
+  if (t.includes("developer programmer") || t.includes("analyst programmer")) return true;
+  if (t.includes("systems admin")) return true;
+  if (t === "systems analysts" || t.startsWith("systems analysts ")) return true;
+  if (t.includes("network admin")) return true;
+  if (t.includes("network analyst")) return true;
+  if (t.includes("software test")) return true;
+  if (t.includes("multimedia specialist") && t.includes("web")) return true;
+  if (t.includes("game and multimedia develop")) return true;
+  if (t.includes("telecommunications network") && (t.includes("engineer") || t.includes("planner")))
+    return true;
+  if (t.includes("programmer") && !/photographic/i.test(role)) return true;
+  if (t.includes("developer") && !/photographic/i.test(role)) return true;
+  return false;
+}
 
 const ROLE_SKILL_RULES = [
   {
     roleKeywords: ["farmer", "farming", "agriculture", "agricultural"],
     skillKeywords: ["crop", "harvest", "soil", "irrig", "livestock", "farm", "tractor", "pesticide"],
-    presetSkills: [
-      "Crop planning",
-      "Irrigation management",
-      "Soil preparation",
-      "Harvest coordination",
-      "Livestock care",
-      "Farm equipment operation",
-    ],
+    presetSkills: ["Crop planning", "Irrigation management", "Soil preparation", "Harvest coordination", "Livestock care", "Farm equipment operation"],
   },
   {
     roleKeywords: ["barista", "cafe", "coffee", "waiter", "hospitality", "restaurant", "kitchen"],
@@ -102,20 +225,12 @@ const ROLE_SKILL_RULES = [
     roleKeywords: ["admin", "administration", "reception", "office"],
     skillKeywords: ["scheduling", "calendar", "document", "data entry", "communication", "organis", "microsoft", "excel"],
     presetSkills: ["Calendar coordination", "Document management", "Data entry", "Professional communication"],
-  }
+  },
 ];
 
 const TRANSFERABLE_SKILL_KEYWORDS = [
-  "communication",
-  "team",
-  "organis",
-  "organization",
-  "time management",
-  "problem",
-  "customer",
-  "attention to detail",
-  "planning",
-  "safety"
+  "communication", "team", "organis", "organization", "time management",
+  "problem", "customer", "attention to detail", "planning", "safety",
 ];
 
 function getRoleBasedSkillSuggestions(selectedRoles, skillTags) {
@@ -124,7 +239,6 @@ function getRoleBasedSkillSuggestions(selectedRoles, skillTags) {
   const matchedRules = ROLE_SKILL_RULES.filter((rule) =>
     rule.roleKeywords.some((keyword) => roleText.includes(keyword))
   );
-
   const presetPool = [...new Set(matchedRules.flatMap((rule) => rule.presetSkills || []))];
   const keywordPool = [...new Set(matchedRules.flatMap((rule) => rule.skillKeywords))];
   if (keywordPool.length > 0 || presetPool.length > 0) {
@@ -135,150 +249,143 @@ function getRoleBasedSkillSuggestions(selectedRoles, skillTags) {
     const combined = [...new Set([...matchedFromTaxonomy, ...presetPool])];
     if (combined.length > 0) return combined.slice(0, 12);
   }
-
-  // Conservative fallback: only keep explicit overlap between role words and skill labels.
   const roleWords = roleText.split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
   const overlap = skillTags.filter((skill) => {
     const lower = skill.toLowerCase();
     return roleWords.some((word) => lower.includes(word));
   });
   if (overlap.length > 0) return [...new Set(overlap)].slice(0, 12);
-
-  // Final fallback: always provide core transferable skills so auto-populate never stays empty.
   const transferable = skillTags.filter((skill) => {
     const lower = skill.toLowerCase();
     return TRANSFERABLE_SKILL_KEYWORDS.some((kw) => lower.includes(kw));
   });
   if (transferable.length > 0) return [...new Set(transferable)].slice(0, 8);
-
-  // Absolute fallback: deterministic first page of taxonomy skills.
   return skillTags.slice(0, 8);
 }
 
-const SECTION_ICONS = {
-  background: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
-      <path d="M9 5v3M15 5v3" />
-    </svg>
-  ),
-  time: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 8v5l3 2" />
-    </svg>
-  ),
-  skills: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 6h7l7 7-6 6-7-7z" />
-      <circle cx="9" cy="10" r="1.4" />
-    </svg>
-  ),
-  support: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 4l7 3v5c0 4.2-2.6 7.2-7 8-4.4-.8-7-3.8-7-8V7z" />
-      <path d="m9.5 12.5 1.8 1.8 3.5-3.5" />
-    </svg>
-  )
-};
-
-/** Decorative shapes (same motif as Simplify job description hero). */
-function HeroPaperShapes() {
-  return (
-    <div className="simplify-hero-shapes" aria-hidden="true">
-      <svg className="simplify-shape-svg" viewBox="0 0 240 200" preserveAspectRatio="xMidYMid meet">
-        <path
-          fill="#c4e0c8"
-          opacity="0.95"
-          d="M40 120c20-50 80-90 140-70s80 70 50 120-90 50-140 20-70-60-50-70z"
-        />
-        <path
-          fill="#e8b4a0"
-          opacity="0.88"
-          d="M120 40c45 8 85 50 75 100s-55 70-100 55-65-45-55-90 25-70 80-65z"
-        />
-        <circle cx="175" cy="55" r="18" fill="#d4a574" opacity="0.75" />
-      </svg>
-    </div>
-  );
+function scoreAdhdQuiz(quizAnswers) {
+  let inattentive = 0;
+  let hyperactive = 0;
+  ADHD_QUIZ_QUESTIONS.forEach((q) => {
+    const v = Number(quizAnswers?.[q.id] ?? 0);
+    if (q.cluster === "inattentive") inattentive += v;
+    else hyperactive += v;
+  });
+  const inFlag = inattentive >= QUIZ_CLUSTER_THRESHOLD;
+  const hyFlag = hyperactive >= QUIZ_CLUSTER_THRESHOLD;
+  let type;
+  if (inFlag && hyFlag) type = "combined";
+  else if (inFlag) type = "inattentive";
+  else if (hyFlag) type = "hyperactive-impulsive";
+  else type = inattentive >= hyperactive ? "inattentive" : "hyperactive-impulsive";
+  return { inattentive, hyperactive, type, bothBelowThreshold: !inFlag && !hyFlag };
 }
 
-/**
- * Returns default profile state for first launch and reset.
- *
- * @returns {object} Default app state.
- */
 function getDefaultState() {
   return {
-    currentStepIndex: 0,
-    visitedStepIndices: [0],
+    view: "wizard",
+    stepIndex: 0,
     completed: false,
-    viewMode: "wizard",
+    profileId: "",
+    syncedAt: "",
     answers: {
+      adhdAwareness: "",
+      adhdProfileType: "",
+      quizAnswers: {},
+      quizInferredType: "",
+      workStyles: [],
+      supportNeeds: [],
       selectedRoles: [],
       roleSearchQuery: "",
-      roleExperience: {},
       roleDuration: {},
-      energyPatterns: [],
+      roleExperience: {},
       selectedSkills: [],
       autoSelectedSkills: [],
-      skillSearchQuery: "",
       removedAutoSkills: [],
-      workStyles: [],
-      adhdProfileType: "",
-      supportNeeds: []
-    }
+      skillSearchQuery: "",
+      energyPatterns: [],
+    },
   };
 }
 
 /**
- * Validates and normalizes local storage payload.
- *
- * @returns {object} Safe recovered state.
+ * Fields from the answers object that we never want to sync to the server -
+ * ephemeral UI-only values like search boxes.
  */
+const EPHEMERAL_ANSWER_FIELDS = ["roleSearchQuery", "skillSearchQuery"];
+
+function buildPayloadForSync(answers) {
+  const payload = { ...answers };
+  EPHEMERAL_ANSWER_FIELDS.forEach((field) => delete payload[field]);
+  return payload;
+}
+
+function mergeLoadedAnswers(base, incoming) {
+  const safeArray = (value) => (Array.isArray(value) ? value.filter((v) => typeof v === "string" && v) : []);
+  const safeRecord = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
+  const safeString = (value) => (typeof value === "string" ? value : "");
+  return {
+    ...base,
+    ...incoming,
+    adhdAwareness: safeString(incoming.adhdAwareness),
+    adhdProfileType: safeString(incoming.adhdProfileType),
+    quizAnswers: safeRecord(incoming.quizAnswers),
+    quizInferredType: safeString(incoming.quizInferredType),
+    workStyles: safeArray(incoming.workStyles).slice(0, MAX_PICK_ALL_APPLY),
+    supportNeeds: safeArray(incoming.supportNeeds).slice(0, MAX_PICK_ALL_APPLY),
+    selectedRoles: safeArray(incoming.selectedRoles).slice(0, MAX_SELECTED_ROLES),
+    roleSearchQuery: "",
+    roleDuration: safeRecord(incoming.roleDuration),
+    roleExperience: safeRecord(incoming.roleExperience),
+    selectedSkills: safeArray(incoming.selectedSkills),
+    autoSelectedSkills: safeArray(incoming.autoSelectedSkills),
+    removedAutoSkills: safeArray(incoming.removedAutoSkills),
+    skillSearchQuery: "",
+    energyPatterns: safeArray(incoming.energyPatterns).slice(0, MAX_ENERGY_PATTERNS),
+  };
+}
+
 function loadPersistedState() {
   const fallback = getDefaultState();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return fallback;
-    }
+    if (!raw) return fallback;
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || typeof parsed.answers !== "object") {
-      return fallback;
-    }
-
-    const toArray = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === "string" && item) : []);
-    const toText = (value) => (typeof value === "string" ? value : "");
-    const toRecord = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
-    const persistedAnswers = { ...parsed.answers };
-    delete persistedAnswers.optionalNotes;
-
+    if (!parsed || typeof parsed !== "object" || typeof parsed.answers !== "object") return fallback;
+    const a = parsed.answers || {};
+    const toArr = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x) : []);
+    const toRec = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
+    const toStr = (v) => (typeof v === "string" ? v : "");
     return {
-      ...fallback,
-      ...parsed,
-      currentStepIndex: Number.isInteger(parsed.currentStepIndex) ? parsed.currentStepIndex : 0,
-      visitedStepIndices: Array.isArray(parsed.visitedStepIndices)
-        ? parsed.visitedStepIndices.filter((idx) => Number.isInteger(idx) && idx >= 0)
-        : [0],
+      view: "wizard",
+      stepIndex:
+        parsed.view === "overview"
+          ? 9999
+          : Number.isInteger(parsed.stepIndex) && parsed.stepIndex >= 0
+            ? parsed.stepIndex
+            : 0,
       completed: Boolean(parsed.completed),
-      viewMode: parsed.viewMode === "overview" ? "overview" : "wizard",
+      profileId: typeof parsed.profileId === "string" ? parsed.profileId : "",
+      syncedAt: typeof parsed.syncedAt === "string" ? parsed.syncedAt : "",
       answers: {
         ...fallback.answers,
-        ...persistedAnswers,
-        selectedRoles: toArray(parsed.answers.selectedRoles),
-        roleSearchQuery: toText(parsed.answers.roleSearchQuery),
-        roleExperience: toRecord(parsed.answers.roleExperience),
-        roleDuration: toRecord(parsed.answers.roleDuration),
-        energyPatterns: toArray(parsed.answers.energyPatterns).slice(0, 2),
-        selectedSkills: toArray(parsed.answers.selectedSkills),
-        autoSelectedSkills: toArray(parsed.answers.autoSelectedSkills),
-        skillSearchQuery: toText(parsed.answers.skillSearchQuery),
-        removedAutoSkills: toArray(parsed.answers.removedAutoSkills),
-        workStyles: toArray(parsed.answers.workStyles),
-        adhdProfileType: toText(parsed.answers.adhdProfileType),
-        supportNeeds: toArray(parsed.answers.supportNeeds)
-      }
+        ...a,
+        adhdAwareness: toStr(a.adhdAwareness),
+        adhdProfileType: toStr(a.adhdProfileType),
+        quizAnswers: toRec(a.quizAnswers),
+        quizInferredType: toStr(a.quizInferredType),
+        workStyles: toArr(a.workStyles).slice(0, MAX_PICK_ALL_APPLY),
+        supportNeeds: toArr(a.supportNeeds).slice(0, MAX_PICK_ALL_APPLY),
+        selectedRoles: toArr(a.selectedRoles).slice(0, MAX_SELECTED_ROLES),
+        roleSearchQuery: toStr(a.roleSearchQuery),
+        roleDuration: toRec(a.roleDuration),
+        roleExperience: toRec(a.roleExperience),
+        selectedSkills: toArr(a.selectedSkills),
+        autoSelectedSkills: toArr(a.autoSelectedSkills),
+        removedAutoSkills: toArr(a.removedAutoSkills),
+        skillSearchQuery: toStr(a.skillSearchQuery),
+        energyPatterns: toArr(a.energyPatterns).slice(0, MAX_ENERGY_PATTERNS),
+      },
     };
   } catch {
     return fallback;
@@ -286,38 +393,160 @@ function loadPersistedState() {
 }
 
 /**
- * Validates a single step and returns a message when invalid.
- *
- * @param {number} stepIndex - Current step index.
- * @param {object} answers - Current answer model.
- * @returns {string|null} Validation message or null.
+ * Builds the dynamic, one-question-per-screen step list based on current answers.
+ * Each step carries its ``block`` id so the top stepper and the right-hand
+ * question panel can group them. "Time and Energy" is folded into the
+ * Support Setup block.
  */
-function validateStep(stepId, answers) {
-  if (stepId === "support") {
-    if (!answers.adhdProfileType) return "Choose ADHD profile type.";
-    if (answers.workStyles.length === 0) return "Select work style.";
-    if (answers.supportNeeds.length === 0) return "Select support preferences.";
-    return null;
+function buildSteps(answers) {
+  const steps = [];
+
+  // Note: the "returning visitor" User ID prompt is handled by a pre-wizard
+  // login gate (see renderLoginGate below) so it does *not* live in the
+  // quiz step list and never counts toward any block's progress.
+
+  // 1. Type Classification
+  steps.push({ id: "adhd-awareness", block: "type", kind: "adhd-awareness" });
+  if (answers.adhdAwareness === "yes") {
+    steps.push({ id: "adhd-type-known", block: "type", kind: "adhd-type-known" });
+  } else if (answers.adhdAwareness === "no") {
+    ADHD_QUIZ_QUESTIONS.forEach((q, idx) => {
+      steps.push({ id: `adhd-quiz-${q.id}`, block: "type", kind: "adhd-quiz", question: q, quizIndex: idx });
+    });
+    steps.push({ id: "adhd-quiz-result", block: "type", kind: "adhd-quiz-result" });
   }
-  if (stepId === "background") {
-    if (answers.selectedRoles.length === 0) return "Select at least one role.";
-    if (answers.selectedRoles.length > MAX_SELECTED_ROLES) return `You can select up to ${MAX_SELECTED_ROLES} roles.`;
-    const missingLevel = answers.selectedRoles.find((role) => !answers.roleExperience?.[role]);
-    if (missingLevel) return "Set an experience level for each selected role.";
-    const missingDuration = answers.selectedRoles.find((role) => !answers.roleDuration?.[role]);
-    if (missingDuration) return "Set how long you have done each selected role.";
-    return null;
+
+  // 2. Work Style
+  steps.push({ id: "work-style", block: "work", kind: "work-style" });
+
+  // 3. Support Setup (supports + rhythm / time-and-energy)
+  steps.push({ id: "support-needs", block: "support", kind: "support-needs" });
+  steps.push({ id: "energy", block: "support", kind: "energy" });
+
+  // 4. Jobs & Skills
+  steps.push({ id: "roles-pick", block: "jobs", kind: "roles-pick" });
+  answers.selectedRoles.forEach((role) => {
+    steps.push({ id: `role-duration--${role}`, block: "jobs", kind: "role-duration", role });
+  });
+  steps.push({ id: "skills", block: "jobs", kind: "skills" });
+  // 5. Profile Ready: summary, Profile ID, and next-step CTAs (same page as the quiz).
+  steps.push({ id: "profile-ready", block: "profile", kind: "profile-ready" });
+  return steps;
+}
+
+/** Short label for a step, shown in the right-hand "Questions in this block" panel. */
+function shortLabelForStep(step) {
+  if (!step) return "Question";
+  switch (step.kind) {
+    case "adhd-awareness":    return "Starting point";
+    case "adhd-type-known":   return "Your profile";
+    case "adhd-quiz":         return `Question ${step.quizIndex + 1}`;
+    case "adhd-quiz-result":  return "Your result";
+    case "work-style":        return "Work preferences";
+    case "support-needs":     return "Supports that help";
+    case "energy":            return "Work style";
+    case "roles-pick":        return "IT / software role";
+    case "role-duration":     return `${step.role} · how long`;
+    case "skills":            return "Skills";
+    case "profile-ready":   return "Profile Ready";
+    default:                  return "Question";
   }
-  if (stepId === "time") {
-    if (!answers.energyPatterns || answers.energyPatterns.length === 0) return "Select at least one preferred rhythm.";
-    if (answers.energyPatterns.length > 2) return "Select up to 2 preferred rhythms.";
-    return null;
+}
+
+/** True once the answer for a given step is considered complete. */
+function isStepAnswered(step, answers) {
+  if (!step) return false;
+  // "Profile ready" is tracked via state.completed, not a field in answers.
+  if (step.kind === "profile-ready") return false;
+  return validateStep(step, answers) === null;
+}
+
+/** Profile Ready summary: show comma-joined or multi-select data as sub-bullets. */
+function renderSummaryValue(row) {
+  const { value, values } = row;
+  if (Array.isArray(values) && values.length > 0) {
+    if (values.length === 1) {
+      return <span className="summary-value">{values[0]}</span>;
+    }
+    return (
+      <ul className="summary-value-list">
+        {values.map((v, i) => (
+          <li key={`${i}-${String(v).slice(0, 64)}`}>{v}</li>
+        ))}
+      </ul>
+    );
   }
-  if (stepId === "skills") {
-    if (answers.selectedSkills.length === 0) return "Select at least one skill.";
-    return null;
+  if (value != null && value !== "" && value !== "-") {
+    const parts = String(value)
+      .split(/,\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length > 1) {
+      return (
+        <ul className="summary-value-list">
+          {parts.map((p, i) => (
+            <li key={`${i}-${p.slice(0, 64)}`}>{p}</li>
+          ))}
+        </ul>
+      );
+    }
+    return <span className="summary-value">{value}</span>;
   }
-  return null;
+  return <span className="summary-value">-</span>;
+}
+
+function validateStep(step, answers) {
+  if (!step) return null;
+  switch (step.kind) {
+    case "adhd-awareness":
+      if (!answers.adhdAwareness) return "Pick Yes or No to continue.";
+      return null;
+    case "adhd-type-known":
+      if (!answers.adhdProfileType) return "Choose your ADHD type.";
+      return null;
+    case "adhd-quiz":
+      if (answers.quizAnswers?.[step.question.id] === undefined) return "Pick one of the four options.";
+      return null;
+    case "adhd-quiz-result":
+      if (!answers.adhdProfileType) return "Accept the suggested type, or pick one that fits better.";
+      return null;
+    case "work-style":
+      if (answers.workStyles.length === 0) return "Pick at least one work style.";
+      if (answers.workStyles.length > MAX_PICK_ALL_APPLY) {
+        return `Pick up to ${MAX_PICK_ALL_APPLY} work styles.`;
+      }
+      return null;
+    case "support-needs":
+      if (answers.supportNeeds.length === 0) return "Pick at least one support that helps.";
+      if (answers.supportNeeds.length > MAX_PICK_ALL_APPLY) {
+        return `Pick up to ${MAX_PICK_ALL_APPLY} supports.`;
+      }
+      return null;
+    case "roles-pick":
+      if (answers.selectedRoles.length === 0) {
+        return "Search and select one IT or software job title to continue.";
+      }
+      if (answers.selectedRoles.length > MAX_SELECTED_ROLES) {
+        return MAX_SELECTED_ROLES === 1
+          ? "Keep it to 1 role."
+          : `Keep it to ${MAX_SELECTED_ROLES} roles.`;
+      }
+      return null;
+    case "role-duration":
+      if (!answers.roleDuration?.[step.role]) return "Pick how long you've done this role.";
+      return null;
+    case "skills":
+      if (answers.selectedSkills.length === 0) return "Keep or add at least one skill.";
+      return null;
+    case "profile-ready":
+      return null;
+    case "energy":
+      if (!answers.energyPatterns || answers.energyPatterns.length === 0) return "Pick at least one work style.";
+      if (answers.energyPatterns.length > MAX_ENERGY_PATTERNS) return `Pick up to ${MAX_ENERGY_PATTERNS} work styles.`;
+      return null;
+    default:
+      return null;
+  }
 }
 
 export default function ProfileWizardPage() {
@@ -327,8 +556,35 @@ export default function ProfileWizardPage() {
   const [state, setState] = useState(loadPersistedState);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState("error");
-  const [showSuitabilityPlaceholder, setShowSuitabilityPlaceholder] = useState(false);
   const [brandFlowerActive, setBrandFlowerActive] = useState(false);
+  const [phase, setPhase] = useState("in"); // "in" | "out-forward" | "out-back"
+  const [progressBump, setProgressBump] = useState(false);
+  const transitionTimerRef = useRef(null);
+
+  // Sync (POST/PUT) status for the "save to cloud" affordance.
+  const [syncStatus, setSyncStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
+  const [syncMessage, setSyncMessage] = useState("");
+  const [copyFeedback, setCopyFeedback] = useState("");
+
+  // "Login" gate shown once per tab-session before the wizard starts. Not a
+  // quiz step - it sits entirely outside buildSteps so it doesn't count toward
+  // any block's progress. Skipped automatically when we already have a
+  // profileId (either loaded from a previous session or just synced).
+  const GATE_SESSION_KEY = "neuroguide.careerProfile.loginGateDismissed";
+  const [showLoginGate, setShowLoginGate] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      if (window.sessionStorage.getItem(GATE_SESSION_KEY) === "1") return false;
+    } catch {
+      /* sessionStorage unavailable - still show the gate */
+    }
+    return true;
+  });
+
+  const dismissLoginGate = () => {
+    try { window.sessionStorage.setItem(GATE_SESSION_KEY, "1"); } catch { /* ignore */ }
+    setShowLoginGate(false);
+  };
 
   useEffect(() => {
     let innerId;
@@ -344,14 +600,21 @@ export default function ProfileWizardPage() {
 
   useEffect(() => {
     async function loadTaxonomy() {
-      const [rolesRes, skillsRes] = await Promise.all([
-        fetch("/au-role-taxonomy.json"),
-        fetch("/au-skills-taxonomy.json")
-      ]);
-      const roles = rolesRes.ok ? await rolesRes.json() : [];
-      const skills = skillsRes.ok ? await skillsRes.json() : [];
-      setRoleTags(Array.isArray(roles) ? roles : []);
-      setSkillTags(Array.isArray(skills) ? skills : []);
+      try {
+        const [rolesRes, skillsRes] = await Promise.all([
+          fetch("/au-role-taxonomy.json"),
+          fetch("/au-skills-taxonomy.json"),
+        ]);
+        const roles = rolesRes.ok ? await rolesRes.json() : [];
+        const skills = skillsRes.ok ? await skillsRes.json() : [];
+        setRoleTags(
+          Array.isArray(roles) ? roles.filter((r) => isItSoftwareRoleName(String(r))) : []
+        );
+        setSkillTags(Array.isArray(skills) ? skills : []);
+      } catch {
+        setRoleTags([]);
+        setSkillTags([]);
+      }
     }
     loadTaxonomy();
   }, []);
@@ -360,23 +623,40 @@ export default function ProfileWizardPage() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
-  const featuredRoles = useMemo(() => {
-    const top = roleTags.slice(0, 10);
-    const blueCollar = roleTags.filter((role) =>
-      ROLE_KEYWORDS_FOR_BLUE_COLLAR.some((keyword) => role.toLowerCase().includes(keyword))
-    );
-    return [...new Set([...top, ...blueCollar])].slice(0, MAX_VISIBLE_ROLE_RESULTS);
-  }, [roleTags]);
+  useEffect(() => () => {
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+  }, []);
+
+  const steps = useMemo(() => buildSteps(state.answers), [state.answers]);
+  const safeStepIndex = Math.min(state.stepIndex, Math.max(steps.length - 1, 0));
+  const currentStep = steps[safeStepIndex];
+  const totalSteps = steps.length;
+
+  // When the visitor lands on the quiz-result step, auto-commit the inferred
+  // profile so they don't need to pick it manually - the Next button validates
+  // against ``adhdProfileType``.
+  useEffect(() => {
+    if (currentStep?.kind !== "adhd-quiz-result") return;
+    if (state.answers.adhdProfileType) return;
+    const inferred =
+      state.answers.quizInferredType ||
+      scoreAdhdQuiz(state.answers.quizAnswers).type;
+    if (!inferred) return;
+    setState((prev) => ({
+      ...prev,
+      answers: { ...prev.answers, adhdProfileType: inferred },
+    }));
+  }, [currentStep?.kind, state.answers.adhdProfileType, state.answers.quizInferredType, state.answers.quizAnswers]);
 
   const roleOptions = useMemo(() => {
     const q = state.answers.roleSearchQuery.trim().toLowerCase();
-    if (!q) return featuredRoles;
+    if (!q) return [];
     return roleTags.filter((role) => role.toLowerCase().includes(q)).slice(0, MAX_VISIBLE_ROLE_RESULTS);
-  }, [roleTags, featuredRoles, state.answers.roleSearchQuery]);
+  }, [roleTags, state.answers.roleSearchQuery]);
 
   const skillOptions = useMemo(() => {
     const q = state.answers.skillSearchQuery.trim().toLowerCase();
-    if (!q) return skillTags.slice(0, MAX_VISIBLE_SKILL_RESULTS);
+    if (!q) return [];
     return skillTags.filter((skill) => skill.toLowerCase().includes(q)).slice(0, MAX_VISIBLE_SKILL_RESULTS);
   }, [skillTags, state.answers.skillSearchQuery]);
 
@@ -388,14 +668,6 @@ export default function ProfileWizardPage() {
     [state.answers.selectedRoles, state.answers.removedAutoSkills, skillTags]
   );
 
-  const steps = [
-    { id: "support", title: "Step 1: Support Setup", subtitle: "Choose ADHD profile, work style, and supports." },
-    { id: "background", title: "Step 2: Your Background", subtitle: "What roles have you done, and at what level?" },
-    { id: "skills", title: "Step 3: Skills", subtitle: "Which skills fit your role experience?" },
-    { id: "time", title: "Step 4: Time and Energy", subtitle: "When do you do your best work?" }
-  ];
-
-  const currentStep = steps[state.currentStepIndex];
   useEffect(() => {
     queueMicrotask(() => {
       setState((prev) => {
@@ -410,37 +682,115 @@ export default function ProfileWizardPage() {
         if (noChanges) return prev;
         return {
           ...prev,
-          answers: {
-            ...prev.answers,
-            autoSelectedSkills: nextAuto,
-            selectedSkills: nextSelected,
-          },
+          answers: { ...prev.answers, autoSelectedSkills: nextAuto, selectedSkills: nextSelected },
         };
       });
     });
   }, [autoSuggestedSkills, state.answers.selectedRoles]);
 
-  /**
-   * Updates nested answer fields in one immutable state update.
-   *
-   * @param {string} field - Answer key.
-   * @param {string|Array<string>} value - New field value.
-   * @returns {void}
-   */
   const setAnswer = (field, value) =>
     setState((prev) => ({ ...prev, answers: { ...prev.answers, [field]: value } }));
 
-  const setRoleExperience = (role, level) => {
-    setState((prev) => ({
-      ...prev,
-      answers: {
-        ...prev.answers,
-        roleExperience: {
-          ...prev.answers.roleExperience,
-          [role]: prev.answers.roleExperience?.[role] === level ? "" : level,
+  const toggleMulti = (field, value) => {
+    const maxForField =
+      field === "workStyles" || field === "supportNeeds" ? MAX_PICK_ALL_APPLY : Infinity;
+    setState((prev) => {
+      const values = prev.answers[field];
+      if (values.includes(value)) {
+        const next = values.filter((v) => v !== value);
+        return { ...prev, answers: { ...prev.answers, [field]: next } };
+      }
+      if (values.length >= maxForField) {
+        setMessage(`You can pick up to ${maxForField} — remove one to choose another.`);
+        setMessageTone("error");
+        return prev;
+      }
+      return { ...prev, answers: { ...prev.answers, [field]: [...values, value] } };
+    });
+  };
+
+  const toggleEnergyPattern = (value) => {
+    setState((prev) => {
+      const current = prev.answers.energyPatterns || [];
+      if (current.includes(value)) {
+        return { ...prev, answers: { ...prev.answers, energyPatterns: current.filter((v) => v !== value) } };
+      }
+      if (current.length >= MAX_ENERGY_PATTERNS) return prev;
+      return { ...prev, answers: { ...prev.answers, energyPatterns: [...current, value] } };
+    });
+  };
+
+  const toggleRole = (role) => {
+    setState((prev) => {
+      const current = prev.answers.selectedRoles;
+      const already = current.includes(role);
+      if (already) {
+        const nextDuration = { ...prev.answers.roleDuration };
+        const nextExperience = { ...prev.answers.roleExperience };
+        delete nextDuration[role];
+        delete nextExperience[role];
+        const manualSkills = prev.answers.selectedSkills.filter(
+          (skill) => !prev.answers.autoSelectedSkills.includes(skill)
+        );
+        return {
+          ...prev,
+          answers: {
+            ...prev.answers,
+            selectedRoles: current.filter((r) => r !== role),
+            roleDuration: nextDuration,
+            roleExperience: nextExperience,
+            selectedSkills: manualSkills,
+            autoSelectedSkills: [],
+            removedAutoSkills: [],
+          },
+        };
+      }
+      if (current.length >= MAX_SELECTED_ROLES) {
+        if (MAX_SELECTED_ROLES === 1) {
+          const old = current[0];
+          const nextDuration = { ...prev.answers.roleDuration };
+          const nextExperience = { ...prev.answers.roleExperience };
+          if (old) {
+            delete nextDuration[old];
+            delete nextExperience[old];
+          }
+          const manualSkills = prev.answers.selectedSkills.filter(
+            (skill) => !prev.answers.autoSelectedSkills.includes(skill)
+          );
+          return {
+            ...prev,
+            answers: {
+              ...prev.answers,
+              selectedRoles: [role],
+              roleDuration: nextDuration,
+              roleExperience: nextExperience,
+              selectedSkills: manualSkills,
+              autoSelectedSkills: [],
+              removedAutoSkills: [],
+            },
+          };
+        }
+        setMessage(`You can add up to ${MAX_SELECTED_ROLES} roles.`);
+        setMessageTone("error");
+        return prev;
+      }
+      const nextRoles = [...current, role];
+      const manualSkills = prev.answers.selectedSkills.filter(
+        (skill) => !prev.answers.autoSelectedSkills.includes(skill)
+      );
+      return {
+        ...prev,
+        answers: {
+          ...prev.answers,
+          selectedRoles: nextRoles,
+          roleDuration: prev.answers.roleDuration,
+          roleExperience: prev.answers.roleExperience,
+          selectedSkills: manualSkills,
+          autoSelectedSkills: [],
+          removedAutoSkills: [],
         },
-      },
-    }));
+      };
+    });
   };
 
   const setRoleDuration = (role, duration) => {
@@ -456,71 +806,34 @@ export default function ProfileWizardPage() {
     }));
   };
 
-  /**
-   * Toggles multi-select value in array-based answer field.
-   *
-   * @param {string} field - Target array field.
-   * @param {string} value - Candidate option value.
-   * @returns {void}
-   */
-  const toggleMulti = (field, value) => {
-    setState((prev) => {
-      const values = prev.answers[field];
-      const next = values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
-      return { ...prev, answers: { ...prev.answers, [field]: next } };
-    });
-  };
-
-  const toggleRole = (role) => {
-    setState((prev) => {
-      const current = prev.answers.selectedRoles;
-      const alreadySelected = current.includes(role);
-      if (!alreadySelected && current.length >= MAX_SELECTED_ROLES) {
-        setMessage(`You can add up to ${MAX_SELECTED_ROLES} roles.`);
-        setMessageTone("error");
-        return prev;
-      }
-      const nextRoles = alreadySelected ? current.filter((item) => item !== role) : [...current, role];
-      const nextRoleExperience = { ...prev.answers.roleExperience };
-      const nextRoleDuration = { ...prev.answers.roleDuration };
-      if (alreadySelected) {
-        delete nextRoleExperience[role];
-        delete nextRoleDuration[role];
-      }
-      const manualSkills = prev.answers.selectedSkills.filter((skill) => !prev.answers.autoSelectedSkills.includes(skill));
-      return {
-        ...prev,
-        answers: {
-          ...prev.answers,
-          selectedRoles: nextRoles,
-          roleExperience: nextRoleExperience,
-          roleDuration: nextRoleDuration,
-          selectedSkills: manualSkills,
-          autoSelectedSkills: [],
-          removedAutoSkills: [],
+  const setRoleExperience = (role, level) => {
+    setState((prev) => ({
+      ...prev,
+      answers: {
+        ...prev.answers,
+        roleExperience: {
+          ...prev.answers.roleExperience,
+          [role]: prev.answers.roleExperience?.[role] === level ? "" : level,
         },
-      };
-    });
+      },
+    }));
   };
 
   const addSkill = (raw) => {
     const skill = String(raw ?? "").trim();
     if (!skill) return;
-    setState((prev) => {
-      if (prev.answers.selectedSkills.includes(skill)) {
-        return { ...prev, answers: { ...prev.answers, skillSearchQuery: "" } };
-      }
-      return {
-        ...prev,
-        answers: {
-          ...prev.answers,
-          selectedSkills: prev.answers.selectedSkills.includes(skill) ? prev.answers.selectedSkills : [...prev.answers.selectedSkills, skill],
-          autoSelectedSkills: prev.answers.autoSelectedSkills.filter((item) => item !== skill),
-          removedAutoSkills: prev.answers.removedAutoSkills.filter((item) => item !== skill),
-          skillSearchQuery: "",
-        },
-      };
-    });
+    setState((prev) => ({
+      ...prev,
+      answers: {
+        ...prev.answers,
+        selectedSkills: prev.answers.selectedSkills.includes(skill)
+          ? prev.answers.selectedSkills
+          : [...prev.answers.selectedSkills, skill],
+        autoSelectedSkills: prev.answers.autoSelectedSkills.filter((s) => s !== skill),
+        removedAutoSkills: prev.answers.removedAutoSkills.filter((s) => s !== skill),
+        skillSearchQuery: "",
+      },
+    }));
   };
 
   const removeSkill = (skill) => {
@@ -528,8 +841,8 @@ export default function ProfileWizardPage() {
       ...prev,
       answers: {
         ...prev.answers,
-        selectedSkills: prev.answers.selectedSkills.filter((item) => item !== skill),
-        autoSelectedSkills: prev.answers.autoSelectedSkills.filter((item) => item !== skill),
+        selectedSkills: prev.answers.selectedSkills.filter((s) => s !== skill),
+        autoSelectedSkills: prev.answers.autoSelectedSkills.filter((s) => s !== skill),
         removedAutoSkills: prev.answers.removedAutoSkills.includes(skill)
           ? prev.answers.removedAutoSkills
           : [...prev.answers.removedAutoSkills, skill],
@@ -537,120 +850,334 @@ export default function ProfileWizardPage() {
     }));
   };
 
-  /**
-   * Toggles a single-select string field.
-   *
-   * @param {string} field - Target field name.
-   * @param {string} value - Selected option value.
-   * @returns {void}
-   */
-  const toggleSingle = (field, value) => setAnswer(field, state.answers[field] === value ? "" : value);
-
-  const toggleEnergyPattern = (value) => {
+  const setQuizAnswer = (questionId, value) => {
     setState((prev) => {
-      const current = prev.answers.energyPatterns || [];
-      const alreadySelected = current.includes(value);
-      if (alreadySelected) {
-        return { ...prev, answers: { ...prev.answers, energyPatterns: current.filter((item) => item !== value) } };
-      }
-      if (current.length >= 2) return prev;
-      return { ...prev, answers: { ...prev.answers, energyPatterns: [...current, value] } };
+      const nextQuiz = { ...prev.answers.quizAnswers, [questionId]: value };
+      const allAnswered = ADHD_QUIZ_QUESTIONS.every((q) => nextQuiz[q.id] !== undefined);
+      const inferred = allAnswered ? scoreAdhdQuiz(nextQuiz).type : "";
+      return {
+        ...prev,
+        answers: {
+          ...prev.answers,
+          quizAnswers: nextQuiz,
+          quizInferredType: inferred,
+          // Auto-apply the inferred type if the user hasn't manually chosen another.
+          adhdProfileType:
+            prev.answers.adhdProfileType && prev.answers.adhdProfileType !== prev.answers.quizInferredType
+              ? prev.answers.adhdProfileType
+              : inferred,
+        },
+      };
     });
   };
 
-  const nextStep = () => {
-    const err = validateStep(currentStep.id, state.answers);
+  const runTransition = (direction, mutateFn) => {
+    setMessage("");
+    setPhase(direction === "forward" ? "out-forward" : "out-back");
+    if (direction === "forward") {
+      setProgressBump(true);
+      setTimeout(() => setProgressBump(false), 420);
+    }
+    transitionTimerRef.current = setTimeout(() => {
+      setState(mutateFn);
+      setPhase("in");
+    }, TRANSITION_MS);
+  };
+
+  const goNext = () => {
+    const err = validateStep(currentStep, state.answers);
     if (err) {
       setMessage(err);
       setMessageTone("error");
       return;
     }
-    setMessage("");
-    if (state.currentStepIndex < steps.length - 1) {
-      setState((prev) => {
-        const nextIndex = prev.currentStepIndex + 1;
-        const visited = prev.visitedStepIndices.includes(nextIndex)
-          ? prev.visitedStepIndices
-          : [...prev.visitedStepIndices, nextIndex];
-        return { ...prev, currentStepIndex: nextIndex, visitedStepIndices: visited };
-      });
+    if (currentStep?.kind === "profile-ready") {
       return;
     }
-    setState((prev) => ({ ...prev, completed: true, viewMode: "overview" }));
+    if (currentStep?.kind === "skills") {
+      runTransition("forward", (prev) => ({ ...prev, stepIndex: safeStepIndex + 1, completed: true, view: "wizard" }));
+      setTimeout(() => { void syncProfileToServer(); }, TRANSITION_MS + 50);
+      return;
+    }
+    if (safeStepIndex >= totalSteps - 1) {
+      return;
+    }
+    runTransition("forward", (prev) => ({ ...prev, stepIndex: safeStepIndex + 1 }));
+  };
+
+  const goBack = () => {
+    if (safeStepIndex <= 0) return;
+    runTransition("back", (prev) => ({ ...prev, stepIndex: safeStepIndex - 1 }));
+  };
+
+  const jumpToStepById = (stepId) => {
+    const idx = steps.findIndex((s) => s.id === stepId);
+    if (idx < 0) return;
+    setState((prev) => ({ ...prev, view: "wizard", stepIndex: idx }));
+    setMessage("");
   };
 
   const saveAndExit = () => {
-    setState((prev) => ({ ...prev, viewMode: "overview" }));
+    const target = steps.findIndex((s) => s.kind === "profile-ready");
+    setState((prev) => ({
+      ...prev,
+      view: "wizard",
+      stepIndex: target >= 0 ? target : prev.stepIndex,
+    }));
     setMessage("Progress saved.");
     setMessageTone("info");
+    void syncProfileToServer();
   };
 
-  const sectionLabel = (label, filled) => <p className={`micro-label ${filled ? "is-filled" : ""}`}>{label}</p>;
+  const resetAll = () => {
+    window.localStorage.removeItem(STORAGE_KEY);
+    setState(getDefaultState());
+    setMessage("");
+    setSyncStatus("idle");
+    setSyncMessage("");
+    setCopyFeedback("");
+  };
+
+  /**
+   * Sync the current answers to the backend. Creates a new anonymous profile
+   * (and Profile ID) on first call, updates in place on subsequent calls.
+   * Returns the issued id on success, or null on failure.
+   */
+  const syncProfileToServer = async () => {
+    const payload = buildPayloadForSync(state.answers);
+    setSyncStatus("saving");
+    setSyncMessage("");
+    try {
+      const result = state.profileId
+        ? await updateProfile(state.profileId, payload)
+        : await createProfile(payload);
+      setState((prev) => ({
+        ...prev,
+        profileId: result.id,
+        syncedAt: result.updated_at || result.created_at || new Date().toISOString(),
+      }));
+      setSyncStatus("saved");
+      setSyncMessage(state.profileId ? "Saved." : "Profile ID created. Copy it to reuse on another browser.");
+      return result.id;
+    } catch (err) {
+      // If we have a cached id but the server no longer has it, fall back to create.
+      if (state.profileId && String(err?.message || "").toLowerCase().includes("not found")) {
+        try {
+          const result = await createProfile(payload);
+          setState((prev) => ({
+            ...prev,
+            profileId: result.id,
+            syncedAt: result.updated_at || result.created_at || new Date().toISOString(),
+          }));
+          setSyncStatus("saved");
+          setSyncMessage("Profile ID refreshed (old one was missing on the server).");
+          return result.id;
+        } catch (err2) {
+          setSyncStatus("error");
+          setSyncMessage(err2.message || "Could not save your profile right now.");
+          return null;
+        }
+      }
+      setSyncStatus("error");
+      setSyncMessage(err.message || "Could not save your profile right now.");
+      return null;
+    }
+  };
+
+  /**
+   * Core "load by ID" flow used from both the inline step-1 form and the
+   * welcome modal. Throws an ``Error`` on failure so callers can show the
+   * message in their own UI; resolves silently on success.
+   */
+  const loadProfileById = async (rawOrFormattedId) => {
+    const normalized = normalizeProfileId(rawOrFormattedId);
+    if (normalized.length !== 8) {
+      throw new Error("User IDs are 8 letters/numbers - try again.");
+    }
+    const result = await fetchProfile(normalized);
+    setState((prev) => {
+      const merged = mergeLoadedAnswers(prev.answers, result.profile || {});
+      const lastIdx = Math.max(0, buildSteps(merged).length - 1);
+      return {
+        ...prev,
+        view: "wizard",
+        completed: true,
+        stepIndex: lastIdx,
+        profileId: result.id,
+        syncedAt: result.updated_at || result.created_at || new Date().toISOString(),
+        answers: merged,
+      };
+    });
+    setSyncStatus("saved");
+    setSyncMessage("Profile loaded.");
+    setMessage("");
+    dismissLoginGate();
+    return result;
+  };
+
+  const handleCopyProfileId = async () => {
+    if (!state.profileId) return;
+    try {
+      await navigator.clipboard.writeText(state.profileId);
+      setCopyFeedback("Copied!");
+    } catch {
+      setCopyFeedback("Press Ctrl+C to copy.");
+    }
+    setTimeout(() => setCopyFeedback(""), 1800);
+  };
+
+  /**
+   * Lettered single-select (A/B/C) for type classification, quiz scale, and duration.
+   */
+  const renderLetteredOption = (value, label, current, onSelect, letterIdx = 0) => {
+    const isSelected = current === value;
+    return (
+      <button
+        key={String(value)}
+        type="button"
+        className={`q-choice ${isSelected ? "is-selected" : ""}`}
+        onClick={() => onSelect(value)}
+        aria-pressed={isSelected}
+      >
+        <span className="q-choice-letter" aria-hidden="true">{LETTERS[letterIdx] || "·"}</span>
+        <span className="q-choice-label">{label}</span>
+        <span className={`q-choice-check ${isSelected ? "is-on" : ""}`} aria-hidden="true">
+          {isSelected ? "✓" : ""}
+        </span>
+      </button>
+    );
+  };
+
+  /** Row + mini checkbox — work preferences, supports, and work-style (energy) only. */
+  const renderEnergyCheckRow = (key, label, selected, onClick) => (
+    <button
+      key={key}
+      type="button"
+      className={`energy-check-item ${selected ? "is-selected" : ""}`}
+      onClick={onClick}
+      aria-pressed={selected}
+    >
+      <span className={`energy-check-box ${selected ? "is-selected" : ""}`} aria-hidden="true">
+        {selected ? "✓" : ""}
+      </span>
+      <span className="energy-check-label">{label}</span>
+    </button>
+  );
+
+  const renderChips = (field, options, { mode = "multi", onToggle } = {}) => (
+    <div className="energy-check-grid" role="group" aria-label="Options">
+      {options.map((option) => {
+        const selected =
+          mode === "multi"
+            ? state.answers[field]?.includes(option)
+            : state.answers[field] === option;
+        return renderEnergyCheckRow(
+          option,
+          option,
+          selected,
+          () => (onToggle ? onToggle(option) : toggleMulti(field, option))
+        );
+      })}
+    </div>
+  );
 
   const renderRoleSelector = () => {
     const selectedValues = state.answers.selectedRoles;
+    const query = state.answers.roleSearchQuery.trim();
+    const hasQuery = query.length > 0;
+    const selectedOne = selectedValues[0];
     const visible = roleOptions.filter((item) => !selectedValues.includes(item));
     return (
-      <>
-        <div className="tag-input-wrap">
-          <div className="selected-tag-list">
-            {selectedValues.map((tag) => (
-              <span key={tag} className="selected-tag">
-                {tag}
-                <button type="button" className="tag-remove-button" onClick={() => toggleRole(tag)}>
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-          <input
-            value={state.answers.roleSearchQuery}
-            onChange={(e) => setAnswer("roleSearchQuery", e.target.value)}
-            placeholder="Type to add up to 5 roles..."
-          />
-        </div>
-        <p className="role-limit-note">
-          {selectedValues.length}/{MAX_SELECTED_ROLES} roles selected
-        </p>
-        <div className="suggestion-list">
-          {visible.length === 0 ? (
-            <div className="suggestion-empty">No matching keywords</div>
-          ) : (
-            visible.map((item) => (
-              <button key={item} type="button" className="suggestion-row" onClick={() => toggleRole(item)}>
-                <span>{item}</span>
+      <div className="roles-step-theme">
+        {selectedOne ? (
+          <div className="role-selected-field" role="status" aria-live="polite">
+            <span className="role-selected-field__eyebrow">Your role</span>
+            <div className="role-selected-field__body">
+              <span className="role-selected-field__name">{selectedOne}</span>
+              <button
+                type="button"
+                className="button ghost role-selected-field__change"
+                onClick={() => {
+                  toggleRole(selectedOne);
+                  setAnswer("roleSearchQuery", "");
+                }}
+              >
+                Change
               </button>
-            ))
-          )}
-        </div>
-      </>
+            </div>
+          </div>
+        ) : null}
+
+        {!selectedOne ? (
+          <div className="tag-input-wrap role-search-wrap">
+            <input
+              className="role-search-input"
+              value={state.answers.roleSearchQuery}
+              onChange={(e) => setAnswer("roleSearchQuery", e.target.value)}
+              placeholder="Search IT and software job titles…"
+              aria-label="Search IT and software job titles"
+              autoComplete="off"
+            />
+          </div>
+        ) : null}
+        <p className="role-limit-note" aria-live="polite">
+          {selectedValues.length === 0
+            ? "You can add 1 job title. Start typing to see suggestions from our IT and software list."
+            : "1 of 1 role selected — click Change to search and pick a different title."}
+        </p>
+        {!selectedOne && hasQuery ? (
+          <div className="suggestion-list suggestion-list--roles" role="listbox" aria-label="Role suggestions">
+            {visible.length === 0 ? (
+              <div className="suggestion-empty">No matching job titles. Try a shorter or different term.</div>
+            ) : (
+              visible.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className="suggestion-row"
+                  onClick={() => {
+                    toggleRole(item);
+                    setAnswer("roleSearchQuery", "");
+                  }}
+                >
+                  <span>{item}</span>
+                </button>
+              ))
+            )}
+          </div>
+        ) : null}
+      </div>
     );
   };
 
   const renderSkillSelector = () => {
     const selectedValues = state.answers.selectedSkills;
     const query = state.answers.skillSearchQuery.trim();
+    const hasQuery = query.length > 0;
     const visible = skillOptions.filter((item) => !selectedValues.includes(item));
-    const hasExact = selectedValues.some((item) => item.toLowerCase() === query.toLowerCase()) ||
+    const hasExact =
+      selectedValues.some((item) => item.toLowerCase() === query.toLowerCase()) ||
       visible.some((item) => item.toLowerCase() === query.toLowerCase());
-
     return (
-      <>
+      <div className="skills-step-theme">
         <div className="tag-input-wrap">
           <div className="selected-tag-list">
             {selectedValues.map((tag) => (
               <span key={tag} className="selected-tag">
                 {tag}
-                <button type="button" className="tag-remove-button" onClick={() => removeSkill(tag)}>
+                <button type="button" className="tag-remove-button" onClick={() => removeSkill(tag)} aria-label={`Remove ${tag}`}>
                   ×
                 </button>
               </span>
             ))}
           </div>
           <input
+            className="skill-search-input"
             value={state.answers.skillSearchQuery}
             onChange={(e) => setAnswer("skillSearchQuery", e.target.value)}
-            placeholder="Type a skill keyword..."
+            placeholder="Search skills…"
+            aria-label="Search or add skills"
+            autoComplete="off"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -659,130 +1186,438 @@ export default function ProfileWizardPage() {
             }}
           />
         </div>
-        <div className="suggestion-list">
-          {visible.slice(0, MAX_VISIBLE_SKILL_RESULTS).map((item) => (
-            <button key={item} type="button" className="suggestion-row" onClick={() => addSkill(item)}>
-              <span>{item}</span>
-            </button>
-          ))}
-          {query && !hasExact ? (
-            <button type="button" className="suggestion-row suggestion-row--custom" onClick={() => addSkill(query)}>
-              <span>{`Add "${query}"`}</span>
-            </button>
-          ) : null}
-          {!query && visible.length === 0 ? <div className="suggestion-empty">No matching keywords</div> : null}
-        </div>
-      </>
+        <p className="role-limit-note" aria-live="polite">
+          {hasQuery
+            ? "Choose from the list, or press Enter to add a custom skill."
+            : "Type to see matching skills. Selected items appear as tags above."}
+        </p>
+        {hasQuery ? (
+          <div
+            className="suggestion-list suggestion-list--skills"
+            role="listbox"
+            aria-label="Skill suggestions"
+          >
+            {visible.map((item) => (
+              <button key={item} type="button" className="suggestion-row" onClick={() => addSkill(item)}>
+                <span>{item}</span>
+              </button>
+            ))}
+            {visible.length === 0 && hasExact ? (
+              <div className="suggestion-empty" role="status">
+                That skill is already in your list.
+              </div>
+            ) : null}
+            {query && !hasExact ? (
+              <button
+                type="button"
+                className="suggestion-row suggestion-row--custom"
+                onClick={() => addSkill(query)}
+              >
+                <span>{`Add "${query}"`}</span>
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     );
-  };
-
-  const renderChips = (field, options, mode) => (
-    <div className="chip-grid">
-      {options.map((option) => {
-        const selected = mode === "multi" ? state.answers[field].includes(option) : state.answers[field] === option;
-        return (
-          <button
-            key={option}
-            type="button"
-            className={`choice-chip ${selected ? "is-selected" : ""}`}
-            onClick={() => (mode === "multi" ? toggleMulti(field, option) : toggleSingle(field, option))}
-          >
-            {option}
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  const renderEnergyPatternCheckboxes = () => (
-    <div className="energy-check-grid" role="group" aria-label="Energy pattern options">
-      {ENERGY_PATTERN_OPTIONS.map((option) => {
-        const selected = (state.answers.energyPatterns || []).includes(option);
-        return (
-          <button
-            key={option}
-            type="button"
-            className={`energy-check-item ${selected ? "is-selected" : ""}`}
-            onClick={() => toggleEnergyPattern(option)}
-            aria-pressed={selected}
-          >
-            <span className={`energy-check-box ${selected ? "is-selected" : ""}`} aria-hidden="true">
-              {selected ? "✓" : ""}
-            </span>
-            <span className="energy-check-label">{option}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  const resetAll = () => {
-    window.localStorage.removeItem(STORAGE_KEY);
-    setState(getDefaultState());
-    setMessage("");
   };
 
   const summarySections = [
     {
-      id: "support",
-      title: "Step 1: Support Setup",
+      id: "type",
+      title: "Type Classification",
+      firstStepId: "adhd-awareness",
       rows: [
-        { key: "ADHD type", value: state.answers.adhdProfileType || "-" },
-        { key: "Work style", value: state.answers.workStyles.join(", ") || "-" },
-        { key: "Support", value: state.answers.supportNeeds.join(", ") || "-" }
-      ]
+        { key: "Starting point", value: state.answers.adhdAwareness === "yes" ? "Knew my profile" : state.answers.adhdAwareness === "no" ? "Took the quiz" : "-" },
+        { key: "Profile", value: ADHD_TYPE_LABELS[state.answers.adhdProfileType] || "-" },
+      ],
     },
     {
-      id: "background",
-      title: "Step 2: Your Background",
+      id: "work",
+      title: "Work Preferences",
+      firstStepId: "work-style",
+      rows: [{ key: "Preferences", values: state.answers.workStyles }],
+    },
+    {
+      id: "support",
+      title: "Support Setup",
+      firstStepId: "support-needs",
+      rows: [
+        { key: "Supports", values: state.answers.supportNeeds },
+        { key: "Work style", values: state.answers.energyPatterns || [] },
+      ],
+    },
+    {
+      id: "jobs",
+      title: "Jobs & Skills",
+      firstStepId: "roles-pick",
       rows: [
         {
           key: "Role(s)",
-          value:
-            state.answers.selectedRoles
-              .map(
-                (role) =>
-                  `${role} (${state.answers.roleExperience?.[role] || "Level not set"}, ${
-                    state.answers.roleDuration?.[role] || "Duration not set"
-                  })`
-              )
-              .join(", ") || "-",
-        }
-      ]
+          values: state.answers.selectedRoles.map(
+            (role) => `${role} (${state.answers.roleDuration?.[role] || "Duration not set"})`
+          ),
+        },
+        { key: "Skills", values: state.answers.selectedSkills },
+      ],
     },
-    {
-      id: "skills",
-      title: "Step 3: Skills",
-      rows: [
-        { key: "Skills", value: state.answers.selectedSkills.join(", ") || "-" }
-      ]
-    },
-    {
-      id: "time",
-      title: "Step 4: Time and Energy",
-      rows: [
-        { key: "Rhythm", value: (state.answers.energyPatterns || []).join(", ") || "-" }
-      ]
-    }
   ];
 
-  const previewRows = [
-    { label: "ADHD type", value: state.answers.adhdProfileType || "-" },
-    { label: "Work style", value: state.answers.workStyles.join(", ") || "-" },
-    { label: "Supports", value: state.answers.supportNeeds.join(", ") || "-" },
-    {
-      label: "Roles",
-      value:
-        state.answers.selectedRoles
-          .map((role) => `${role} (${state.answers.roleDuration?.[role] || "-"}, ${state.answers.roleExperience?.[role] || "-"})`)
-          .join(", ") || "-",
-    },
-    { label: "Energy rhythm", value: (state.answers.energyPatterns || []).join(", ") || "-" },
-    { label: "Skills", value: state.answers.selectedSkills.join(", ") || "-" },
-  ];
+  const renderStepBody = (step) => {
+    if (!step) return null;
+    const a = state.answers;
+    switch (step.kind) {
+      case "adhd-awareness":
+        return (
+          <>
+            <h2 className="q-title">Do you already know your focus profile?</h2>
+            <div className="q-choice-stack">
+              {renderLetteredOption("yes", "Yes, I know my profile", a.adhdAwareness, (v) => setAnswer("adhdAwareness", v), 0)}
+              {renderLetteredOption("no", "Not sure yet - let's check", a.adhdAwareness, (v) => setAnswer("adhdAwareness", v), 1)}
+            </div>
+          </>
+        );
+
+      case "adhd-type-known":
+        return (
+          <>
+            <h2 className="q-title">Which one best describes you?</h2>
+            <div className="q-choice-stack">
+              {Object.keys(ADHD_TYPE_LABELS).map((key, i) =>
+                renderLetteredOption(
+                  key,
+                  ADHD_TYPE_LABELS[key],
+                  a.adhdProfileType,
+                  (v) => setAnswer("adhdProfileType", v),
+                  i
+                )
+              )}
+            </div>
+          </>
+        );
+
+      case "adhd-quiz": {
+        const q = step.question;
+        const answer = a.quizAnswers?.[q.id];
+        return (
+          <>
+            <h2 className="q-title">{q.text}</h2>
+            <div className="q-choice-stack">
+              {QUIZ_SCALE.map((opt, i) =>
+                renderLetteredOption(
+                  opt.value,
+                  opt.label,
+                  answer,
+                  (v) => setQuizAnswer(q.id, v),
+                  i
+                )
+              )}
+            </div>
+          </>
+        );
+      }
+
+      case "adhd-quiz-result": {
+        const score = scoreAdhdQuiz(a.quizAnswers);
+        const inferredKey = a.quizInferredType || score.type;
+        return (
+          <div
+            className="q-quiz-result"
+            role="region"
+            aria-labelledby="q-quiz-result-title"
+            aria-describedby="q-quiz-result-footnote"
+          >
+            <p className="q-quiz-result-eyebrow">Result</p>
+            <div className="q-quiz-result-focal">
+              <h2 className="q-quiz-result-focal-heading" id="q-quiz-result-title">
+                <span className="q-quiz-result-focal-prefix">Your profile:</span>
+                <span className="q-quiz-result-focal-type">{ADHD_TYPE_LABELS[inferredKey]}</span>
+              </h2>
+              <p className="q-quiz-result-focal-desc">{ADHD_TYPE_DESCRIPTIONS[inferredKey]}</p>
+            </div>
+            <p className="q-quiz-result-footnote" id="q-quiz-result-footnote">
+              <span className="q-quiz-result-footnote-mark" aria-hidden="true">*</span> This is not a
+              medical or diagnostic test. It is a brief self-report profile based on research and
+              common patterns, use it as context for your strengths and needs, not as a clinical
+              label.
+            </p>
+          </div>
+        );
+      }
+
+      case "work-style":
+        return (
+          <>
+            <h2 className="q-title">Which work preferences bring out your best?</h2>
+            <p className="q-subtitle">Pick up to {MAX_PICK_ALL_APPLY} that apply.</p>
+            {renderChips("workStyles", WORK_STYLE_OPTIONS, { mode: "multi" })}
+          </>
+        );
+
+      case "support-needs":
+        return (
+          <>
+            <h2 className="q-title">Which supports help you most?</h2>
+            <p className="q-subtitle">Pick up to {MAX_PICK_ALL_APPLY} that apply.</p>
+            {renderChips("supportNeeds", SUPPORT_NEED_OPTIONS, { mode: "multi" })}
+          </>
+        );
+
+      case "roles-pick":
+        return (
+          <>
+            <h2 className="q-title">What IT or software job role have you had?</h2>
+            <p className="q-subtitle">
+              This step is for people with experience as <strong>recent graduates</strong> or with about{" "}
+              <strong>one to two years</strong> in a role. Please choose a <strong>single</strong> title that
+              best matches you—we only use software and IT-related job names so suggestions stay on-topic.
+            </p>
+            {renderRoleSelector()}
+          </>
+        );
+
+      case "role-duration":
+        return (
+          <>
+            <h2 className="q-title">How long have you done <em>{step.role}</em>?</h2>
+            <div className="q-choice-stack">
+              {DURATION_OPTIONS.map((d, i) =>
+                renderLetteredOption(
+                  d,
+                  d,
+                  a.roleDuration?.[step.role],
+                  (v) => setRoleDuration(step.role, v),
+                  i
+                )
+              )}
+            </div>
+          </>
+        );
+
+      case "skills":
+        return (
+          <>
+            <h2 className="q-title">Which skills match your experience?</h2>
+            <p className="q-subtitle">We've added some based on your roles - keep, remove, or add more.</p>
+            {renderSkillSelector()}
+          </>
+        );
+
+      case "profile-ready":
+        return (
+          <div className="q-profile-ready q-profile-dashboard">
+            <section className="q-profile-hero-card" aria-labelledby="summary-heading">
+              <div className="q-profile-hero-left">
+                <div className="q-profile-hero-identity">
+                  <div className="q-profile-avatar-wrap">
+                    <div className="avatar" aria-hidden="true">NG</div>
+                  </div>
+                  <div className="q-profile-hero-copy">
+                    <h2 className="q-title q-title--profile-summary" id="summary-heading">Profile Ready</h2>
+                    <p className="q-subtitle" id="summary-subtitle">
+                      {state.completed
+                        ? "All sections completed. You can still edit any step in Progress above."
+                        : "Review your summary and save your Profile ID when you are ready."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="q-profile-hero-right">
+                {state.profileId ? (
+                  <div className="q-profile-id-inline q-profile-id-inline--hero" aria-live="polite">
+                    <span className="q-profile-id-inline-label">Your code</span>
+                    <code className="q-profile-id-code-compact">{state.profileId}</code>
+                    <button
+                      type="button"
+                      className="button secondary q-profile-id-copy--compact"
+                      onClick={handleCopyProfileId}
+                    >
+                      {copyFeedback || "Copy"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="button primary q-profile-id-create"
+                    onClick={() => { void syncProfileToServer(); }}
+                    disabled={syncStatus === "saving"}
+                  >
+                    {syncStatus === "saving" ? "Creating…" : "Create my Profile ID"}
+                  </button>
+                )}
+                {syncMessage ? (
+                  <p
+                    className="q-profile-ready-sync q-profile-ready-sync--hero"
+                    data-tone={syncStatus === "error" ? "error" : "info"}
+                    role="status"
+                  >
+                    {syncMessage}
+                  </p>
+                ) : null}
+              </div>
+            </section>
+
+            <div className="q-profile-dashboard-body">
+              <div className="q-profile-primary">
+                <div className="q-profile-summary-and-dev">
+                  <div className="q-profile-dev-panel" aria-hidden="true">
+                    <img
+                      className="q-profile-dev-img"
+                      src="/images/dev.png"
+                      alt=""
+                      loading="eager"
+                      decoding="async"
+                    />
+                  </div>
+                  <div className="q-profile-summary-col">
+                    <div className="summary-grid q-profile-summary-grid">
+                      {summarySections.map((section) => (
+                        <article key={section.id} className="summary-block summary-block--dashboard">
+                          <header className="summary-block-head">
+                            <div className="summary-block-title-row">
+                              <span className="summary-block-icon" aria-hidden="true">
+                                <ProfileReadySectionIcon sectionId={section.id} />
+                              </span>
+                              <h3>{section.title}</h3>
+                            </div>
+                            <button
+                              type="button"
+                              className="summary-block-edit"
+                              onClick={() => jumpToStepById(section.firstStepId)}
+                            >
+                              <span className="summary-block-edit-ico" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                                  <path d="M4 20h4l9.5-9.5a2.1 2.1 0 0 0-3-3L5 16v4Z" />
+                                  <path d="M13.5 6.5l4 4" />
+                                </svg>
+                              </span>
+                              Edit
+                            </button>
+                          </header>
+                          <ul className="summary-list">
+                            {section.rows.map((row) => (
+                              <li key={row.key} className="summary-item">
+                                <span className="summary-key">{row.key}</span>
+                                {renderSummaryValue(row)}
+                              </li>
+                            ))}
+                          </ul>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <aside className="q-profile-next-aside" aria-label="Next steps">
+                <div className="q-profile-cta-section">
+                  <h3 className="q-profile-cta-heading">What would you like to do next?</h3>
+                  <div className="q-profile-cta-list">
+                    <div className="q-profile-cta-item">
+                      <Link
+                        to="/simplify-job-description"
+                        className="button primary q-profile-cta-btn"
+                      >
+                        Check job suitability score
+                      </Link>
+                    </div>
+                    <div className="q-profile-cta-item">
+                      <button
+                        type="button"
+                        className="button primary q-profile-cta-btn"
+                        onClick={() => jumpToStepById("adhd-awareness")}
+                      >
+                        Review from first step
+                      </button>
+                    </div>
+                    <div className="q-profile-cta-item">
+                      <button
+                        type="button"
+                        className="button primary q-profile-cta-btn"
+                        onClick={resetAll}
+                      >
+                        Start Over
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {state.profileId ? (
+                  <div className="q-profile-next-sync">
+                    <button
+                      type="button"
+                      className="button ghost"
+                      onClick={() => { void syncProfileToServer(); }}
+                      disabled={syncStatus === "saving"}
+                    >
+                      {syncStatus === "saving" ? "Saving…" : "Sync latest changes"}
+                    </button>
+                    {state.syncedAt ? (
+                      <span className="q-profile-next-synced-at">
+                        Last synced {new Date(state.syncedAt).toLocaleString()}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </aside>
+            </div>
+          </div>
+        );
+
+      case "energy":
+        return (
+          <>
+            <h2 className="q-title">When and how do you do your best work?</h2>
+            <p className="q-subtitle">Pick up to {MAX_ENERGY_PATTERNS}.</p>
+            <div className="energy-check-grid" role="group" aria-label="Work style options">
+              {ENERGY_PATTERN_OPTIONS.map((option) => {
+                const selected = (a.energyPatterns || []).includes(option);
+                return renderEnergyCheckRow(option, option, selected, () => toggleEnergyPattern(option));
+              })}
+            </div>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // Which block the current step belongs to, which sub-questions sit inside
+  // it, and the index of the current step within that block. Powers the top
+  // segmented stepper and the right-hand "Questions in this block" panel.
+  const activeBlockId = currentStep?.block || "type";
+  const activeBlock = BLOCKS.find((b) => b.id === activeBlockId) || BLOCKS[0];
+  const activeBlockSteps = steps.filter((s) => s.block === activeBlockId);
+  const activeBlockStepIndex = Math.max(0, activeBlockSteps.findIndex((s) => s.id === currentStep?.id));
+
+  // Which blocks have been started / finished - used to style the segmented
+  // stepper (Profile Ready is step 5, same URL as the rest of the wizard).
+  const blockStatus = BLOCKS.map((b) => {
+    if (b.id === "profile") {
+      if (activeBlockId === "profile") {
+        return { ...b, status: "active" };
+      }
+      if (state.completed) {
+        return { ...b, status: "done" };
+      }
+      const preProfile = steps.filter((s) => s.block !== "profile");
+      if (preProfile.length > 0 && preProfile.every((s) => isStepAnswered(s, state.answers))) {
+        return { ...b, status: "future" };
+      }
+      return { ...b, status: "future" };
+    }
+    const stepsInBlock = steps.filter((s) => s.block === b.id);
+    if (stepsInBlock.length === 0) return { ...b, status: "future" };
+    const allAnswered = stepsInBlock.every((s) => isStepAnswered(s, state.answers));
+    const isActive = activeBlockId === b.id;
+    if (isActive) return { ...b, status: "active" };
+    if (allAnswered) return { ...b, status: "done" };
+    const anyAnswered = stepsInBlock.some((s) => isStepAnswered(s, state.answers));
+    return { ...b, status: anyAnswered ? "started" : "future" };
+  });
 
   return (
-    <div className="profile-app">
+    <div className="profile-app profile-app--fullscreen">
       <DataConsentModal />
       <header className="topbar">
         <div className="brand-wrap">
@@ -797,328 +1632,275 @@ export default function ProfileWizardPage() {
             </div>
           </Link>
           <nav className="profile-top-nav" aria-label="Site">
-            <Link to="/" aria-current={location.pathname === "/" ? "page" : undefined}>
-              Home
-            </Link>
-            <Link to="/profile" aria-current={location.pathname === "/profile" ? "page" : undefined}>
-              Profile builder
-            </Link>
+            <Link to="/" aria-current={location.pathname === "/" ? "page" : undefined}>Home</Link>
+            <Link to="/profile" aria-current={location.pathname === "/profile" ? "page" : undefined}>Career Profile</Link>
             <Link
               to="/simplify-job-description"
               aria-current={location.pathname === "/simplify-job-description" ? "page" : undefined}
             >
               Simplify Job Description
             </Link>
+            <Link
+              to="/interview-prep"
+              aria-current={location.pathname === "/interview-prep" ? "page" : undefined}
+            >
+              Interview Prep
+            </Link>
+            <Link
+              to="/settings"
+              aria-current={location.pathname === "/settings" ? "page" : undefined}
+            >
+              Settings
+            </Link>
           </nav>
         </div>
       </header>
 
-      <header className="simplify-hero" aria-labelledby="intro-heading">
-        <div className="simplify-hero-grid">
-          <div className="simplify-hero-copy">
-            <p className="simplify-hero-eyebrow">Short prompts, deliberate choices</p>
-            <h1 id="intro-heading" className="simplify-hero-title">
-              Turn scattered experience into a profile that reads cleanly on the page.
-            </h1>
-            <p className="simplify-hero-lead">
-              Layer roles, skills and support preferences in quick steps - then carry the result into suitability
-              scores and interview prep.
+      {showLoginGate && !state.profileId ? (
+        <main className="login-gate" aria-labelledby="login-gate-title">
+          <section className="login-gate-card" role="region">
+            <p className="login-gate-eyebrow">Welcome back</p>
+            <h1 id="login-gate-title" className="login-gate-title">Already have a User ID?</h1>
+            <p className="login-gate-sub">
+              Enter the 8-character code we gave you last time to load your saved
+              Career Profile. No account, no password - just your code.
             </p>
-            <Link to="/" className="simplify-hero-back">
-              ← Back home
-            </Link>
-          </div>
-          <HeroPaperShapes />
-        </div>
-      </header>
 
-      <main className="app-shell">
-        <div className={`wizard-layout ${state.viewMode === "overview" ? "overview-mode" : ""}`}>
-          {state.viewMode === "wizard" && (
-            <section className="progress-topbar" aria-label="Progress">
-              <h2 className="progress-inline-title">
-                Progress{" "}
-                <span className="progress-text">
-                  {state.currentStepIndex + 1}/{steps.length}
-                </span>
-              </h2>
-              <ol className="progress-list">
-                {steps.map((step, idx) => {
-                  const done = state.visitedStepIndices.includes(idx) && validateStep(step.id, state.answers) === null;
-                  return (
-                    <li key={step.title} className={`progress-item ${idx === state.currentStepIndex ? "is-active" : ""} ${done ? "is-done" : ""}`}>
-                      <button
-                        type="button"
-                        className="progress-step-button"
-                        onClick={() =>
-                          setState((p) => ({
-                            ...p,
-                            currentStepIndex: idx,
-                            visitedStepIndices: p.visitedStepIndices.includes(idx)
-                              ? p.visitedStepIndices
-                              : [...p.visitedStepIndices, idx],
-                          }))
+            <UserIdEntryBox
+              onSubmit={loadProfileById}
+              defaultOpen
+              showToggle={false}
+              title="Your User ID"
+              description="For example: K7X2-M4QR"
+            />
+
+            <div className="login-gate-divider" role="separator" aria-label="or">
+              <span>or</span>
+            </div>
+
+            <button
+              type="button"
+              className="button primary login-gate-new"
+              onClick={dismissLoginGate}
+            >
+              Start a new profile
+              <span aria-hidden="true">→</span>
+            </button>
+
+            <p className="login-gate-foot">
+              You can save a new profile at the end of the quiz - we'll give you
+              a User ID to remember it by.
+            </p>
+          </section>
+        </main>
+      ) : (
+        <main className="q-screen" aria-live="polite">
+          {/* Progress: five blocks including Profile Ready; each segment jumps to that section (same as other blocks). */}
+          {(() => {
+            const visibleBlocks = blockStatus;
+            const currentIdx = Math.max(0, visibleBlocks.findIndex((b) => b.status === "active"));
+            const doneCount  = visibleBlocks.filter((b) => b.status === "done").length;
+            const counterNum = visibleBlocks[currentIdx]?.status === "active" ? currentIdx + 1 : doneCount;
+            const jumpToBlock = (blockId) => {
+              const firstStep = steps.find((s) => s.block === blockId);
+              if (firstStep) jumpToStepById(firstStep.id);
+            };
+            return (
+              <nav className="q-steps" aria-label="Profile sections">
+                <header className="q-steps-header">
+                  <h2 className="q-steps-heading">Progress</h2>
+                  <span className="q-steps-badge">
+                    {counterNum}/{visibleBlocks.length}
+                  </span>
+                </header>
+                <ol className="q-steps-list" role="list">
+                  {visibleBlocks.map((b, i) => {
+                    const stepNumber = i + 1;
+                    const isDone   = b.status === "done";
+                    const isActive = b.status === "active";
+                    const prev = i > 0 ? visibleBlocks[i - 1] : null;
+                    const prevFilled = prev && (prev.status === "done" || prev.status === "active");
+                    return (
+                      <li
+                        key={b.id}
+                        className={`q-steps-item is-${b.status}`}
+                        aria-current={isActive ? "step" : undefined}
+                      >
+                        {i > 0 ? (
+                          <span
+                            className={`q-steps-connector ${prevFilled ? "is-filled" : ""}`}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        <button
+                          type="button"
+                          className="q-steps-btn"
+                          onClick={() => jumpToBlock(b.id)}
+                          aria-label={`Go to step ${stepNumber}: ${b.label}`}
+                        >
+                          <span className="q-steps-dot" aria-hidden="true">
+                            {isDone ? "✓" : stepNumber}
+                          </span>
+                          <span className="q-steps-caption">
+                            <span className="q-steps-caption-eyebrow">STEP {stepNumber}</span>
+                            <span className="q-steps-caption-title">{b.label}</span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </nav>
+            );
+          })()}
+
+          <div
+            className={
+              "q-layout" + (currentStep?.kind === "profile-ready" ? " q-layout--profile-ready" : "")
+            }
+          >
+            {/* Main question column */}
+            <section className="q-main">
+              <div className={`q-screen-inner q-phase-${phase}`} key={currentStep?.id}>
+                <article
+                  className={
+                    currentStep?.kind === "profile-ready"
+                      ? "q-card q-card--profileready"
+                      : "q-card q-card--withscene"
+                  }
+                >
+                  {currentStep?.kind === "profile-ready" ? (
+                    <>
+                      <div className="q-card-body q-card-body--profile-ready">
+                        {renderStepBody(currentStep)}
+                      </div>
+                      {message ? (
+                        <p className="q-message" data-tone={messageTone} role="alert">{message}</p>
+                      ) : null}
+                      <div className="q-actions q-actions--profile">
+                        <button
+                          type="button"
+                          className="button ghost"
+                          onClick={goBack}
+                          disabled={safeStepIndex === 0}
+                        >
+                          Previous step
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="q-card-grid">
+                      <div className="q-scene-col">
+                        {activeBlockSteps.length > 1 ? (
+                          <p className="q-scene-count">
+                            Question {activeBlockStepIndex + 1} of {activeBlockSteps.length}
+                          </p>
+                        ) : null}
+                        <QuizScene
+                          blockId={activeBlockId}
+                          stepKind={currentStep?.kind}
+                          stepId={currentStep?.id}
+                        />
+                      </div>
+
+                      <div className="q-card-col">
+                        <header className="q-card-head">
+                          <span className="q-card-head-eyebrow">{activeBlock.label}</span>
+                        </header>
+
+                        <div className="q-card-body">
+                          {renderStepBody(currentStep)}
+                          <div className="q-clear-row">
+                            <button type="button" className="q-clear-link" onClick={resetAll}>
+                              Clear all and start over
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="q-card-foot">
+                          {message ? (
+                            <p className="q-message" data-tone={messageTone} role="alert">{message}</p>
+                          ) : null}
+                          <div className="q-actions">
+                            <button
+                              type="button"
+                              className="button ghost"
+                              onClick={goBack}
+                              disabled={safeStepIndex === 0}
+                            >
+                              Back
+                            </button>
+                            <button type="button" className="button secondary" onClick={saveAndExit}>
+                              Save &amp; exit
+                            </button>
+                            <button type="button" className="button primary q-next" onClick={goNext}>
+                              Next
+                              <span className="q-next-arrow" aria-hidden="true">→</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </article>
+              </div>
+            </section>
+
+            {/* Right panel — hidden on Profile Ready so the summary uses full width. */}
+            {currentStep?.kind !== "profile-ready" ? (
+              <aside className="q-sidepanel" aria-label={`Questions in ${activeBlock.label}`}>
+                <header className="q-sidepanel-head">
+                  <h3 className="q-sidepanel-title">{activeBlock.label}</h3>
+                  <span className="q-sidepanel-sub">
+                    {activeBlockSteps.length} question{activeBlockSteps.length === 1 ? "" : "s"}
+                  </span>
+                </header>
+                <ol className="q-sidepanel-list">
+                  {activeBlockSteps.map((s, i) => {
+                    const answered =
+                      s.kind === "profile-ready"
+                        ? state.completed
+                        : isStepAnswered(s, state.answers);
+                    const isCurrent = s.id === currentStep?.id;
+                    const stepGlobalIndex = steps.findIndex((x) => x.id === s.id);
+                    return (
+                      <li
+                        key={s.id}
+                        className={
+                          "q-sidepanel-item" +
+                          (isCurrent ? " is-current" : "") +
+                          (answered ? " is-done" : "")
                         }
                       >
-                        <span className="progress-step-top" aria-hidden="true">
-                          <span className="progress-step-dot">{done ? "✓" : idx + 1}</span>
-                          {idx < steps.length - 1 ? <span className="progress-step-link" /> : null}
-                        </span>
-                        <span className="progress-step-copy">
-                          <span className="progress-step-kicker">Step {idx + 1}</span>
-                          <span className="progress-step-title">{step.title.replace(/^Step \d+:\s*/, "")}</span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          )}
-
-          {state.viewMode === "wizard" && (
-            <div className="wizard-main-grid">
-              <section className="wizard-card">
-                <h2 className="step-title">{currentStep.title}</h2>
-                <p className="step-description">{currentStep.subtitle}</p>
-
-                <div className="step-content">
-                {currentStep.id === "support" && (
-                  <>
-                    <section className="group-card">
-                      {sectionLabel("Pick your ADHD profile", Boolean(state.answers.adhdProfileType))}
-                      <select
-                        value={state.answers.adhdProfileType}
-                        onChange={(e) => setAnswer("adhdProfileType", e.target.value)}
-                      >
-                        <option value="">Select</option>
-                        <option value="inattentive">Inattentive</option>
-                        <option value="hyperactive-impulsive">Hyperactive-Impulsive</option>
-                        <option value="combined">Combined</option>
-                      </select>
-                    </section>
-                    <section className="group-card support-step-theme">
-                      {sectionLabel("Choose your best work style", state.answers.workStyles.length > 0)}
-                      {renderChips("workStyles", WORK_STYLE_OPTIONS, "multi")}
-                    </section>
-                    <section className="group-card support-step-theme">
-                      {sectionLabel("Choose supports that help you", state.answers.supportNeeds.length > 0)}
-                      {renderChips("supportNeeds", SUPPORT_NEED_OPTIONS, "multi")}
-                    </section>
-                  </>
-                )}
-
-                {currentStep.id === "background" && (
-                  <>
-                    <section className="group-card roles-step-theme">
-                      {sectionLabel("What roles have you worked in?", state.answers.selectedRoles.length > 0)}
-                      {renderRoleSelector()}
-                    </section>
-                    <section className="group-card">
-                      {sectionLabel(
-                        "Set your experience level for each selected role",
-                        state.answers.selectedRoles.length > 0 &&
-                          state.answers.selectedRoles.every(
-                            (role) => Boolean(state.answers.roleExperience?.[role]) && Boolean(state.answers.roleDuration?.[role])
-                          ),
-                      )}
-                      {state.answers.selectedRoles.length === 0 ? (
-                        <p className="role-level-empty">Add role(s) above to unlock your level-up cards.</p>
-                      ) : (
-                        <div className="role-level-grid">
-                          {state.answers.selectedRoles.map((role, idx) => (
-                            <article key={role} className="role-level-card">
-                              <p className="role-level-order">Role {idx + 1}</p>
-                              <h3 className="role-level-title">{role}</h3>
-                              <p className="role-level-subtitle">How long have you done this role?</p>
-                              <div className="chip-grid role-duration-grid">
-                                {DURATION_OPTIONS.map((duration) => {
-                                  const selected = state.answers.roleDuration?.[role] === duration;
-                                  return (
-                                    <button
-                                      key={`${role}-${duration}`}
-                                      type="button"
-                                      className={`choice-chip ${selected ? "is-selected" : ""}`}
-                                      onClick={() => setRoleDuration(role, duration)}
-                                    >
-                                      {duration}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              <p className="role-level-subtitle">What is your experience level in this role?</p>
-                              <div className="chip-grid">
-                                {EXPERIENCE_LEVEL_OPTIONS.map((level) => {
-                                  const selected = state.answers.roleExperience?.[role] === level;
-                                  return (
-                                    <button
-                                      key={`${role}-${level}`}
-                                      type="button"
-                                      className={`choice-chip ${selected ? "is-selected" : ""}`}
-                                      onClick={() => setRoleExperience(role, level)}
-                                    >
-                                      {level}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  </>
-                )}
-
-                {currentStep.id === "time" && (
-                  <>
-                    <section className="group-card time-step-theme">
-                      {sectionLabel("What rhythm helps you most?", (state.answers.energyPatterns || []).length > 0)}
-                      {renderEnergyPatternCheckboxes()}
-                    </section>
-                  </>
-                )}
-
-                {currentStep.id === "skills" && (
-                  <>
-                    <section className="group-card skills-step-theme">
-                      {sectionLabel("Skills auto-added from selected roles (you can edit)", state.answers.selectedSkills.length > 0)}
-                      {renderSkillSelector()}
-                    </section>
-                  </>
-                )}
-                </div>
-
-                <p className="error-message" data-tone={messageTone}>
-                  {message}
-                </p>
-
-                <div className="button-row">
-                  <button type="button" className="button ghost button-clear-all" onClick={resetAll}>
-                    Clear all
-                  </button>
-                  <button
-                    type="button"
-                    className="button ghost"
-                    disabled={state.currentStepIndex === 0}
-                    onClick={() =>
-                      setState((p) => {
-                        const nextIndex = Math.max(0, p.currentStepIndex - 1);
-                        const visited = p.visitedStepIndices.includes(nextIndex)
-                          ? p.visitedStepIndices
-                          : [...p.visitedStepIndices, nextIndex];
-                        return { ...p, currentStepIndex: nextIndex, visitedStepIndices: visited };
-                      })
-                    }
-                  >
-                    Back
-                  </button>
-                  <button type="button" className="button secondary" onClick={saveAndExit}>
-                    Save & Exit
-                  </button>
-                  <button type="button" className="button primary" onClick={nextStep}>
-                    {state.currentStepIndex === steps.length - 1 ? "Finish" : "Next"}
-                  </button>
-                </div>
-              </section>
-              <aside className="profile-preview-card" aria-live="polite">
-                <div className="profile-preview-header">
-                  <div className="profile-preview-avatar" aria-hidden="true">
-                    NG
-                  </div>
-                  <div className="profile-preview-headcopy">
-                    <h3 className="profile-preview-title">Live profile preview</h3>
-                    <p className="profile-preview-subtitle">Dashboard view of your profile progress</p>
-                  </div>
-                </div>
-                <ul className="profile-preview-list">
-                  {previewRows.map((row) => (
-                    <li key={row.label} className="profile-preview-item">
-                      <span className="profile-preview-key">{row.label}</span>
-                      <span className="profile-preview-value">{row.value}</span>
-                    </li>
-                  ))}
-                </ul>
+                        <button
+                          type="button"
+                          className="q-sidepanel-btn"
+                          onClick={() => {
+                            if (stepGlobalIndex < 0) return;
+                            runTransition(
+                              stepGlobalIndex >= safeStepIndex ? "forward" : "back",
+                              (prev) => ({ ...prev, stepIndex: stepGlobalIndex })
+                            );
+                          }}
+                          aria-current={isCurrent ? "step" : undefined}
+                        >
+                          <span className="q-sidepanel-btn-label">
+                            {i + 1}. {shortLabelForStep(s)}
+                          </span>
+                          <span className="q-sidepanel-btn-check" aria-hidden="true">
+                            {answered ? "✓" : ""}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
               </aside>
-            </div>
-          )}
-
-          {state.viewMode === "overview" && (
-            <section className="summary-card">
-              <div className="profile-top">
-                <div className="avatar">NG</div>
-                <div>
-                  <h2 id="summary-heading">Profile Ready</h2>
-                  <p id="summary-subtitle">
-                    {state.completed
-                      ? "All sections completed. You can still edit any step."
-                      : "Progress saved. Continue from any step below."}
-                  </p>
-                </div>
-              </div>
-              <div className="summary-grid">
-                {summarySections.map((section, index) => (
-                  <article key={section.title} className="summary-block">
-                    <span className="summary-icon">{SECTION_ICONS[section.id]}</span>
-                    <h3>{section.title}</h3>
-                    <ul className="summary-list">
-                      {section.rows.map((row) => (
-                        <li key={row.key} className="summary-item">
-                          <span className="summary-key">{row.key}</span>
-                          <span className="summary-value">{row.value}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      type="button"
-                      className="button secondary"
-                      onClick={() =>
-                        setState((prev) => ({
-                          ...prev,
-                          viewMode: "wizard",
-                          currentStepIndex: index,
-                          visitedStepIndices: prev.visitedStepIndices.includes(index)
-                            ? prev.visitedStepIndices
-                            : [...prev.visitedStepIndices, index],
-                        }))
-                      }
-                    >
-                      Edit this step
-                    </button>
-                  </article>
-                ))}
-              </div>
-              <div className="button-row">
-                <button
-                  type="button"
-                  className="button primary"
-                  onClick={() => setShowSuitabilityPlaceholder(true)}
-                >
-                  Check job suitability score
-                </button>
-                <Link to="/simplify-job-description" className="button primary">
-                  Explore job description simplification
-                </Link>
-                {showSuitabilityPlaceholder ? (
-                  <p className="error-message" data-tone="info">
-                    Functionality part of iteration 3 development
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  className="button ghost"
-                  onClick={() => setState((prev) => ({ ...prev, viewMode: "wizard" }))}
-                >
-                  Continue Editing
-                </button>
-                <button type="button" className="button secondary" onClick={resetAll}>
-                  Start Over
-                </button>
-              </div>
-            </section>
-          )}
-        </div>
-      </main>
+            ) : null}
+          </div>
+        </main>
+      )}
     </div>
   );
 }
