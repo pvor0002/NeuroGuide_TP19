@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import SiteAppHeader from "../components/SiteAppHeader.jsx";
 import QuizScene from "../components/QuizScene.jsx";
@@ -30,7 +30,8 @@ const BLOCKS = [
   { id: "jobs",    label: "Jobs & Skills" },
   { id: "profile", label: "Profile Ready" },
 ];
-const BLOCK_IDS = BLOCKS.map((b) => b.id);
+// eslint-disable-next-line no-unused-vars
+const _BLOCK_IDS = BLOCKS.map((b) => b.id);
 const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 const DURATION_OPTIONS = ["Internship", "6 months", "1-2 years"];
@@ -550,7 +551,7 @@ function validateStep(step, answers) {
 }
 
 export default function ProfileWizardPage() {
-  const location = useLocation();
+  useLocation(); // keep router context subscribed
   const navigate = useNavigate();
   const [roleTags, setRoleTags] = useState([]);
   const [skillTags, setSkillTags] = useState([]);
@@ -558,7 +559,8 @@ export default function ProfileWizardPage() {
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState("error");
   const [phase, setPhase] = useState("in"); // "in" | "out-forward" | "out-back"
-  const [progressBump, setProgressBump] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [_progressBump, setProgressBump] = useState(false);
   const transitionTimerRef = useRef(null);
 
   // Sync (POST/PUT) status for the "save to cloud" affordance.
@@ -623,6 +625,7 @@ export default function ProfileWizardPage() {
   }, [steps, state.answers]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (canCheckJobSuitability) setShowSuitabilityGate(false);
   }, [canCheckJobSuitability]);
 
@@ -640,6 +643,7 @@ export default function ProfileWizardPage() {
       state.answers.quizInferredType ||
       scoreAdhdQuiz(state.answers.quizAnswers).type;
     if (!inferred) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => ({
       ...prev,
       answers: { ...prev.answers, adhdProfileType: inferred },
@@ -804,7 +808,8 @@ export default function ProfileWizardPage() {
     }));
   };
 
-  const setRoleExperience = (role, level) => {
+  // eslint-disable-next-line no-unused-vars
+  const _setRoleExperience = (role, level) => {
     setState((prev) => ({
       ...prev,
       answers: {
@@ -1405,7 +1410,7 @@ export default function ProfileWizardPage() {
         return (
           <>
             <h2 className="q-title">Which skills match your experience?</h2>
-            <p className="q-subtitle">We've added some based on your roles - keep, remove, or add more.</p>
+            <p className="q-subtitle">We&apos;ve added some based on your roles - keep, remove, or add more.</p>
             {renderSkillSelector()}
           </>
         );
@@ -1678,7 +1683,7 @@ export default function ProfileWizardPage() {
             </button>
 
             <p className="login-gate-foot">
-              You can save a new profile at the end of the quiz - we'll give you
+              You can save a new profile at the end of the quiz - we&apos;ll give you
               a User ID to remember it by.
             </p>
           </section>

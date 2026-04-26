@@ -149,7 +149,7 @@ export default function UserIdEntryModal({
               onClick={onDismiss}
             >
               <span className="userid-modal-option-label">No, start fresh</span>
-              <span className="userid-modal-option-desc">You'll get a new User ID at the end you can save.</span>
+              <span className="userid-modal-option-desc">You&apos;ll get a new User ID at the end you can save.</span>
             </button>
           </div>
         ) : (

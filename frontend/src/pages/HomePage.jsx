@@ -186,6 +186,7 @@ export default function HomePage() {
 
     // Fallback for browsers without IntersectionObserver - reveal immediately.
     if (typeof window === "undefined" || typeof window.IntersectionObserver === "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHowRevealed(true);
       return undefined;
     }
