@@ -142,6 +142,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshState();
   }, [refreshState]);
 
@@ -297,12 +298,12 @@ export default function SettingsPage() {
             <section className="settings-card" aria-label="Privacy policy">
               <ul className="settings-list">
                 <li>
-                  <strong>No account, no server profile.</strong> We don't ask for your
+                  <strong>No account, no server profile.</strong> We don&apos;t ask for your
                   name, email, or phone.
                 </li>
                 <li>
                   <strong>Your data stays in your browser.</strong> Career Profile answers
-                  and simplified job history are saved to this device's local storage.
+                  and simplified job history are saved to this device&apos;s local storage.
                 </li>
                 <li>
                   <strong>Job descriptions you paste</strong> are sent to our simplifier
@@ -314,7 +315,7 @@ export default function SettingsPage() {
                   browser. The ID is random and not linked to anything real about you.
                 </li>
                 <li>
-                  <strong>You're in control.</strong> You can revoke consent or wipe all
+                  <strong>You&apos;re in control.</strong> You can revoke consent or wipe all
                   data from this page at any time.
                 </li>
               </ul>
@@ -372,7 +373,7 @@ export default function SettingsPage() {
           {activeSection === "credentials" ? (
             <section className="settings-card" aria-label="User ID and pass key">
               <p className="settings-card-sub">
-                Used to recover your profile on another browser. Keep them safe - we can't
+                Used to recover your profile on another browser. Keep them safe - we can&apos;t
                 reset what we never knew.
               </p>
 
@@ -413,7 +414,7 @@ export default function SettingsPage() {
                   No User ID yet. When you accept the consent notice in the{" "}
                   <Link to="/profile">Career Profile</Link> or{" "}
                   <Link to="/simplify-job-description">Simplify Job Description</Link> tool,
-                  we'll generate one for you.
+                  we&apos;ll generate one for you.
                 </p>
               )}
             </section>
@@ -421,7 +422,7 @@ export default function SettingsPage() {
 
           {activeSection === "danger" ? (
             <section className="settings-card settings-card--danger" aria-label="Clear your data">
-              <p className="settings-card-sub">These actions can't be undone.</p>
+              <p className="settings-card-sub">These actions can&apos;t be undone.</p>
               <div className="settings-danger-grid">
                 <div className="settings-danger-item">
                   <h3 className="settings-danger-title">Clear profile answers only</h3>

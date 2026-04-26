@@ -609,7 +609,7 @@ function ProfileInattentive({ data }) {
         {/* What you'll do */}
         {data.what_you_do?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">💼 What you'll do</h3>
+            <h3 className="sp-section-title">💼 What you&apos;ll do</h3>
             <ol className="sp-numbered-list">
               {data.what_you_do.map((item, i) => (
                 <li key={i} className="sp-numbered-item">
@@ -624,7 +624,7 @@ function ProfileInattentive({ data }) {
         {/* Skills you'll learn */}
         {data.skills_you_learn?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">🧰 Skills you'll learn</h3>
+            <h3 className="sp-section-title">🧰 Skills you&apos;ll learn</h3>
             <ul className="sp-tag-list">
               {data.skills_you_learn.map((s, i) => (
                 <li key={i} className="sp-tag">{s}</li>
@@ -695,7 +695,7 @@ function ProfileHyperactive({ data }) {
         {/* What you'll actually do */}
         {data.what_you_do?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">⚡ What you'll actually do</h3>
+            <h3 className="sp-section-title">⚡ What you&apos;ll actually do</h3>
             <ul className="sp-energy-list">
               {data.what_you_do.map((d, i) => (
                 <li key={i} className="sp-energy-item">
@@ -790,7 +790,7 @@ function ProfileCombined({ data }) {
         {/* What you'll learn */}
         {data.what_you_learn?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">📚 What you'll learn</h3>
+            <h3 className="sp-section-title">📚 What you&apos;ll learn</h3>
             <ul className="sp-tag-list">
               {data.what_you_learn.map((s, i) => (
                 <li key={i} className="sp-tag">{s}</li>
