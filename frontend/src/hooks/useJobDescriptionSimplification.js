@@ -26,7 +26,9 @@ function writeStorage(key, value) {
     } else {
       localStorage.setItem(key, JSON.stringify(value));
     }
-  } catch {}
+  } catch {
+    // localStorage unavailable (e.g. private browsing restrictions) — silently skip
+  }
 }
 
 function attachmentMetaFromFile(file) {
