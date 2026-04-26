@@ -45,9 +45,9 @@ function getProfileTabFromCareerProfile() {
 }
 
 const CARD_SECTIONS = [
-  { key: "basic_info", label: "Basic information", emoji: "" },
-  { key: "responsibilities", label: "Responsibilities", emoji: "" },
-  { key: "skills_qualifications", label: "Skills & Qualifications", emoji: "" },
+  { key: "basic_info", label: "Basic info", emoji: "📍" },
+  { key: "responsibilities", label: "Responsibilities", emoji: "💼" },
+  { key: "skills_qualifications", label: "Skills needed", emoji: "🧰" },
 ];
 
 const CARD_POINT_LIMIT = {
@@ -275,14 +275,12 @@ function SimplifyFlipCard({ cardKey, label, emoji, body }) {
       >
         <div className="simplify-flip-card__inner">
           <div className="simplify-flip-card__face simplify-flip-card__face--front">
-            <p className="simplify-flip-card__chip" aria-hidden="true">
-              <span>{emoji}</span>
-              <span>{focusHint}</span>
-            </p>
+            <span className="simplify-flip-card__emoji" aria-hidden="true">{emoji}</span>
             <h3 className="simplify-flip-card__title">{label}</h3>
+            <p className="simplify-flip-card__chip" aria-hidden="true">{focusHint}</p>
             <p className="simplify-flip-card__cta">
               <FlipCardsIcon />
-              <span>Click to open</span>
+              <span>Tap to open</span>
             </p>
           </div>
           <div
@@ -317,6 +315,30 @@ function SimplifyFlipCard({ cardKey, label, emoji, body }) {
             </p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function FlipCardRow({ result }) {
+  if (!result) return null;
+  return (
+    <div className="simplify-flip-row" aria-label="Quick-view cards">
+      <p className="simplify-flip-row__label">Flip for details</p>
+      <div className="simplify-flip-row__grid">
+        {CARD_SECTIONS.map(({ key, label, emoji }) => {
+          const body = result[key];
+          if (!body || String(body).trim() === "-") return null;
+          return (
+            <SimplifyFlipCard
+              key={key}
+              cardKey={key}
+              label={label}
+              emoji={emoji}
+              body={body}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -465,16 +487,91 @@ function HeroPaperShapes() {
 }
 
 // ─── Quick Snapshot: 3 must-have chips pinned at the top of output ──────────
-function QuickSnapshotBar({ items }) {
-  if (!Array.isArray(items) || items.length === 0) return null;
-  const chips = items.slice(0, 3).filter(Boolean);
+const SNAPSHOT_FALLBACK_EMOJIS = ["🔑", "📋", "✅"];
+
+// Simple emoji detection: checks if string starts with a non-ASCII character
+function hasLeadingEmoji(str) {
+  if (!str) return false;
+  const cp = str.codePointAt(0);
+  return cp > 127;
+}
+
+function splitChipContent(text) {
+  const s = String(text ?? "").trim();
+  if (!s) return { emoji: "", label: s };
+  if (hasLeadingEmoji(s)) {
+    // emoji may be 1 or 2 code units; find first space after it
+    const spaceIdx = s.indexOf(" ");
+    if (spaceIdx > 0) return { emoji: s.slice(0, spaceIdx), label: s.slice(spaceIdx + 1).trim() };
+    return { emoji: s, label: "" };
+  }
+  return { emoji: "", label: s };
+}
+
+// Filter out backend placeholder values ("-") to get real content only
+function isRealContent(s) {
+  if (!s) return false;
+  const t = String(s).trim();
+  return t.length > 0 && t !== "-";
+}
+
+// Resolve chips: prefer quick_snapshot; fall back through several sources
+function resolveSnapshotChips(result) {
+  if (!result) return [];
+
+  // 1. quick_snapshot from AI (filter placeholder "-" fills)
+  const qs = result.quick_snapshot;
+  if (Array.isArray(qs)) {
+    const real = qs.slice(0, 3).filter(isRealContent);
+    if (real.length >= 1) return real;
+  }
+
+  // 2. requirements from inattentive profile
+  const inattReqs = result?.profile_inattentive?.requirements;
+  if (Array.isArray(inattReqs)) {
+    const real = inattReqs.slice(0, 3).filter(isRealContent);
+    if (real.length >= 1) return real;
+  }
+
+  // 3. requirements from combined profile
+  const combReqs = result?.profile_combined?.requirements;
+  if (Array.isArray(combReqs)) {
+    const real = combReqs.slice(0, 3).filter(isRealContent);
+    if (real.length >= 1) return real;
+  }
+
+  // 4. last resort: parse bullet lines from skills_qualifications
+  const skills = result.skills_qualifications || "";
+  const lines = skills
+    .split("\n")
+    .map(l => l.replace(/^[-•*]\s*/, "").trim())
+    .filter(isRealContent)
+    .slice(0, 3);
+  return lines;
+}
+
+function QuickSnapshotBar({ result }) {
+  const chips = resolveSnapshotChips(result);
   if (chips.length === 0) return null;
   return (
-    <div className="simplify-snapshot-bar" aria-label="Must-have requirements">
-      <span className="simplify-snapshot-label">Must-have</span>
-      {chips.map((chip, i) => (
-        <span key={i} className="simplify-snapshot-chip">{chip}</span>
-      ))}
+    <div className="simplify-snapshot-bar" aria-label="Quick snapshot: must-have requirements">
+      <div className="simplify-snapshot-header">
+        <span className="simplify-snapshot-icon" aria-hidden="true">⚡</span>
+        <span className="simplify-snapshot-title">Quick snapshot</span>
+        <span className="simplify-snapshot-label">3 must-haves at a glance</span>
+      </div>
+      <div className="simplify-snapshot-chips">
+        {chips.map((chip, i) => {
+          const { emoji, label } = splitChipContent(chip);
+          const icon = emoji || SNAPSHOT_FALLBACK_EMOJIS[i] || "📌";
+          return (
+            <span key={i} className="simplify-snapshot-chip">
+              <span className="simplify-snapshot-chip__emoji" aria-hidden="true">{icon}</span>
+              <span className="simplify-snapshot-chip__text">{label || chip}</span>
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -512,7 +609,7 @@ function ProfileInattentive({ data }) {
         {/* What you'll do */}
         {data.what_you_do?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">What you'll do</h3>
+            <h3 className="sp-section-title">💼 What you'll do</h3>
             <ol className="sp-numbered-list">
               {data.what_you_do.map((item, i) => (
                 <li key={i} className="sp-numbered-item">
@@ -527,7 +624,7 @@ function ProfileInattentive({ data }) {
         {/* Skills you'll learn */}
         {data.skills_you_learn?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">Skills you'll learn</h3>
+            <h3 className="sp-section-title">🧰 Skills you'll learn</h3>
             <ul className="sp-tag-list">
               {data.skills_you_learn.map((s, i) => (
                 <li key={i} className="sp-tag">{s}</li>
@@ -540,7 +637,7 @@ function ProfileInattentive({ data }) {
       {/* Requirements checklist */}
       {data.requirements?.length > 0 && (
         <div className="sp-section">
-          <h3 className="sp-section-title">Requirements checklist</h3>
+          <h3 className="sp-section-title">✅ Requirements checklist</h3>
           <ul className="sp-checklist">
             {data.requirements.map((r, i) => (
               <li key={i} className="sp-checklist-item">
@@ -555,7 +652,7 @@ function ProfileInattentive({ data }) {
       {/* Important notes */}
       {data.important_notes?.length > 0 && (
         <div className="sp-section sp-callout">
-          <h3 className="sp-section-title">Important notes</h3>
+          <h3 className="sp-section-title">⚠️ Important notes</h3>
           <ul className="sp-note-list">
             {data.important_notes.map((n, i) => (
               <li key={i} className="sp-note-item">{n}</li>
@@ -583,7 +680,7 @@ function ProfileHyperactive({ data }) {
         {/* Why exciting */}
         {data.why_exciting?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">Why this is exciting</h3>
+            <h3 className="sp-section-title">🔥 Why this is exciting</h3>
             <ul className="sp-energy-list">
               {data.why_exciting.map((r, i) => (
                 <li key={i} className="sp-energy-item">
@@ -598,7 +695,7 @@ function ProfileHyperactive({ data }) {
         {/* What you'll actually do */}
         {data.what_you_do?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">What you'll actually do</h3>
+            <h3 className="sp-section-title">⚡ What you'll actually do</h3>
             <ul className="sp-energy-list">
               {data.what_you_do.map((d, i) => (
                 <li key={i} className="sp-energy-item">
@@ -614,7 +711,7 @@ function ProfileHyperactive({ data }) {
       {/* Programme flow: step badges */}
       {data.programme_flow?.length > 0 && (
         <div className="sp-section">
-          <h3 className="sp-section-title">How it works</h3>
+          <h3 className="sp-section-title">🪜 How it works</h3>
           <ol className="sp-flow">
             {data.programme_flow.map((step, i) => (
               <li key={i} className="sp-flow-step">
@@ -633,7 +730,7 @@ function ProfileHyperactive({ data }) {
         {/* Must know */}
         {data.must_know?.length > 0 && (
           <div className="sp-section sp-callout">
-            <h3 className="sp-section-title">Must know</h3>
+            <h3 className="sp-section-title">🚨 Must know</h3>
             <ul className="sp-note-list">
               {data.must_know.map((m, i) => (
                 <li key={i} className="sp-note-item">{m}</li>
@@ -645,7 +742,7 @@ function ProfileHyperactive({ data }) {
         {/* Is this for you? */}
         {data.is_this_for_you?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">Is this for you?</h3>
+            <h3 className="sp-section-title">🎯 Is this for you?</h3>
             <ul className="sp-checklist">
               {data.is_this_for_you.map((f, i) => (
                 <li key={i} className="sp-checklist-item">
@@ -680,7 +777,7 @@ function ProfileCombined({ data }) {
       {/* What makes it good: 3 value prop chips */}
       {data.what_makes_it_good?.length > 0 && (
         <div className="sp-section">
-          <h3 className="sp-section-title">What makes it good</h3>
+          <h3 className="sp-section-title">⭐ What makes it good</h3>
           <ul className="sp-value-chips">
             {data.what_makes_it_good.map((v, i) => (
               <li key={i} className="sp-value-chip">{v}</li>
@@ -693,7 +790,7 @@ function ProfileCombined({ data }) {
         {/* What you'll learn */}
         {data.what_you_learn?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">What you'll learn</h3>
+            <h3 className="sp-section-title">📚 What you'll learn</h3>
             <ul className="sp-tag-list">
               {data.what_you_learn.map((s, i) => (
                 <li key={i} className="sp-tag">{s}</li>
@@ -705,7 +802,7 @@ function ProfileCombined({ data }) {
         {/* Simple steps */}
         {data.simple_steps?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">Simple steps</h3>
+            <h3 className="sp-section-title">🪜 Simple steps</h3>
             <ol className="sp-numbered-list">
               {data.simple_steps.map((step, i) => (
                 <li key={i} className="sp-numbered-item">
@@ -722,7 +819,7 @@ function ProfileCombined({ data }) {
         {/* Requirements */}
         {data.requirements?.length > 0 && (
           <div className="sp-section">
-            <h3 className="sp-section-title">Requirements</h3>
+            <h3 className="sp-section-title">✅ Requirements</h3>
             <ul className="sp-checklist">
               {data.requirements.map((r, i) => (
                 <li key={i} className="sp-checklist-item">
@@ -737,7 +834,7 @@ function ProfileCombined({ data }) {
         {/* Important */}
         {data.important?.length > 0 && (
           <div className="sp-section sp-callout">
-            <h3 className="sp-section-title">Important</h3>
+            <h3 className="sp-section-title">⚠️ Important</h3>
             <ul className="sp-note-list">
               {data.important.map((n, i) => (
                 <li key={i} className="sp-note-item">{n}</li>
@@ -1006,60 +1103,56 @@ export default function SimplifyJobDescriptionPage() {
               </section>
             ) : null}
           </div>
-
-          {outputVisible ? (
-            <section ref={outputRef} className="simplify-output" aria-labelledby="simplify-output-heading">
-              {/* ── Quick Snapshot: 3 must-have chips (pinned at top) ── */}
-              <QuickSnapshotBar items={simplifiedResult?.quick_snapshot} />
-
-              <div className="simplify-output-heading-row">
-                <h2 id="simplify-output-heading" className="simplify-output-title">
-                  Simplified breakdown
-                </h2>
-                <SimplifyExportToolbar
-                  outputVisible={outputVisible}
-                  simplifiedResult={simplifiedResult}
-                  warnings={warnings}
-                  syncing={isSimplifying}
-                />
-              </div>
-
-              {/* ── Profile label (only shown when a career profile type is set) ── */}
-              <ProfileLabel profileKey={savedProfileKey} />
-
-              {/* ── Profile-specific layout ── */}
-              <ActiveProfile activeKey={activeProfile} result={simplifiedResult} />
-
-              {/* ── Classic flip-cards (legacy view, shown below profiles) ── */}
-              <details className="simplify-details-classic">
-                <summary className="simplify-details-classic__toggle">Full breakdown view</summary>
-                <div className="simplify-output-grid simplify-output-grid--cards">
-                  {CARD_SECTIONS.map(({ key, label, emoji }) => {
-                    const body = simplifiedResult[key];
-                    if (body == null || String(body).trim() === "") return null;
-                    return <SimplifyFlipCard key={key} cardKey={key} label={label} emoji={emoji} body={body} />;
-                  })}
-                </div>
-              </details>
-
-              <div className="simplify-next-step">
-                <button
-                  type="button"
-                  className="simplify-next-step-btn"
-                  onClick={() => setShowInterviewPrepPrompt(true)}
-                >
-                  Start interview preparation
-                </button>
-                {showInterviewPrepPrompt ? (
-                  <p className="simplify-next-step-prompt" role="status">
-                    Functionality coming in iteration 2.
-                  </p>
-                ) : null}
-              </div>
-            </section>
-          ) : null}
         </div>
       </div>
+
+      {/* ── Results: full-width section, outside the narrow studio column ── */}
+      {outputVisible ? (
+        <section ref={outputRef} className="simplify-results" aria-labelledby="simplify-output-heading">
+          <div className="simplify-results-inner">
+
+            {/* heading + export */}
+            <div className="simplify-results-header">
+              <div className="simplify-results-title-row">
+                <h2 id="simplify-output-heading" className="simplify-results-title">
+                  Simplified breakdown
+                </h2>
+                <ProfileLabel profileKey={savedProfileKey} />
+              </div>
+              <SimplifyExportToolbar
+                outputVisible={outputVisible}
+                simplifiedResult={simplifiedResult}
+                warnings={warnings}
+                syncing={isSimplifying}
+              />
+            </div>
+
+            {/* Quick Snapshot chips */}
+            <QuickSnapshotBar result={simplifiedResult} />
+
+            {/* Profile-specific layout */}
+            <ActiveProfile activeKey={activeProfile} result={simplifiedResult} />
+
+            {/* Flip cards: raw quick-view of basic info, responsibilities, skills */}
+            <FlipCardRow result={simplifiedResult} />
+
+            <div className="simplify-next-step">
+              <button
+                type="button"
+                className="simplify-next-step-btn"
+                onClick={() => setShowInterviewPrepPrompt(true)}
+              >
+                Start interview preparation
+              </button>
+              {showInterviewPrepPrompt ? (
+                <p className="simplify-next-step-prompt" role="status">
+                  Functionality coming in iteration 2.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <div role="status" aria-live="polite" className="sr-only">
         {isSimplifying ? "Simplifying job description" : ""}

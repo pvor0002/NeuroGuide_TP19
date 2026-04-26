@@ -76,8 +76,11 @@ Rules:
    skills_qualifications: The 3-4 most important required skills. Each line short (under 10 words),
      concrete, easy to scan. Use "- " bullet prefix.
 
-   quick_snapshot: Exactly 3 strings. Each is a top must-have requirement, under 10 words, no bullet prefix.
-     Choose the 3 eligibility gates that matter most (e.g. location, rights to work, commitment).
+   quick_snapshot: Exactly 3 strings. Each must START with a single relevant emoji, then a space, then the
+     requirement text (under 9 words, no bullet prefix). Choose emojis that match the content:
+     📍 location/city, 🌏 citizenship/work rights, ⏰ time commitment/full-time, 🎓 education/degree,
+     💼 experience/skills, 🚗 licence/transport, 🔒 background check, 📅 availability/start date, ✅ eligibility.
+     Example: ["🌏 Full working rights in Australia", "📍 Based in Sydney or Melbourne", "⏰ Full-time commitment required"]
 
    profile_inattentive (calm & structured, minimal overload):
      job_summary: exactly 2 strings — first line is role + employer, second is the main hook/incentive.
