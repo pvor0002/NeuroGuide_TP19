@@ -2812,3 +2812,418 @@ a.btn.btn-primary:hover {
     margin: -6px 0 4px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   QUICK SNAPSHOT BAR  –  3 must-have requirement chips pinned at output top
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.simplify-snapshot-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: #f4faf6;
+  border: 1px solid rgba(90, 143, 106, 0.3);
+}
+
+.simplify-snapshot-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4a7a5a;
+  flex-shrink: 0;
+  margin-right: 0.25rem;
+}
+
+.simplify-snapshot-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1.5px solid rgba(90, 143, 106, 0.45);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #1e3d28;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROFILE LABEL  –  shows active reading style name when profile is set
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.simplify-profile-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+}
+
+.simplify-profile-label__name {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #1e3d28;
+}
+
+.simplify-profile-label__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(90, 143, 106, 0.14);
+  border: 1px solid rgba(90, 143, 106, 0.35);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #2a5e38;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHARED PROFILE SECTION PRIMITIVES  (sp-*)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sp-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* 2-column grid for side-by-side sections */
+.sp-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .sp-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sp-section {
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  background: #fffef9;
+  border: 1px solid rgba(45, 41, 38, 0.09);
+}
+
+.sp-section-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #5a8f6a;
+}
+
+/* Callout section (notes, warnings) */
+.sp-callout {
+  background: #fff8f3;
+  border-color: rgba(200, 120, 70, 0.2);
+}
+
+.sp-callout .sp-section-title {
+  color: #a05a30;
+}
+
+/* ── Summary lines (2-line job summary) ─── */
+.sp-summary-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.sp-summary-line--main {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e2e1a;
+  line-height: 1.45;
+}
+
+.sp-summary-line--hook {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 500;
+  color: #4a5e44;
+  line-height: 1.5;
+}
+
+/* ── Numbered list (what you'll do, simple steps) ── */
+.sp-numbered-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.sp-numbered-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.91rem;
+  line-height: 1.45;
+  color: #2d2926;
+}
+
+.sp-num {
+  flex-shrink: 0;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 50%;
+  background: rgba(90, 143, 106, 0.15);
+  color: #2a5e38;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Checklist (requirements) ── */
+.sp-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sp-checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.91rem;
+  line-height: 1.45;
+  color: #2d2926;
+}
+
+.sp-check {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #3d7d50;
+  margin-top: 0.12em;
+  width: 1.1rem;
+  text-align: center;
+}
+
+/* ── Tag list (skills) ── */
+.sp-tag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sp-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(90, 143, 106, 0.1);
+  border: 1px solid rgba(90, 143, 106, 0.25);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e3d28;
+}
+
+/* ── Note list (important notes) ── */
+.sp-note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sp-note-item {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #3d2a1a;
+  padding-left: 0.9rem;
+  position: relative;
+}
+
+.sp-note-item::before {
+  content: "!";
+  position: absolute;
+  left: 0;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #b06030;
+  top: 0.15em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HIGH ENERGY PROFILE  –  additional primitives
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sp-headline-block {
+  background: linear-gradient(135deg, #f0f8f2 0%, #fdf5ee 100%);
+  border-color: rgba(90, 143, 106, 0.25);
+}
+
+.sp-headline {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: #1a3020;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+/* Energy bullet list */
+.sp-energy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.sp-energy-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.91rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #1e2e1a;
+}
+
+.sp-energy-dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #5a8f6a;
+  margin-top: 0.42em;
+}
+
+/* Programme flow: horizontal step badges */
+.sp-flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sp-flow-step {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.sp-flow-badge {
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: #2d5c3a;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sp-flow-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1e2e1a;
+}
+
+.sp-flow-arrow {
+  font-size: 0.9rem;
+  color: #8a7f78;
+  margin-left: 0.1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BALANCED PROFILE  –  value prop chips
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sp-value-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.sp-value-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 10px;
+  background: rgba(90, 143, 106, 0.1);
+  border: 1.5px solid rgba(90, 143, 106, 0.28);
+  font-size: 0.87rem;
+  font-weight: 700;
+  color: #1a3020;
+  line-height: 1.35;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CLASSIC FLIP-CARDS  –  now inside a collapsible <details>
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.simplify-details-classic {
+  margin-top: 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(45, 41, 38, 0.1);
+  overflow: hidden;
+}
+
+.simplify-details-classic__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #5a544f;
+  cursor: pointer;
+  background: #fffef9;
+  user-select: none;
+  list-style: none;
+}
+
+.simplify-details-classic__toggle::-webkit-details-marker { display: none; }
+
+.simplify-details-classic__toggle::before {
+  content: "▸";
+  font-size: 0.7rem;
+  transition: transform 200ms ease;
+}
+
+.simplify-details-classic[open] .simplify-details-classic__toggle::before {
+  transform: rotate(90deg);
+}
+
+.simplify-details-classic[open] .simplify-summary-block,
+.simplify-details-classic[open] .simplify-output-grid {
+  padding: 0 1rem 1rem;
+}
