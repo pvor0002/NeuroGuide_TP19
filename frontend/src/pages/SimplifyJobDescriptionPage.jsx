@@ -1142,7 +1142,7 @@ export default function SimplifyJobDescriptionPage() {
                 className="simplify-next-step-btn"
                 onClick={() => setShowInterviewPrepPrompt(true)}
               >
-                Start interview preparation
+                See Job match score
               </button>
               {showInterviewPrepPrompt ? (
                 <p className="simplify-next-step-prompt" role="status">
