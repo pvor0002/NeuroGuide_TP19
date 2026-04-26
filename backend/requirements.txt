@@ -7,3 +7,6 @@ httpx
 google-generativeai
 pypdf
 python-docx
+psycopg2-binary
+mangum
+boto3
