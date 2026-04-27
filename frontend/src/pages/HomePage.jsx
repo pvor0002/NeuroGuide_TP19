@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { NeuroBrandFlower } from "../components/NeuroBrandFlower.jsx";
 
 const HERO_PETAL_ANGLES = [0, 45, 90, 135];
 
@@ -166,7 +165,6 @@ const DATA_SOURCES = [
 ];
 
 export default function HomePage() {
-  const [stickyVisible] = useState(true);
   const howStepsRef = useRef(null);
   const [howRevealed, setHowRevealed] = useState(false);
 
@@ -198,34 +196,9 @@ export default function HomePage() {
 
   return (
     <div className="home">
-      <header
-        className={`home-sticky-bar ${stickyVisible ? "is-visible" : ""}`}
-        role="banner"
-      >
-        <div className="home-sticky-bar-inner">
-          <div className="home-sticky-bar-brand">
-            <NeuroBrandFlower
-              svgClassName="home-sticky-bar-mark"
-              animationActive={stickyVisible}
-            />
-            <div className="home-sticky-bar-copy">
-              <span className="home-sticky-bar-kicker">NeuroGuide</span>
-              <span className="home-sticky-bar-title">Where clarity meets opportunity</span>
-              <span className="home-sticky-bar-tagline">Simplifying jobs and interviews for the way your mind works</span>
-            </div>
-          </div>
-          <nav className="home-sticky-bar-nav" aria-label="Quick links">
-            <Link to="/profile">Career Profile</Link>
-            <Link to="/simplify-job-description">Simplify Job Description</Link>
-            <Link to="/interview-prep">Interview Prep</Link>
-            <Link to="/settings">Settings</Link>
-          </nav>
-        </div>
-      </header>
-
       <section className="home-hero" aria-labelledby="home-hero-title">
         <img src={heroBg} alt="" className="home-hero-img" width={1920} height={1080} decoding="async" fetchPriority="high" />
-        <div className={`home-hero-inner ${stickyVisible ? "home-hero-inner--dimmed" : ""}`}>
+        <div className="home-hero-inner">
           <div className="home-hero-brand">
             <BrandMark className="home-hero-mark" />
             <p className="home-hero-kicker">NeuroGuide</p>

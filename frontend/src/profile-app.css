@@ -165,19 +165,20 @@
   width: 100%;
   border-bottom: 1px solid var(--line);
   background: var(--surface-soft);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 4px 20px var(--shadow-warm);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .brand-wrap {
-  width: min(1400px, 100% - 32px);
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
   flex-wrap: wrap;
-  gap: 10px 16px;
-  padding: 0.65rem 16px;
+  padding: 0.75rem clamp(16px, 4vw, 48px);
 }
 
 .profile-header-brand-link {
@@ -197,8 +198,13 @@
   align-items: flex-start;
 }
 
-.profile-app .home-sticky-bar-mark {
-  color: #8f6f5e;
+.profile-header-brand-link .home-sticky-bar-mark {
+  width: 48px;
+  height: 48px;
+}
+
+.profile-app .topbar .home-sticky-bar-mark {
+  color: var(--accent-strong);
   filter: drop-shadow(0 1px 2px rgba(45, 41, 38, 0.12));
 }
 
@@ -207,26 +213,118 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 18px;
-  font-size: 0.88rem;
-  font-weight: 500;
+  gap: 1.75rem;
+  flex-shrink: 0;
 }
 
 .profile-top-nav a {
   color: var(--ink);
   text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: 0.25rem 0;
   border-bottom: 1px solid transparent;
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .profile-top-nav a:hover {
-  color: #8f6f5e;
+  color: var(--accent-strong);
 }
 
 .profile-top-nav a[aria-current="page"] {
-  border-bottom-color: #8f6f5e;
-  color: #8f6f5e;
-  padding-bottom: 0.2rem;
+  border-bottom-color: var(--accent-strong);
+  color: var(--accent-strong);
+}
+
+.nav-settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+}
+
+.nav-settings-link svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.nav-menu-toggle {
+  display: none;
+  margin-left: auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(141, 108, 92, 0.35);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.22rem;
+  cursor: pointer;
+}
+
+.nav-menu-toggle span {
+  width: 1rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+@media (max-width: 920px) {
+  .brand-wrap {
+    align-items: center;
+  }
+
+  .profile-header-brand-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .nav-menu-toggle {
+    display: inline-flex;
+    margin-left: 0;
+    flex: 0 0 auto;
+  }
+
+  .profile-top-nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+    padding-top: 0.35rem;
+  }
+
+  .profile-top-nav.is-open {
+    display: flex;
+  }
+
+  .profile-top-nav a {
+    display: block;
+    padding: 0.5rem 0;
+    min-height: 2.1rem;
+    border-bottom: none;
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  .profile-top-nav a[aria-current="page"] {
+    border-bottom: none;
+    color: var(--accent-strong);
+    font-weight: 700;
+  }
+
+  .profile-top-nav .nav-settings-link {
+    width: 2.35rem;
+    height: 2.35rem;
+    align-self: flex-start;
+  }
 }
 
 .app-shell {
@@ -1245,19 +1343,19 @@ button:disabled {
   position: sticky;
   top: 0;
   z-index: 10;
-  backdrop-filter: blur(6px);
-  background: rgba(255, 251, 248, 0.82);
+  backdrop-filter: blur(10px);
+  background: var(--surface-soft);
   border-bottom: 1px solid var(--line);
   padding-block: 0.2rem;
 }
 
 .profile-app--fullscreen .topbar .home-sticky-bar-tagline {
-  display: none;
+  display: block;
 }
 
 .profile-app--fullscreen .topbar .profile-top-nav a {
-  font-size: 0.82rem;
-  padding: 0.32rem 0.58rem;
+  font-size: 0.9rem;
+  padding: 0.25rem 0;
 }
 
 .q-screen {
