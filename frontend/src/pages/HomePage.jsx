@@ -166,19 +166,9 @@ const DATA_SOURCES = [
 ];
 
 export default function HomePage() {
-  const [stickyVisible, setStickyVisible] = useState(false);
+  const [stickyVisible] = useState(true);
   const howStepsRef = useRef(null);
   const [howRevealed, setHowRevealed] = useState(false);
-
-  useEffect(() => {
-    const threshold = 64;
-    const onScroll = () => {
-      setStickyVisible(window.scrollY > threshold);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   useEffect(() => {
     const target = howStepsRef.current;
@@ -211,7 +201,6 @@ export default function HomePage() {
       <header
         className={`home-sticky-bar ${stickyVisible ? "is-visible" : ""}`}
         role="banner"
-        aria-hidden={!stickyVisible}
       >
         <div className="home-sticky-bar-inner">
           <div className="home-sticky-bar-brand">

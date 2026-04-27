@@ -568,6 +568,10 @@ export default function ProfileWizardPage() {
   const [syncMessage, setSyncMessage] = useState("");
   const [copyFeedback, setCopyFeedback] = useState("");
   const [showSuitabilityGate, setShowSuitabilityGate] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [roleSearchFocused, setRoleSearchFocused] = useState(false);
+  const [profileIdCtaPulse, setProfileIdCtaPulse] = useState(false);
 
   // "Login" gate shown once per tab-session before the wizard starts. Not a
   // quiz step - it sits entirely outside buildSteps so it doesn't count toward
@@ -632,6 +636,16 @@ export default function ProfileWizardPage() {
   const safeStepIndex = Math.min(state.stepIndex, Math.max(steps.length - 1, 0));
   const currentStep = steps[safeStepIndex];
   const totalSteps = steps.length;
+
+  useEffect(() => {
+    if (currentStep?.kind !== "profile-ready" || state.profileId) {
+      setProfileIdCtaPulse(false);
+      return;
+    }
+    setProfileIdCtaPulse(true);
+    const timer = window.setTimeout(() => setProfileIdCtaPulse(false), 2400);
+    return () => window.clearTimeout(timer);
+  }, [currentStep?.kind, state.profileId]);
 
   // When the visitor lands on the quiz-result step, auto-commit the inferred
   // profile so they don't need to pick it manually - the Next button validates
@@ -916,6 +930,22 @@ export default function ProfileWizardPage() {
   const jumpToStepById = (stepId) => {
     const idx = steps.findIndex((s) => s.id === stepId);
     if (idx < 0) return;
+    const targetStep = steps[idx];
+    const preProfile = steps.filter((s) => s.block !== "profile");
+    const canOpenProfileReady =
+      preProfile.length === 0 || preProfile.every((s) => isStepAnswered(s, state.answers));
+    if (targetStep.block === "profile" && !canOpenProfileReady) {
+      const firstMissing = preProfile.find((s) => !isStepAnswered(s, state.answers));
+      setMessage("Please complete steps 1 to 4 before opening Profile Ready.");
+      setMessageTone("error");
+      if (firstMissing) {
+        const missingIdx = steps.findIndex((s) => s.id === firstMissing.id);
+        if (missingIdx >= 0) {
+          setState((prev) => ({ ...prev, view: "wizard", stepIndex: missingIdx }));
+        }
+      }
+      return;
+    }
     setState((prev) => ({ ...prev, view: "wizard", stepIndex: idx }));
     setMessage("");
   };
@@ -948,6 +978,11 @@ export default function ProfileWizardPage() {
     setSyncStatus("idle");
     setSyncMessage("");
     setCopyFeedback("");
+  };
+
+  const confirmAndResetAll = () => {
+    setShowResetConfirmModal(false);
+    resetAll();
   };
 
   /**
@@ -1098,7 +1133,10 @@ export default function ProfileWizardPage() {
     const query = state.answers.roleSearchQuery.trim();
     const hasQuery = query.length > 0;
     const selectedOne = selectedValues[0];
-    const visible = roleOptions.filter((item) => !selectedValues.includes(item));
+    const defaultRoleSuggestions = roleTags.slice(0, 8);
+    const rolePool = hasQuery ? roleOptions : defaultRoleSuggestions;
+    const visible = rolePool.filter((item) => !selectedValues.includes(item));
+    const showSuggestions = !selectedOne && (hasQuery || roleSearchFocused);
     return (
       <div className="roles-step-theme">
         {selectedOne ? (
@@ -1129,6 +1167,10 @@ export default function ProfileWizardPage() {
               placeholder="Search IT and software job titles…"
               aria-label="Search IT and software job titles"
               autoComplete="off"
+              onFocus={() => setRoleSearchFocused(true)}
+              onBlur={() => {
+                window.setTimeout(() => setRoleSearchFocused(false), 120);
+              }}
             />
           </div>
         ) : null}
@@ -1137,7 +1179,7 @@ export default function ProfileWizardPage() {
             ? "You can add 1 job title. Start typing to see suggestions from our IT and software list."
             : "1 of 1 role selected — click Change to search and pick a different title."}
         </p>
-        {!selectedOne && hasQuery ? (
+        {showSuggestions ? (
           <div className="suggestion-list suggestion-list--roles" role="listbox" aria-label="Role suggestions">
             {visible.length === 0 ? (
               <div className="suggestion-empty">No matching job titles. Try a shorter or different term.</div>
@@ -1150,6 +1192,7 @@ export default function ProfileWizardPage() {
                   onClick={() => {
                     toggleRole(item);
                     setAnswer("roleSearchQuery", "");
+                    setRoleSearchFocused(false);
                   }}
                 >
                   <span>{item}</span>
@@ -1274,6 +1317,26 @@ export default function ProfileWizardPage() {
       ],
     },
   ];
+
+  const profileInsights = useMemo(() => {
+    const insights = [];
+    const topWork = (state.answers.workStyles || []).slice(0, 2);
+    if (topWork.length > 0) {
+      insights.push(`You work best with ${topWork.join(" and ").toLowerCase()}.`);
+    }
+    const supports = (state.answers.supportNeeds || []).slice(0, 2);
+    if (supports.length > 0) {
+      insights.push(`Helpful supports for you: ${supports.join(" and ")}.`);
+    }
+    const rhythms = (state.answers.energyPatterns || []).slice(0, 2);
+    if (rhythms.length > 0) {
+      insights.push(`Your preferred rhythm: ${rhythms.join(" and ").toLowerCase()}.`);
+    }
+    if (state.answers.selectedRoles?.[0]) {
+      insights.push(`Your selected target role is ${state.answers.selectedRoles[0]}.`);
+    }
+    return insights.slice(0, 3);
+  }, [state.answers]);
 
   const renderStepBody = (step) => {
     if (!step) return null;
@@ -1416,6 +1479,21 @@ export default function ProfileWizardPage() {
         );
 
       case "profile-ready":
+        {
+          const requiredBlocks = BLOCKS.filter((b) => b.id !== "profile");
+          const completionByBlock = requiredBlocks.map((b) => {
+            const inBlock = steps.filter((s) => s.block === b.id);
+            const done = inBlock.length > 0 && inBlock.every((s) => isStepAnswered(s, state.answers));
+            return { ...b, done };
+          });
+          const completedRequiredCount = completionByBlock.filter((b) => b.done).length;
+          const allRequiredDone = completedRequiredCount === requiredBlocks.length;
+          const missingLabels = completionByBlock.filter((b) => !b.done).map((b) => b.label);
+          const missingHint =
+            missingLabels.length > 0
+              ? `Still to complete: ${missingLabels.join(", ")}.`
+              : "";
+
         return (
           <div className="q-profile-ready q-profile-dashboard">
             <section className="q-profile-hero-card" aria-labelledby="summary-heading">
@@ -1425,12 +1503,27 @@ export default function ProfileWizardPage() {
                     <div className="avatar" aria-hidden="true">NG</div>
                   </div>
                   <div className="q-profile-hero-copy">
-                    <h2 className="q-title q-title--profile-summary" id="summary-heading">Profile Ready</h2>
-                    <p className="q-subtitle" id="summary-subtitle">
-                      {state.completed
-                        ? "All sections completed. You can still edit any step in Progress above."
-                        : "Review your summary and save your Profile ID when you are ready."}
+                    <div className="q-profile-title-row">
+                      <h2 className="q-title q-title--profile-summary" id="summary-heading">
+                        {allRequiredDone ? "Profile Ready" : "Your profile is almost ready!"}
+                      </h2>
+                      <p
+                        className={`q-complete-chip ${allRequiredDone ? "is-complete" : "is-incomplete"}`}
+                        role="status"
+                        aria-live="polite"
+                      >
+                        {allRequiredDone ? "Completed" : `${completedRequiredCount}/4 done`}
+                      </p>
+                    </div>
+                    <p
+                      className={`q-subtitle ${allRequiredDone ? "q-subtitle--success" : "q-subtitle--pending"}`}
+                      id="summary-subtitle"
+                    >
+                      {allRequiredDone
+                        ? "Great work - your profile is ready to use."
+                        : "Your profile is almost complete. Finish the remaining steps to unlock full results."}
                     </p>
+                    {!allRequiredDone && missingHint ? <p className="q-subtitle q-subtitle--hint">{missingHint}</p> : null}
                   </div>
                 </div>
               </div>
@@ -1448,14 +1541,17 @@ export default function ProfileWizardPage() {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    className="button primary q-profile-id-create"
-                    onClick={() => { void syncProfileToServer(); }}
-                    disabled={syncStatus === "saving"}
-                  >
-                    {syncStatus === "saving" ? "Creating…" : "Create my Profile ID"}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className={`button secondary q-profile-id-create ${profileIdCtaPulse ? "is-attention" : ""}`}
+                      onClick={() => { void syncProfileToServer(); }}
+                      disabled={syncStatus === "saving"}
+                    >
+                      {syncStatus === "saving" ? "Creating…" : "Create my Profile ID"}
+                    </button>
+                    <p className="q-profile-id-help">Create your ID to save and reuse this profile.</p>
+                  </>
                 )}
                 {syncMessage ? (
                   <p
@@ -1463,7 +1559,7 @@ export default function ProfileWizardPage() {
                     data-tone={syncStatus === "error" ? "error" : "info"}
                     role="status"
                   >
-                    {syncMessage}
+                    {syncMessage === "Not Found" ? "No Profile ID yet" : syncMessage}
                   </p>
                 ) : null}
               </div>
@@ -1471,16 +1567,17 @@ export default function ProfileWizardPage() {
 
             <div className="q-profile-dashboard-body">
               <div className="q-profile-primary">
+                {profileInsights.length > 0 ? (
+                  <section className="q-profile-insights" aria-label="Profile highlights">
+                    <h3 className="q-profile-insights-title">What this means for you</h3>
+                    <ul className="q-profile-insights-list">
+                      {profileInsights.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
                 <div className="q-profile-summary-and-dev">
-                  <div className="q-profile-dev-panel" aria-hidden="true">
-                    <img
-                      className="q-profile-dev-img"
-                      src="/images/dev.png"
-                      alt=""
-                      loading="eager"
-                      decoding="async"
-                    />
-                  </div>
                   <div className="q-profile-summary-col">
                     <div className="summary-grid q-profile-summary-grid">
                       {summarySections.map((section) => (
@@ -1522,15 +1619,13 @@ export default function ProfileWizardPage() {
               </div>
 
               <aside className="q-profile-next-aside" aria-label="Next steps">
-                <div className="q-profile-thankyou">
-                  <p>Thank you for taking the time to answer honestly !</p>
-                  <p>
-                    Your answers help us understand how you work best, and we are grateful you trusted
-                    us with them.
-                  </p>
-                </div>
                 <div className="q-profile-cta-section">
-                  <h3 className="q-profile-cta-heading">What would you like to do next?</h3>
+                  <h3 className="q-profile-cta-heading">Next step</h3>
+                  <ol className="q-profile-next-flow">
+                    <li>Review your profile summary</li>
+                    <li>Create your Profile ID</li>
+                    <li>Check job suitability score</li>
+                  </ol>
                   <div className="q-profile-cta-list">
                     <div className="q-profile-cta-item q-profile-cta-item--suitability">
                       <button
@@ -1554,7 +1649,7 @@ export default function ProfileWizardPage() {
                     <div className="q-profile-cta-item">
                       <button
                         type="button"
-                        className="button primary q-profile-cta-btn"
+                        className="button ghost q-profile-cta-btn q-profile-cta-btn--secondary"
                         onClick={() => jumpToStepById("adhd-awareness")}
                       >
                         Review from first step
@@ -1563,8 +1658,8 @@ export default function ProfileWizardPage() {
                     <div className="q-profile-cta-item">
                       <button
                         type="button"
-                        className="button primary q-profile-cta-btn"
-                        onClick={resetAll}
+                        className="button ghost q-profile-cta-btn q-profile-cta-btn--secondary"
+                        onClick={() => setShowResetConfirmModal(true)}
                       >
                         Start Over
                       </button>
@@ -1592,6 +1687,7 @@ export default function ProfileWizardPage() {
             </div>
           </div>
         );
+        }
 
       case "energy":
         return (
@@ -1648,7 +1744,15 @@ export default function ProfileWizardPage() {
 
   return (
     <div className="profile-app profile-app--fullscreen">
-      <DataConsentModal />
+      <DataConsentModal
+        open={showConsentModal}
+        autoShow={false}
+        onClose={() => setShowConsentModal(false)}
+        onComplete={() => {
+          setShowConsentModal(false);
+          dismissLoginGate();
+        }}
+      />
       <SiteAppHeader />
 
       {showLoginGate && !state.profileId ? (
@@ -1676,7 +1780,7 @@ export default function ProfileWizardPage() {
             <button
               type="button"
               className="button primary login-gate-new"
-              onClick={dismissLoginGate}
+              onClick={() => setShowConsentModal(true)}
             >
               Start a new profile
               <span aria-hidden="true">→</span>
@@ -1806,7 +1910,7 @@ export default function ProfileWizardPage() {
                         <div className="q-card-body">
                           {renderStepBody(currentStep)}
                           <div className="q-clear-row">
-                            <button type="button" className="q-clear-link" onClick={resetAll}>
+                            <button type="button" className="q-clear-link" onClick={() => setShowResetConfirmModal(true)}>
                               Clear all and start over
                             </button>
                           </div>
@@ -1896,6 +2000,31 @@ export default function ProfileWizardPage() {
           </div>
         </main>
       )}
+
+      {showResetConfirmModal ? (
+        <div className="ng-confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="ng-reset-title">
+          <div className="ng-confirm-modal">
+            <h2 id="ng-reset-title" className="ng-confirm-title">
+              Start over?
+            </h2>
+            <p className="ng-confirm-text">
+              This will delete your current profile answers and return you to the beginning.
+            </p>
+            <div className="ng-confirm-actions">
+              <button
+                type="button"
+                className="ng-consent-btn ng-consent-btn--ghost"
+                onClick={() => setShowResetConfirmModal(false)}
+              >
+                Cancel
+              </button>
+              <button type="button" className="ng-consent-btn ng-consent-btn--primary" onClick={confirmAndResetAll}>
+                Yes, start over
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

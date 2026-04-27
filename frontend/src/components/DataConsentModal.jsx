@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const CONSENT_STORAGE_KEY = "ng_data_consent_v1";
 const USER_CREDENTIALS_STORAGE_KEY = "ng_local_user_credentials_v1";
@@ -32,14 +32,32 @@ function hasExistingConsent() {
   }
 }
 
-export default function DataConsentModal() {
-  const [show, setShow] = useState(() => !hasExistingConsent());
+export default function DataConsentModal({ open, autoShow = true, onClose, onComplete }) {
+  const controlled = typeof open === "boolean";
+  const [internalShow, setInternalShow] = useState(() => (autoShow ? !hasExistingConsent() : false));
   const [understood, setUnderstood] = useState(false);
   const [warning, setWarning] = useState("");
   const [generated, setGenerated] = useState(null);
   const [copied, setCopied] = useState(false);
+  const show = controlled ? open : internalShow;
+
+  useEffect(() => {
+    if (!show) return;
+    setUnderstood(false);
+    setWarning("");
+    setGenerated(null);
+    setCopied(false);
+  }, [show]);
 
   if (!show) return null;
+
+  const closeModal = (status) => {
+    if (!controlled) {
+      setInternalShow(false);
+    }
+    if (typeof onClose === "function") onClose();
+    if (status && typeof onComplete === "function") onComplete(status);
+  };
 
   const saveConsent = (status) => {
     const payload = { status, acknowledgedAt: new Date().toISOString() };
@@ -52,7 +70,7 @@ export default function DataConsentModal() {
 
   const decline = () => {
     saveConsent("declined");
-    setShow(false);
+    closeModal("declined");
   };
 
   const accept = () => {
@@ -143,7 +161,7 @@ export default function DataConsentModal() {
               <strong>Write this pass key down</strong> or memorize it before you continue.
             </p>
             <div className="ng-consent-actions">
-              <button type="button" className="ng-consent-btn ng-consent-btn--primary" onClick={() => setShow(false)}>
+              <button type="button" className="ng-consent-btn ng-consent-btn--primary" onClick={() => closeModal("accepted")}>
                 I saved it, continue
               </button>
             </div>
