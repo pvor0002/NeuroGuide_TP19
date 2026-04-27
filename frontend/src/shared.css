@@ -320,6 +320,16 @@ body {
   object-fit: contain;
 }
 
+.site-nav-settings-text {
+  display: none;
+}
+
+.site-nav-settings-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .site-nav-toggle {
   display: none;
   margin-left: auto;
@@ -387,9 +397,18 @@ body {
   }
 
   .site-nav-links .site-nav-settings-link {
-    width: 2.35rem;
-    height: 2.35rem;
+    width: auto;
+    height: auto;
+    padding: 0.5rem 0;
     align-self: flex-start;
+  }
+
+  .site-nav-settings-text {
+    display: inline;
+  }
+
+  .site-nav-settings-icon {
+    display: none;
   }
 }
 
@@ -773,7 +792,15 @@ body {
 /* Settings page                                                            */
 /* ======================================================================== */
 
-.settings-page,
+.settings-page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 20px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .interview-page {
   max-width: 880px;
   margin: 0 auto;
@@ -944,7 +971,7 @@ body {
 
 .settings-hero,
 .interview-hero {
-  padding: 28px 24px 20px;
+  padding: 18px 24px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;

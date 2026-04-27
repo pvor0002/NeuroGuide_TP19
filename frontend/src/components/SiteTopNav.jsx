@@ -71,7 +71,10 @@ export default function SiteTopNav() {
             Interview Prep
           </Link>
           <Link to="/settings" aria-current={location.pathname === "/settings" ? "page" : undefined} className="site-nav-settings-link" aria-label="Settings">
-            <SettingsCogIcon />
+            <span className="site-nav-settings-text">Settings</span>
+            <span className="site-nav-settings-icon" aria-hidden="true">
+              <SettingsCogIcon />
+            </span>
           </Link>
         </nav>
       </div>

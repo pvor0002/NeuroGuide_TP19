@@ -24,7 +24,7 @@ const TRANSITION_MS = 260;
 // chunks. Keep this list short - ADHD visitors should be able to see the
 // whole shape of the flow at a glance.
 const BLOCKS = [
-  { id: "type",    label: "Type Classification" },
+  { id: "type",    label: "Find out your profile type" },
   { id: "work",    label: "Work Preferences" },
   { id: "support", label: "Support Setup" }, // includes Time and Energy
   { id: "jobs",    label: "Jobs & Skills" },
@@ -1280,11 +1280,15 @@ export default function ProfileWizardPage() {
   const summarySections = [
     {
       id: "type",
-      title: "Type Classification",
+      title: "Find out your profile type",
       firstStepId: "adhd-awareness",
       rows: [
-        { key: "Starting point", value: state.answers.adhdAwareness === "yes" ? "Knew my profile" : state.answers.adhdAwareness === "no" ? "Took the quiz" : "-" },
-        { key: "Profile", value: ADHD_TYPE_LABELS[state.answers.adhdProfileType] || "-" },
+        {
+          key: "Profile",
+          value: ADHD_TYPE_LABELS[state.answers.adhdProfileType]
+            ? `Your profile is ${ADHD_TYPE_LABELS[state.answers.adhdProfileType]}!`
+            : "We will show your type here once this step is complete.",
+        },
       ],
     },
     {
@@ -1494,6 +1498,7 @@ export default function ProfileWizardPage() {
               ? `Still to complete: ${missingLabels.join(", ")}.`
               : "";
 
+        const profileTypeLabel = ADHD_TYPE_LABELS[state.answers.adhdProfileType] || "Not set yet";
         return (
           <div className="q-profile-ready q-profile-dashboard">
             <section className="q-profile-hero-card" aria-labelledby="summary-heading">
@@ -1505,7 +1510,7 @@ export default function ProfileWizardPage() {
                   <div className="q-profile-hero-copy">
                     <div className="q-profile-title-row">
                       <h2 className="q-title q-title--profile-summary" id="summary-heading">
-                        {allRequiredDone ? "Profile Ready" : "Your profile is almost ready!"}
+                        {`Your profile is a ${profileTypeLabel} type`}
                       </h2>
                       <p
                         className={`q-complete-chip ${allRequiredDone ? "is-complete" : "is-incomplete"}`}
