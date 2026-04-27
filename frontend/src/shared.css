@@ -212,6 +212,206 @@ body {
   background: rgba(45, 41, 38, 0.14);
 }
 
+/* =========================================================================
+   Shared site navbar (single source of truth across pages)
+   ========================================================================= */
+
+.site-nav-header {
+  --site-nav-accent: #8f6f5e;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  width: 100%;
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.site-nav-inner {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0.75rem clamp(16px, 4vw, 48px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  flex-wrap: wrap;
+}
+
+.site-nav-brand-link {
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+  flex: 0 1 auto;
+  max-width: min(100%, 32rem);
+}
+
+.site-nav-brand-link .home-sticky-bar-brand {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.site-nav-brand-link .home-sticky-bar-copy {
+  text-align: left;
+}
+
+.site-nav-mark {
+  width: 48px;
+  height: 48px;
+  color: var(--site-nav-accent);
+}
+
+.site-nav-header .site-nav-mark {
+  color: var(--site-nav-accent);
+}
+
+.site-nav-links {
+  display: flex;
+  gap: 1.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.site-nav-links a {
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #1f1d1b;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.site-nav-header .site-nav-links a:not([aria-current="page"]) {
+  color: #1f1d1b !important;
+  border-bottom-color: transparent !important;
+}
+
+.site-nav-links a:hover {
+  color: var(--site-nav-accent);
+}
+
+.site-nav-links a[aria-current="page"] {
+  border-bottom-color: var(--site-nav-accent);
+  color: var(--site-nav-accent);
+}
+
+.site-nav-settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+}
+
+.site-nav-settings-link svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.site-nav-settings-link img {
+  width: 1.35rem;
+  height: 1.35rem;
+  object-fit: contain;
+}
+
+.site-nav-settings-text {
+  display: none;
+}
+
+.site-nav-settings-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.site-nav-toggle {
+  display: none;
+  margin-left: auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(141, 108, 92, 0.35);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.22rem;
+  cursor: pointer;
+}
+
+.site-nav-toggle span {
+  width: 1rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+@media (max-width: 920px) {
+  .site-nav-brand-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .site-nav-toggle {
+    display: inline-flex;
+    margin-left: 0;
+    flex: 0 0 auto;
+  }
+
+  .site-nav-links {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+    padding-top: 0.35rem;
+  }
+
+  .site-nav-links.is-open {
+    display: flex;
+  }
+
+  .site-nav-links a {
+    display: block;
+    padding: 0.5rem 0;
+    min-height: 2.1rem;
+    border-bottom: none;
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  .site-nav-links a[aria-current="page"] {
+    border-bottom: none;
+    color: var(--site-nav-accent);
+    font-weight: 700;
+  }
+
+  .site-nav-links .site-nav-settings-link {
+    width: auto;
+    height: auto;
+    padding: 0.5rem 0;
+    align-self: flex-start;
+  }
+
+  .site-nav-settings-text {
+    display: inline;
+  }
+
+  .site-nav-settings-icon {
+    display: none;
+  }
+}
+
 .userid-modal-eyebrow {
   margin: 0 0 8px;
   font-size: 0.74rem;
@@ -592,7 +792,15 @@ body {
 /* Settings page                                                            */
 /* ======================================================================== */
 
-.settings-page,
+.settings-page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 20px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .interview-page {
   max-width: 880px;
   margin: 0 auto;
@@ -763,7 +971,7 @@ body {
 
 .settings-hero,
 .interview-hero {
-  padding: 28px 24px 20px;
+  padding: 18px 24px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
