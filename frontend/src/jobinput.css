@@ -145,6 +145,97 @@ nav.primary-nav a[aria-current="page"] {
   color: var(--accent-strong);
 }
 
+.nav-settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+}
+
+.nav-settings-link svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.nav-menu-toggle {
+  display: none;
+  margin-left: auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(141, 108, 92, 0.35);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.22rem;
+  cursor: pointer;
+}
+
+.nav-menu-toggle span {
+  width: 1rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+@media (max-width: 920px) {
+  .header-inner {
+    align-items: center;
+  }
+
+  .marketing-header-brand-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .nav-menu-toggle {
+    display: inline-flex;
+    margin-left: 0;
+    flex: 0 0 auto;
+  }
+
+  nav.primary-nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+    padding-top: 0.35rem;
+  }
+
+  nav.primary-nav.is-open {
+    display: flex;
+  }
+
+  nav.primary-nav a {
+    display: block;
+    padding: 0.5rem 0;
+    min-height: 2.1rem;
+    border-bottom: none;
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  nav.primary-nav a[aria-current="page"] {
+    border-bottom: none;
+    color: var(--accent-strong);
+    font-weight: 700;
+  }
+
+  nav.primary-nav .nav-settings-link {
+    width: 2.35rem;
+    height: 2.35rem;
+    align-self: flex-start;
+  }
+}
+
 .layout > main {
   flex: 1;
   max-width: var(--max);
