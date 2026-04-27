@@ -19,14 +19,11 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: pip install -r requirements.txt
-
       - name: Run tests
         run: python -m pytest
         env:
@@ -41,18 +38,15 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Build deployment package
         run: |
           pip install -r requirements.txt \
@@ -64,13 +58,11 @@ jobs:
           find ./package -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
           find ./package -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
           zip -r lambda_package.zip ./package/ -x "*.pyc"
-
       - name: Upload package to S3
         run: |
           aws s3 cp lambda_package.zip \
             s3://$S3_BUCKET/lambda_package.zip \
             --region $AWS_REGION
-
       - name: Deploy to Lambda from S3
         run: |
           aws lambda update-function-code \
@@ -78,10 +70,9 @@ jobs:
             --s3-bucket $S3_BUCKET \
             --s3-key lambda_package.zip \
             --region $AWS_REGION
-
       - name: Wait for deployment
         run: |
           aws lambda wait function-updated \
             --function-name neuroguide-api \
             --region $AWS_REGION
-          echo "✅ Deployed successfully"
+          echo "Deployed successfully"
