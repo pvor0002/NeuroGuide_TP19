@@ -8,6 +8,7 @@ on:
 
 env:
   AWS_REGION: ap-southeast-2
+  S3_BUCKET: neuroguide-deployments-tp19
 
 jobs:
   test:
@@ -60,13 +61,24 @@ jobs:
             --only-binary=:all: \
             --upgrade
           cp -r app ./package/
-          zip -r lambda_package.zip ./package/
+          # strip unnecessary files to keep zip small
+          find ./package -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+          find ./package -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
+          find ./package -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
+          zip -r lambda_package.zip ./package/ -x "*.pyc"
 
-      - name: Deploy to Lambda
+      - name: Upload package to S3
+        run: |
+          aws s3 cp lambda_package.zip \
+            s3://$S3_BUCKET/lambda_package.zip \
+            --region $AWS_REGION
+
+      - name: Deploy to Lambda from S3
         run: |
           aws lambda update-function-code \
             --function-name neuroguide-api \
-            --zip-file fileb://lambda_package.zip \
+            --s3-bucket $S3_BUCKET \
+            --s3-key lambda_package.zip \
             --region $AWS_REGION
 
       - name: Wait for deployment
