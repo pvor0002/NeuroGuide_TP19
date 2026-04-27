@@ -6,7 +6,6 @@ on:
     paths:
       - 'backend/**'
 
-
 env:
   AWS_REGION: ap-southeast-2
   S3_BUCKET: neuroguide-deployments-tp19
@@ -62,10 +61,8 @@ jobs:
             --only-binary=:all: \
             --upgrade
           cp -r app ./package/
-          # strip unnecessary files to keep zip small
           find ./package -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
           find ./package -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
-          find ./package -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
           zip -r lambda_package.zip ./package/ -x "*.pyc"
 
       - name: Upload package to S3
