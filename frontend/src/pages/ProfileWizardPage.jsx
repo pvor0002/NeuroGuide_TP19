@@ -562,6 +562,7 @@ export default function ProfileWizardPage() {
   // eslint-disable-next-line no-unused-vars
   const [_progressBump, setProgressBump] = useState(false);
   const transitionTimerRef = useRef(null);
+  const profileTypeCardRef = useRef(null);
 
   // Sync (POST/PUT) status for the "save to cloud" affordance.
   const [syncStatus, setSyncStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
@@ -925,6 +926,14 @@ export default function ProfileWizardPage() {
   const goBack = () => {
     if (safeStepIndex <= 0) return;
     runTransition("back", (prev) => ({ ...prev, stepIndex: safeStepIndex - 1 }));
+  };
+
+  const scrollToProfileDetails = () => {
+    const el = profileTypeCardRef.current;
+    if (!el) return;
+    const stickyHeaderOffset = 120;
+    const y = el.getBoundingClientRect().top + window.scrollY - stickyHeaderOffset;
+    window.scrollTo({ top: Math.max(y, 0), behavior: "smooth" });
   };
 
   const jumpToStepById = (stepId) => {
@@ -1498,9 +1507,23 @@ export default function ProfileWizardPage() {
               ? `Still to complete: ${missingLabels.join(", ")}.`
               : "";
 
-        const profileTypeLabel = ADHD_TYPE_LABELS[state.answers.adhdProfileType] || "Not set yet";
+        const profileTypeLabel = ADHD_TYPE_LABELS[state.answers.adhdProfileType] || "";
+        const profileTypeHeading = profileTypeLabel
+          ? `Your profile is a ${profileTypeLabel} type`
+          : "Your profile type has not been set-up yet";
         return (
           <div className="q-profile-ready q-profile-dashboard">
+            <div className="q-profile-prev-top">
+              <button
+                type="button"
+                className="button ghost q-profile-prev-btn"
+                onClick={goBack}
+                disabled={safeStepIndex === 0}
+              >
+                <span className="q-profile-prev-icon" aria-hidden="true">←</span>
+                Previous step
+              </button>
+            </div>
             <section className="q-profile-hero-card" aria-labelledby="summary-heading">
               <div className="q-profile-hero-left">
                 <div className="q-profile-hero-identity">
@@ -1510,7 +1533,7 @@ export default function ProfileWizardPage() {
                   <div className="q-profile-hero-copy">
                     <div className="q-profile-title-row">
                       <h2 className="q-title q-title--profile-summary" id="summary-heading">
-                        {`Your profile is a ${profileTypeLabel} type`}
+                        {profileTypeHeading}
                       </h2>
                       <p
                         className={`q-complete-chip ${allRequiredDone ? "is-complete" : "is-incomplete"}`}
@@ -1529,6 +1552,13 @@ export default function ProfileWizardPage() {
                         : "Your profile is almost complete. Finish the remaining steps to unlock full results."}
                     </p>
                     {!allRequiredDone && missingHint ? <p className="q-subtitle q-subtitle--hint">{missingHint}</p> : null}
+                    <button
+                      type="button"
+                      className="q-profile-details-jump"
+                      onClick={scrollToProfileDetails}
+                    >
+                      See your full profile details ↓
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1586,7 +1616,11 @@ export default function ProfileWizardPage() {
                   <div className="q-profile-summary-col">
                     <div className="summary-grid q-profile-summary-grid">
                       {summarySections.map((section) => (
-                        <article key={section.id} className="summary-block summary-block--dashboard">
+                        <article
+                          key={section.id}
+                          ref={section.id === "type" ? profileTypeCardRef : null}
+                          className="summary-block summary-block--dashboard"
+                        >
                           <header className="summary-block-head">
                             <div className="summary-block-title-row">
                               <span className="summary-block-icon" aria-hidden="true">
@@ -1881,16 +1915,6 @@ export default function ProfileWizardPage() {
                       {message ? (
                         <p className="q-message" data-tone={messageTone} role="alert">{message}</p>
                       ) : null}
-                      <div className="q-actions q-actions--profile">
-                        <button
-                          type="button"
-                          className="button ghost"
-                          onClick={goBack}
-                          disabled={safeStepIndex === 0}
-                        >
-                          Previous step
-                        </button>
-                      </div>
                     </>
                   ) : (
                     <div className="q-card-grid">
