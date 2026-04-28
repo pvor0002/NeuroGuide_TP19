@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
   const sitePassword = fromFrontend.VITE_SITE_PASSWORD ?? fromRepoRoot.VITE_SITE_PASSWORD ?? "";
 
   return {
+    base: "/iteration_1/",
     plugins: [react()],
     publicDir: "../data",
     define: {
