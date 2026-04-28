@@ -572,7 +572,6 @@ export default function ProfileWizardPage() {
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [roleSearchFocused, setRoleSearchFocused] = useState(false);
-  const [profileIdCtaPulse, setProfileIdCtaPulse] = useState(false);
 
   // "Login" gate shown once per tab-session before the wizard starts. Not a
   // quiz step - it sits entirely outside buildSteps so it doesn't count toward
@@ -637,16 +636,6 @@ export default function ProfileWizardPage() {
   const safeStepIndex = Math.min(state.stepIndex, Math.max(steps.length - 1, 0));
   const currentStep = steps[safeStepIndex];
   const totalSteps = steps.length;
-
-  useEffect(() => {
-    if (currentStep?.kind !== "profile-ready" || state.profileId) {
-      setProfileIdCtaPulse(false);
-      return;
-    }
-    setProfileIdCtaPulse(true);
-    const timer = window.setTimeout(() => setProfileIdCtaPulse(false), 2400);
-    return () => window.clearTimeout(timer);
-  }, [currentStep?.kind, state.profileId]);
 
   // When the visitor lands on the quiz-result step, auto-commit the inferred
   // profile so they don't need to pick it manually - the Next button validates
@@ -1579,7 +1568,7 @@ export default function ProfileWizardPage() {
                   <>
                     <button
                       type="button"
-                      className={`button secondary q-profile-id-create ${profileIdCtaPulse ? "is-attention" : ""}`}
+                      className={`button secondary q-profile-id-create ${currentStep?.kind === "profile-ready" && !state.profileId ? "is-attention" : ""}`}
                       onClick={() => { void syncProfileToServer(); }}
                       disabled={syncStatus === "saving"}
                     >

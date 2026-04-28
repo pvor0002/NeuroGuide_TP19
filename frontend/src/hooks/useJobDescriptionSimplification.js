@@ -245,7 +245,7 @@ export function useJobDescriptionSimplification() {
     } finally {
       setIsSimplifying(false);
     }
-  }, [isBusy, inputMode, text, fileExtractedText, attachment]);
+  }, [isBusy, inputMode, text, fileExtractedText, attachment, setSimplifiedResult]);
 
   const simplifyEnabled =
     validation.ok &&
