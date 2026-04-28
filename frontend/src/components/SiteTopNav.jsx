@@ -26,14 +26,12 @@ export default function SiteTopNav() {
     };
   }, [location.pathname]);
 
-  useEffect(() => {
-    setMobileNavOpen(false);
-  }, [location.pathname]);
+  const closeMobileMenu = () => setMobileNavOpen(false);
 
   return (
     <header className="site-nav-header">
       <div className="site-nav-inner">
-        <Link to="/" className="site-nav-brand-link" aria-label="NeuroGuide home">
+        <Link to="/" className="site-nav-brand-link" aria-label="NeuroGuide home" onClick={closeMobileMenu}>
           <div className="home-sticky-bar-brand">
             <NeuroBrandFlower svgClassName="home-sticky-bar-mark site-nav-mark" animationActive={brandFlowerActive} />
             <div className="home-sticky-bar-copy">
@@ -58,19 +56,19 @@ export default function SiteTopNav() {
         </button>
 
         <nav id={navId} className={`site-nav-links ${mobileNavOpen ? "is-open" : ""}`} aria-label="Main">
-          <Link to="/" aria-current={location.pathname === "/" ? "page" : undefined}>
+          <Link to="/" aria-current={location.pathname === "/" ? "page" : undefined} onClick={closeMobileMenu}>
             Home
           </Link>
-          <Link to="/profile" aria-current={location.pathname === "/profile" ? "page" : undefined}>
+          <Link to="/profile" aria-current={location.pathname === "/profile" ? "page" : undefined} onClick={closeMobileMenu}>
             Career Profile
           </Link>
-          <Link to="/simplify-job-description" aria-current={location.pathname === "/simplify-job-description" ? "page" : undefined}>
+          <Link to="/simplify-job-description" aria-current={location.pathname === "/simplify-job-description" ? "page" : undefined} onClick={closeMobileMenu}>
             Simplify Job Description
           </Link>
-          <Link to="/interview-prep" aria-current={location.pathname === "/interview-prep" ? "page" : undefined}>
+          <Link to="/interview-prep" aria-current={location.pathname === "/interview-prep" ? "page" : undefined} onClick={closeMobileMenu}>
             Interview Prep
           </Link>
-          <Link to="/settings" aria-current={location.pathname === "/settings" ? "page" : undefined} className="site-nav-settings-link" aria-label="Settings">
+          <Link to="/settings" aria-current={location.pathname === "/settings" ? "page" : undefined} className="site-nav-settings-link" aria-label="Settings" onClick={closeMobileMenu}>
             <span className="site-nav-settings-text">Settings</span>
             <span className="site-nav-settings-icon" aria-hidden="true">
               <SettingsCogIcon />

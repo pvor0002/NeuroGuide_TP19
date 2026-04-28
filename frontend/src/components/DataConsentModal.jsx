@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const CONSENT_STORAGE_KEY = "ng_data_consent_v1";
 const USER_CREDENTIALS_STORAGE_KEY = "ng_local_user_credentials_v1";
@@ -40,14 +40,6 @@ export default function DataConsentModal({ open, autoShow = true, onClose, onCom
   const [generated, setGenerated] = useState(null);
   const [copied, setCopied] = useState(false);
   const show = controlled ? open : internalShow;
-
-  useEffect(() => {
-    if (!show) return;
-    setUnderstood(false);
-    setWarning("");
-    setGenerated(null);
-    setCopied(false);
-  }, [show]);
 
   if (!show) return null;
 
