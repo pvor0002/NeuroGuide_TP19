@@ -4,7 +4,7 @@ uvicorn[standard]
 pydantic-settings
 pytest
 httpx
-google-generativeai
+google-genai
 pypdf
 python-docx
 psycopg2-binary

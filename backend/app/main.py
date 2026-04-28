@@ -1,10 +1,18 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from app.api.router import api_router
 from app.core.config import get_settings
 
+# Lambda captures stdout/stderr → CloudWatch. Set INFO so all [Gemini] logs appear.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
+logger.info("[Startup] NeuroGuide API initialising — api_prefix=%s", settings.api_v1_prefix)
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 app.add_middleware(
@@ -16,9 +24,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+logger.info("[Startup] App ready — routes registered, Mangum handler attached")
 
 
 @app.get("/", tags=["meta"], summary="API root")
 def root() -> dict[str, str]:
     return {"message": "NeuroGuide API is running"}
+
 handler = Mangum(app, lifespan="off")
