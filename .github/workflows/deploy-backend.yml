@@ -57,7 +57,7 @@ jobs:
           cp -r app ./package/
           find ./package -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
           find ./package -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
-          zip -r lambda_package.zip ./package/ -x "*.pyc"
+          cd ./package && zip -r ../lambda_package.zip . -x "*.pyc" && cd ..
       - name: Upload package to S3
         run: |
           aws s3 cp lambda_package.zip \
