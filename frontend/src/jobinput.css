@@ -1468,6 +1468,106 @@ a.btn.btn-primary:hover {
   max-width: min(100%, 58rem);
 }
 
+/* Keep the input/upload card fully visible on shorter laptop screens. */
+@media (max-height: 920px) and (min-width: 900px) {
+  .simplify-hero {
+    padding: 1.1rem clamp(1rem, 3vw, 2rem) 0.95rem;
+    clip-path: none;
+  }
+
+  .simplify-hero-grid {
+    gap: 0.8rem 1.5rem;
+    align-items: center;
+  }
+
+  .simplify-hero-eyebrow {
+    margin-bottom: 0.5rem;
+    padding: 0.25rem 0.62rem;
+    font-size: 0.62rem;
+  }
+
+  .simplify-hero-title {
+    font-size: clamp(1.45rem, 2.8vw, 2rem);
+    line-height: 1.03;
+  }
+
+  .simplify-hero-back {
+    margin-top: 0.75rem;
+    font-size: 0.83rem;
+  }
+
+  .simplify-shape-svg {
+    width: min(100%, 180px);
+  }
+
+  .simplify-studio {
+    padding: 0.95rem clamp(0.9rem, 2.5vw, 1.25rem) 0.7rem;
+  }
+
+  .simplify-workspace {
+    gap: 0.75rem;
+  }
+
+  .simplify-card {
+    padding: 0.9rem 1.05rem 0.92rem;
+    border-radius: 14px;
+  }
+
+  .simplify-card-tag {
+    margin-bottom: 0.28rem;
+    font-size: 0.62rem;
+  }
+
+  .simplify-chat-card .simplify-card-title {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .simplify-input-mode {
+    margin-bottom: 0.45rem;
+  }
+
+  .simplify-input-mode-btn {
+    padding: 0.52rem 0.75rem;
+    font-size: 0.88rem;
+  }
+
+  .simplify-input-mode-hint {
+    margin-bottom: 0.45rem;
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+
+  .simplify-composer-input {
+    min-height: 116px;
+    padding: 0.62rem 0.85rem 0.55rem;
+    font-size: 0.92rem;
+    line-height: 1.4;
+  }
+
+  .simplify-composer:has(.simplify-composer-attachments) .simplify-composer-input {
+    min-height: 6.1rem;
+  }
+
+  .simplify-composer-footer {
+    padding: 0.38rem 0.56rem 0.42rem 0.58rem;
+  }
+
+  .simplify-attach-icon {
+    width: 2.15rem;
+    height: 2.15rem;
+  }
+
+  .simplify-composer-send {
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .simplify-composer-meta {
+    font-size: 0.82rem;
+  }
+}
+
 /* output is now a full-width section outside the studio */
 
 .simplify-card {
