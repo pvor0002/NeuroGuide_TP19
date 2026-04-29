@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from fastapi import HTTPException
 
 from app.core.config import Settings
@@ -16,6 +18,8 @@ from app.schemas.job_description import (
     InattentiveProfile,
     SimplifyResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_INSTRUCTION = """You are assisting neurodivergent job seekers (including ADHD and autism).
 You receive text that may be a job posting or may be unrelated content.
@@ -121,13 +125,18 @@ def _parse_json_loose(text: str) -> dict[str, Any]:
 
 def _extract_text_from_gemini_response(response: Any) -> str:
     # Safely read model output. `response.text` raises ValueError when blocked or malformed.
+    logger.info("[Gemini] Extracting text from response (type=%s)", type(response).__name__)
     try:
         t = response.text
-        return (t or "").strip()
-    except ValueError:
-        pass
+        result = (t or "").strip()
+        logger.info("[Gemini] response.text succeeded, length=%d", len(result))
+        return result
+    except ValueError as e:
+        logger.warning("[Gemini] response.text raised ValueError: %s — falling back to candidates", e)
     candidates = getattr(response, "candidates", None) or []
+    logger.info("[Gemini] Falling back to candidates, count=%d", len(candidates))
     if not candidates:
+        logger.error("[Gemini] No candidates in response — likely blocked or empty")
         return ""
     parts_out: list[str] = []
     for cand in candidates:
@@ -138,7 +147,9 @@ def _extract_text_from_gemini_response(response: Any) -> str:
             t = getattr(part, "text", None)
             if t:
                 parts_out.append(t)
-    return "\n".join(parts_out).strip()
+    result = "\n".join(parts_out).strip()
+    logger.info("[Gemini] Extracted from candidates, length=%d", len(result))
+    return result
 
 
 def _to_str_list(value: Any, *, min_len: int = 1, fill: str = "-") -> list[str]:
@@ -191,13 +202,16 @@ def _parse_combined(raw: Any) -> CombinedProfile:
 
 def simplify_job_description_with_gemini(text: str, settings: Settings) -> SimplifyResponse:
     # Call Gemini with our system prompt; return structured fields or raise HTTPException.
+    logger.info("[Gemini] simplify_job_description_with_gemini called, text length=%d", len(text))
+
     if not settings.gemini_api_key:
+        logger.error("[Gemini] GEMINI_API_KEY is not set — returning 503")
         raise HTTPException(
             status_code=503,
             detail="Gemini API is not configured. Set GEMINI_API_KEY in the backend environment.",
         )
 
-    genai.configure(api_key=settings.gemini_api_key)
+    logger.info("[Gemini] Using model=%s", settings.gemini_model)
 
     user_prompt = (
         "Analyze the following text.\n\n---\n"
@@ -206,28 +220,33 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
     )
 
     try:
+        logger.info("[Gemini] Creating genai.Client")
+        client = genai.Client(api_key=settings.gemini_api_key)
+        logger.info("[Gemini] Client created — calling generate_content with JSON response mode")
         try:
-            model = genai.GenerativeModel(
-                model_name=settings.gemini_model,
-                system_instruction=SYSTEM_INSTRUCTION,
-            )
-            prompt = user_prompt
-        except TypeError:
-            model = genai.GenerativeModel(model_name=settings.gemini_model)
-            prompt = f"{SYSTEM_INSTRUCTION}\n\n{user_prompt}"
-
-        try:
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
+            response = client.models.generate_content(
+                model=settings.gemini_model,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_INSTRUCTION,
                     response_mime_type="application/json",
                 ),
             )
-        except Exception:
-            # JSON response mode is not supported for all model/SDK combos - retry without it.
+            logger.info("[Gemini] generate_content (JSON mode) completed successfully")
+        except Exception as first_exc:
+            logger.warning(
+                "[Gemini] generate_content with JSON mode failed (%s: %s) — retrying without JSON mode",
+                type(first_exc).__name__, first_exc,
+            )
+            # JSON response mode is not supported for this model — retry without it.
             try:
-                response = model.generate_content(prompt)
+                response = client.models.generate_content(
+                    model=settings.gemini_model,
+                    contents=f"{SYSTEM_INSTRUCTION}\n\n{user_prompt}",
+                )
+                logger.info("[Gemini] generate_content (plain mode) completed successfully")
             except Exception as second_exc:
+                logger.error("[Gemini] generate_content plain mode also failed: %s", second_exc)
                 raise HTTPException(
                     status_code=502,
                     detail=f"Gemini request failed: {second_exc!s}",
@@ -235,6 +254,7 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
     except HTTPException:
         raise
     except Exception as exc:
+        logger.error("[Gemini] Unexpected error during Gemini call: %s: %s", type(exc).__name__, exc)
         raise HTTPException(
             status_code=502,
             detail=f"Gemini request failed: {exc!s}",
@@ -242,6 +262,7 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
 
     raw = _extract_text_from_gemini_response(response)
     if not raw:
+        logger.error("[Gemini] No usable text extracted from response")
         raise HTTPException(
             status_code=502,
             detail=(
@@ -250,9 +271,12 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
             ),
         )
 
+    logger.info("[Gemini] Raw response length=%d — parsing JSON", len(raw))
     try:
         data = _parse_json_loose(raw)
+        logger.info("[Gemini] JSON parsed OK, keys=%s", list(data.keys()))
     except json.JSONDecodeError as exc:
+        logger.error("[Gemini] JSON parse failed: %s | raw preview: %.200s", exc, raw)
         raise HTTPException(
             status_code=502,
             detail="Could not parse model response as JSON.",
@@ -260,14 +284,23 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
 
     if not data.get("is_job_description"):
         reason = data.get("rejection_reason") or "This does not look like a job posting."
+        logger.info("[Gemini] is_job_description=false, reason=%s", reason)
         raise HTTPException(status_code=422, detail=str(reason))
+
+    logger.info("[Gemini] is_job_description=true — extracting content fields")
 
     summary = (data.get("summary") or "").strip()
     basic_info = (data.get("basic_info") or "").strip()
     responsibilities = (data.get("responsibilities") or "").strip()
     skills = (data.get("skills_qualifications") or "").strip()
 
+    logger.info(
+        "[Gemini] Field lengths — summary=%d, basic_info=%d, responsibilities=%d, skills=%d",
+        len(summary), len(basic_info), len(responsibilities), len(skills),
+    )
+
     if not any((summary, basic_info, responsibilities, skills)):
+        logger.error("[Gemini] All content fields are empty")
         raise HTTPException(
             status_code=502,
             detail="The model did not return usable content for this job description.",
@@ -276,8 +309,17 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
     # quick_snapshot: ensure exactly 3 items
     raw_snapshot = data.get("quick_snapshot")
     snapshot = _to_str_list(raw_snapshot, min_len=3)[:3]
+    logger.info("[Gemini] quick_snapshot=%s", snapshot)
 
-    return SimplifyResponse(
+    has_inattentive = data.get("profile_inattentive") is not None
+    has_hyperactive = data.get("profile_hyperactive") is not None
+    has_combined = data.get("profile_combined") is not None
+    logger.info(
+        "[Gemini] Profiles present — inattentive=%s, hyperactive=%s, combined=%s",
+        has_inattentive, has_hyperactive, has_combined,
+    )
+
+    result = SimplifyResponse(
         summary=summary or "-",
         basic_info=basic_info or "-",
         responsibilities=responsibilities or "-",
@@ -287,3 +329,5 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
         profile_hyperactive=_parse_hyperactive(data.get("profile_hyperactive")),
         profile_combined=_parse_combined(data.get("profile_combined")),
     )
+    logger.info("[Gemini] SimplifyResponse built successfully — returning")
+    return result
