@@ -50,17 +50,37 @@ const ENERGY_PATTERN_OPTIONS = [
   "Best with visual task boards",
   "Best with one task at a time",
   "Best in quieter settings",
-  "Best with body-doubling/accountability",
+  "Best with accountability",
   "Best with morning deep work",
   "Best with afternoon deep work",
 ];
 
-/** Stored values keep the full phrases; strip “Best with / Best in” for UI + summaries. */
+const LEGACY_ENERGY_PATTERN_BODY_DOUBLING = "Best with body-doubling/accountability";
+
+/** Migrate older saved profiles to the current canonical string. */
+function normalizeEnergyPatternStoredValue(value) {
+  if (value === LEGACY_ENERGY_PATTERN_BODY_DOUBLING) return "Best with accountability";
+  return value;
+}
+
+/** First letter uppercase; rest unchanged (after trimming prefix for display). */
+function sentenceCaseLeading(s) {
+  const t = String(s ?? "").trim();
+  if (!t) return t;
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/**
+ * Stored values keep canonical phrases for scoring; strip “Best with / Best in” for UI,
+ * shorten legacy accountability wording, then capitalize the visible label.
+ */
 function energyPatternChoiceLabel(canonicalOption) {
-  let s = String(canonicalOption);
-  if (/^best with\s+/i.test(s)) return s.replace(/^best with\s+/i, "").trimStart();
-  if (/^best in\s+/i.test(s)) return s.replace(/^best in\s+/i, "").trimStart();
-  return s;
+  const normalized = normalizeEnergyPatternStoredValue(String(canonicalOption).trim());
+  let rest = normalized;
+  if (/^best with\s+/i.test(rest)) rest = rest.replace(/^best with\s+/i, "").trimStart();
+  else if (/^best in\s+/i.test(rest)) rest = rest.replace(/^best in\s+/i, "").trimStart();
+  else return sentenceCaseLeading(normalized);
+  return sentenceCaseLeading(rest);
 }
 const WORK_STYLE_OPTIONS = [
   "Clear priorities",
@@ -438,7 +458,9 @@ function mergeLoadedAnswers(base, incoming) {
     autoSelectedSkills: safeArray(incoming.autoSelectedSkills),
     removedAutoSkills: safeArray(incoming.removedAutoSkills),
     skillSearchQuery: "",
-    energyPatterns: safeArray(incoming.energyPatterns).slice(0, MAX_ENERGY_PATTERNS),
+    energyPatterns: safeArray(incoming.energyPatterns)
+      .map(normalizeEnergyPatternStoredValue)
+      .slice(0, MAX_ENERGY_PATTERNS),
   };
 }
 
@@ -481,7 +503,9 @@ function loadPersistedState() {
         autoSelectedSkills: toArr(a.autoSelectedSkills),
         removedAutoSkills: toArr(a.removedAutoSkills),
         skillSearchQuery: toStr(a.skillSearchQuery),
-        energyPatterns: toArr(a.energyPatterns).slice(0, MAX_ENERGY_PATTERNS),
+        energyPatterns: toArr(a.energyPatterns)
+          .map(normalizeEnergyPatternStoredValue)
+          .slice(0, MAX_ENERGY_PATTERNS),
       },
     };
   } catch {
@@ -1742,15 +1766,6 @@ export default function ProfileWizardPage() {
                               Review from first step
                             </button>
                           </div>
-                          <div className="q-profile-cta-item">
-                            <button
-                              type="button"
-                              className="button ghost q-profile-cta-btn q-profile-cta-btn--secondary"
-                              onClick={() => setShowResetConfirmModal(true)}
-                            >
-                              Start Over
-                            </button>
-                          </div>
                         </div>
                       </div>
                     </aside>
@@ -2218,12 +2233,19 @@ export default function ProfileWizardPage() {
                               Previous step
                             </button>
                           ) : (
-                            <span className="q-card-matrix-head-spacer" aria-hidden="true" />
+                            <Link
+                              to="/"
+                              className="button ghost q-profile-prev-btn q-profile-prev-btn--matrix"
+                              aria-label="Back to home"
+                            >
+                              <span className="q-profile-prev-icon" aria-hidden="true">←</span>
+                              Home
+                            </Link>
                           )}
                         </div>
                         <div className="q-card-matrix-head-meta">
                           <span className="q-card-head-eyebrow">{activeBlock.label}</span>
-                          {activeBlockSteps.length > 1 ? (
+                          {activeBlockSteps.length > 0 ? (
                             <span className="q-card-head-count" aria-live="polite">
                               Question {activeBlockStepIndex + 1} of {activeBlockSteps.length}
                             </span>
@@ -2271,8 +2293,42 @@ export default function ProfileWizardPage() {
               </div>
             </section>
 
-            {/* Right panel — hidden on Profile Ready so the summary uses full width. */}
-            {currentStep?.kind !== "profile-ready" ? (
+            {/* Right rail: first question = short “how it works” (not the long question list). */}
+            {currentStep?.kind === "adhd-awareness" ? (
+              <aside className="q-sidepanel q-sidepanel--how-it-works" aria-label="How NeuroGuide works">
+                <div className="q-how-it-works-card">
+                  <h3 className="q-how-it-works-heading">How this works</h3>
+                  <div className="q-how-it-works-steps" role="list">
+                    <div className="q-how-it-works-tile q-how-it-works-tile--guide" role="listitem">
+                      <span className="q-how-it-works-step-num" aria-hidden="true">
+                        1
+                      </span>
+                      <span className="q-how-it-works-step-label">Setup your support preferences</span>
+                    </div>
+                    <div className="q-how-it-works-arrow" aria-hidden="true">
+                      ↓
+                    </div>
+                    <div className="q-how-it-works-tile q-how-it-works-tile--spark" role="listitem">
+                      <span className="q-how-it-works-step-num" aria-hidden="true">
+                        2
+                      </span>
+                      <span className="q-how-it-works-step-label">Get simplified Job Description</span>
+                    </div>
+                    <div className="q-how-it-works-arrow" aria-hidden="true">
+                      ↓
+                    </div>
+                    <div className="q-how-it-works-tile q-how-it-works-tile--score" role="listitem">
+                      <span className="q-how-it-works-step-num" aria-hidden="true">
+                        3
+                      </span>
+                      <span className="q-how-it-works-step-label">View your job match score based on your work style.</span>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            ) : null}
+
+            {currentStep?.kind !== "profile-ready" && currentStep?.kind !== "adhd-awareness" ? (
               <aside className="q-sidepanel" aria-label={`Questions in ${activeBlock.label}`}>
                 <header className="q-sidepanel-head">
                   <h3 className="q-sidepanel-title">{activeBlock.label}</h3>

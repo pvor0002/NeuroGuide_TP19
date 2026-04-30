@@ -1465,6 +1465,7 @@ button:disabled {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
   .profile-app.profile-app--fullscreen .q-screen-inner {
@@ -1473,6 +1474,7 @@ button:disabled {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    overflow: hidden;
   }
 
   /* Card consumes remaining chrome (hero strip + sticky stepper + padding) */
@@ -1501,8 +1503,9 @@ button:disabled {
     grid-template-rows: auto minmax(0, 1fr);
   }
 
-  /* Top-align PNG with the question column (same row), not vertically centered */
-  .profile-app.profile-app--fullscreen .q-card--withscene .q-scene-col {
+  /* Grid row 2 — allow shrinking; top-align PNG in the illustration column */
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-card-grid > .q-scene-col {
+    min-height: 0;
     justify-content: flex-start;
   }
 
@@ -1513,9 +1516,15 @@ button:disabled {
     gap: clamp(0.28rem, 0.85vh, 0.58rem);
     min-height: 0;
     height: 100%;
+    overflow: hidden;
+    max-height: 100%;
   }
 
   .profile-app.profile-app--fullscreen .q-card--withscene .q-card-body {
+    /* Let the grid row shrink so extra content scrolls here; otherwise min-height:auto
+       grows the body and pushes Save & Next down when an option is selected. */
+    min-height: 0;
+    max-height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -1524,7 +1533,7 @@ button:disabled {
     padding-right: 4px;
   }
 
-  .profile-app.profile-app--fullscreen .q-card--withscene .q-card-foot {
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-card-foot .q-actions {
     margin-top: 0;
     padding-top: clamp(6px, 1vh, 10px);
     border-top: 1px solid rgba(45, 41, 38, 0.08);
@@ -1729,18 +1738,13 @@ button:disabled {
   --q-scene-box: min(580px, 48vw, calc(100dvh - 142px));
 }
 
-/* Support Setup: larger illustration vs question column; dotted rule only under headline (right column). */
+/* Support Setup: wider illustration column (matches matrix head grid below). */
 .q-card-grid.q-card-grid--support-scenes {
   grid-template-columns: minmax(0, 11fr) minmax(0, 14fr);
 }
 
 .q-card-matrix-head--support {
   grid-template-columns: minmax(0, 11fr) minmax(0, 14fr);
-}
-
-.q-card-matrix-head--support .q-card-matrix-head-meta {
-  padding-bottom: 0.55rem;
-  border-bottom: 1px dotted rgba(45, 41, 38, 0.28);
 }
 
 .q-card.q-card--withscene.q-card--support-scene {
@@ -3212,6 +3216,12 @@ button:disabled {
   width: 100%;
 }
 
+/* Eyebrow (“Profile type”, etc.) + question count — rule stays in the meta column only (not under the illustration). */
+.q-card-matrix-head .q-card-matrix-head-meta {
+  padding-bottom: 0.52rem;
+  border-bottom: 1px dotted rgba(45, 41, 38, 0.2);
+}
+
 .q-profile-prev-btn--matrix {
   margin: 0;
 }
@@ -4640,6 +4650,211 @@ button:disabled {
   box-shadow: 0 10px 24px rgba(45, 41, 38, 0.06);
   max-height: calc(100vh - 120px);
   overflow-y: auto;
+}
+
+/* First question — short explainer; compact height avoids Save/Next layout coupling. */
+.q-sidepanel.q-sidepanel--how-it-works {
+  max-height: none;
+  overflow: visible;
+  padding: 14px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.q-how-it-works-card {
+  border-radius: 16px;
+  padding: 16px 16px 18px;
+  background: #fff;
+  border: 1px solid rgba(45, 41, 38, 0.1);
+  box-shadow:
+    0 8px 22px rgba(45, 41, 38, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.q-how-it-works-heading {
+  margin: 0 0 14px;
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.q-how-it-works-steps {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.q-how-it-works-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0 8px;
+  font-weight: 800;
+  font-size: 1.06rem;
+  line-height: 1;
+  color: rgba(45, 41, 38, 0.38);
+  user-select: none;
+  animation: qHowWorksArrowFloat 2.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes qHowWorksArrowFloat {
+  0%,
+  100% {
+    transform: translateY(-5px);
+  }
+  50% {
+    transform: translateY(7px);
+  }
+}
+
+.q-how-it-works-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px 12px;
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 13px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  border-style: solid;
+  border-width: 1px;
+}
+
+.q-how-it-works-step-num {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 1.72rem;
+  height: 1.72rem;
+  border-radius: 9px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  transform: scale(1);
+  transition:
+    transform 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.q-how-it-works-tile--guide {
+  border-color: rgba(47, 124, 224, 0.22);
+  background: rgba(239, 246, 255, 0.75);
+}
+
+.q-how-it-works-tile--guide .q-how-it-works-step-num {
+  background: rgba(47, 124, 224, 0.16);
+  color: #1d4fad;
+  animation: qHowBadgeSpotlightGuide 3.6s ease-in-out infinite;
+}
+
+.q-how-it-works-tile--spark {
+  border-color: rgba(199, 106, 90, 0.28);
+  background: rgba(255, 244, 239, 0.85);
+}
+
+.q-how-it-works-tile--spark .q-how-it-works-step-num {
+  background: rgba(199, 106, 90, 0.2);
+  color: #924234;
+  animation: qHowBadgeSpotlightSpark 3.6s ease-in-out infinite;
+}
+
+.q-how-it-works-tile--score {
+  border-color: rgba(126, 65, 219, 0.24);
+  background: rgba(248, 244, 255, 0.9);
+}
+
+.q-how-it-works-tile--score .q-how-it-works-step-num {
+  background: rgba(126, 65, 219, 0.14);
+  color: #6429b8;
+  animation: qHowBadgeSpotlightScore 3.6s ease-in-out infinite;
+}
+
+@keyframes qHowBadgeSpotlightGuide {
+  0%,
+  2%,
+  30%,
+  100% {
+    transform: scale(1);
+    background: rgba(47, 124, 224, 0.16);
+    color: #1d4fad;
+    box-shadow: none;
+  }
+  4%,
+  26% {
+    transform: scale(1.22);
+    background: rgba(47, 124, 224, 0.52);
+    color: #06306e;
+    box-shadow:
+      0 0 0 3px rgba(47, 124, 224, 0.22),
+      0 6px 18px rgba(47, 124, 224, 0.32);
+  }
+}
+
+@keyframes qHowBadgeSpotlightSpark {
+  0%,
+  31%,
+  34%,
+  60%,
+  100% {
+    transform: scale(1);
+    background: rgba(199, 106, 90, 0.2);
+    color: #924234;
+    box-shadow: none;
+  }
+  36%,
+  56% {
+    transform: scale(1.22);
+    background: rgba(199, 106, 90, 0.48);
+    color: #6b2f24;
+    box-shadow:
+      0 0 0 3px rgba(199, 106, 90, 0.18),
+      0 6px 18px rgba(199, 106, 90, 0.28);
+  }
+}
+
+@keyframes qHowBadgeSpotlightScore {
+  0%,
+  61%,
+  65%,
+  92%,
+  100% {
+    transform: scale(1);
+    background: rgba(126, 65, 219, 0.14);
+    color: #6429b8;
+    box-shadow: none;
+  }
+  67%,
+  88% {
+    transform: scale(1.22);
+    background: rgba(126, 65, 219, 0.42);
+    color: #451a85;
+    box-shadow:
+      0 0 0 3px rgba(126, 65, 219, 0.2),
+      0 6px 18px rgba(126, 65, 219, 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-how-it-works-tile--guide .q-how-it-works-step-num,
+  .q-how-it-works-tile--spark .q-how-it-works-step-num,
+  .q-how-it-works-tile--score .q-how-it-works-step-num {
+    animation: none;
+  }
+
+  .q-how-it-works-arrow {
+    animation: none;
+  }
 }
 
 .q-sidepanel-head {

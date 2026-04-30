@@ -19,7 +19,7 @@ This updated model integrates the comprehensive user preference questionnaire:
    
    B. Time & Energy (up to 2):
       - Best with routine/variety/deadlines/flexible pace/sprints/breaks/boards/
-        one-task/quiet/body-doubling/morning/afternoon
+        one-task/quiet/accountability/morning/afternoon
 
 4. JOBS & SKILLS
    - Primary role (IT/software focused)
@@ -95,7 +95,8 @@ class JobScoreModelV2:
         'Best with visual task boards': 'energy_visual',
         'Best with one task at a time': 'energy_sequential',
         'Best in quieter settings': 'energy_quiet',
-        'Best with body-doubling/accountability': 'energy_presence',
+        'Best with accountability': 'energy_presence',
+        'Best with body-doubling/accountability': 'energy_presence',  # legacy frontend string
         'Best with morning deep work': 'energy_morning',
         'Best with afternoon deep work': 'energy_afternoon'
     }
