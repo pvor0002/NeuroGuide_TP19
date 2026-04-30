@@ -552,11 +552,14 @@ function resolveSnapshotChips(result) {
   return lines;
 }
 
-function QuickSnapshotBar({ result }) {
+function QuickSnapshotBar({ result, profileKey }) {
   const chips = resolveSnapshotChips(result);
   if (chips.length === 0) return null;
+  const profileMod = profileKey === "hyperactive" ? " simplify-snapshot-bar--hyperactive"
+    : profileKey === "combined" ? " simplify-snapshot-bar--combined"
+    : " simplify-snapshot-bar--inattentive";
   return (
-    <div className="simplify-snapshot-bar" aria-label="Quick snapshot: must-have requirements">
+    <div className={`simplify-snapshot-bar${profileMod}`} aria-label="Quick snapshot: must-have requirements">
       <div className="simplify-snapshot-header">
         <span className="simplify-snapshot-icon" aria-hidden="true">⚡</span>
         <span className="simplify-snapshot-title">Quick snapshot</span>
@@ -592,76 +595,84 @@ function ProfileLabel({ profileKey }) {
 }
 
 // ─── Calm & Clear (Inattentive) ──────────────────────────────────────────────
+const INATTENTIVE_TABS = [
+  { key: "what_you_do",      label: "What you'll do",    emoji: "💼" },
+  { key: "skills_you_learn", label: "Skills you'll learn", emoji: "🧰" },
+  { key: "important_notes",  label: "Important notes",   emoji: "⚠️" },
+];
+
 function ProfileInattentive({ data }) {
+  const [activeTab, setActiveTab] = useState("what_you_do");
   if (!data) return null;
+
+  // Only show tabs that have content
+  const availableTabs = INATTENTIVE_TABS.filter(({ key }) => {
+    const val = data[key];
+    return Array.isArray(val) && val.length > 0;
+  });
+
   return (
     <div className="sp-profile sp-profile--inattentive">
-      {/* 2-line summary */}
-      {data.job_summary?.length > 0 && (
-        <div className="sp-section sp-summary-lines">
-          {data.job_summary.map((line, i) => (
-            <p key={i} className={`sp-summary-line${i === 0 ? " sp-summary-line--main" : " sp-summary-line--hook"}`}>
-              {line}
-            </p>
-          ))}
-        </div>
-      )}
-
-      <div className="sp-grid-2">
-        {/* What you'll do */}
-        {data.what_you_do?.length > 0 && (
-          <div className="sp-section">
-            <h3 className="sp-section-title">💼 What you&apos;ll do</h3>
-            <ol className="sp-numbered-list">
-              {data.what_you_do.map((item, i) => (
-                <li key={i} className="sp-numbered-item">
-                  <span className="sp-num">{i + 1}</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ol>
+      <div className="sp-inattentive-row">
+        {/* 2-line summary */}
+        {data.job_summary?.length > 0 && (
+          <div className="sp-section sp-summary-lines sp-summary-lines--compact">
+            {data.job_summary.map((line, i) => (
+              <p key={i} className={`sp-summary-line${i === 0 ? " sp-summary-line--main" : " sp-summary-line--hook"}`}>
+                {line}
+              </p>
+            ))}
           </div>
         )}
 
-        {/* Skills you'll learn */}
-        {data.skills_you_learn?.length > 0 && (
-          <div className="sp-section">
-            <h3 className="sp-section-title">🧰 Skills you&apos;ll learn</h3>
-            <ul className="sp-tag-list">
-              {data.skills_you_learn.map((s, i) => (
-                <li key={i} className="sp-tag">{s}</li>
-              ))}
-            </ul>
+      {/* Tabbed content */}
+      {availableTabs.length > 0 && (
+        <div className="sp-tabs-wrap">
+          <div className="sp-tabs" role="tablist">
+            {availableTabs.map(({ key, label, emoji }) => (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={activeTab === key}
+                className={`sp-tab ${activeTab === key ? "sp-tab--active" : ""}`}
+                onClick={() => setActiveTab(key)}
+              >
+                <span aria-hidden="true">{emoji}</span> {label}
+              </button>
+            ))}
           </div>
-        )}
-      </div>
 
-      {/* Requirements checklist */}
-      {data.requirements?.length > 0 && (
-        <div className="sp-section">
-          <h3 className="sp-section-title">✅ Requirements checklist</h3>
-          <ul className="sp-checklist">
-            {data.requirements.map((r, i) => (
-              <li key={i} className="sp-checklist-item">
-                <span className="sp-check" aria-hidden="true">✓</span>
-                <span>{r}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="sp-tab-panel sp-section" role="tabpanel">
+            {activeTab === "what_you_do" && data.what_you_do?.length > 0 && (
+              <ol className="sp-numbered-list">
+                {data.what_you_do.map((item, i) => (
+                  <li key={i} className="sp-numbered-item">
+                    <span className="sp-num">{i + 1}</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+
+            {activeTab === "skills_you_learn" && data.skills_you_learn?.length > 0 && (
+              <ul className="sp-tag-list">
+                {data.skills_you_learn.map((s, i) => (
+                  <li key={i} className="sp-tag">{s}</li>
+                ))}
+              </ul>
+            )}
+
+            {activeTab === "important_notes" && data.important_notes?.length > 0 && (
+              <ul className="sp-note-list">
+                {data.important_notes.map((n, i) => (
+                  <li key={i} className="sp-note-item">{n}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
-
-      {/* Important notes */}
-      {data.important_notes?.length > 0 && (
-        <div className="sp-section sp-callout">
-          <h3 className="sp-section-title">⚠️ Important notes</h3>
-          <ul className="sp-note-list">
-            {data.important_notes.map((n, i) => (
-              <li key={i} className="sp-note-item">{n}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      </div>{/* end sp-inattentive-row */}
     </div>
   );
 }
@@ -671,91 +682,68 @@ function ProfileHyperactive({ data }) {
   if (!data) return null;
   return (
     <div className="sp-profile sp-profile--hyperactive">
-      {/* Headline hook */}
+
+      {/* Headline hook — full width banner */}
       {data.headline && (
-        <div className="sp-section sp-headline-block">
+        <div className="sp-section sp-headline-block sp-headline-block--hyper">
           <p className="sp-headline">{data.headline}</p>
         </div>
       )}
 
-      <div className="sp-grid-2">
-        {/* Why exciting */}
-        {data.why_exciting?.length > 0 && (
-          <div className="sp-section">
-            <h3 className="sp-section-title">🔥 Why this is exciting</h3>
-            <ul className="sp-energy-list">
-              {data.why_exciting.map((r, i) => (
-                <li key={i} className="sp-energy-item">
-                  <span className="sp-energy-dot" aria-hidden="true" />
-                  {r}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+      {/* Why exciting + What you'll do — two columns */}
+      {(data.why_exciting?.length > 0 || data.what_you_do?.length > 0) && (
+        <div className="sp-hyper-two-col">
+          {data.why_exciting?.length > 0 && (
+            <div className="sp-hyper-col">
+              <p className="sp-hyper-col-label">
+                <span aria-hidden="true">🔥</span> Why this is exciting
+              </p>
+              <ul className="sp-hyper-pills">
+                {data.why_exciting.map((r, i) => (
+                  <li key={i} className="sp-hyper-pill">{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-        {/* What you'll actually do */}
-        {data.what_you_do?.length > 0 && (
-          <div className="sp-section">
-            <h3 className="sp-section-title">⚡ What you&apos;ll actually do</h3>
-            <ul className="sp-energy-list">
-              {data.what_you_do.map((d, i) => (
-                <li key={i} className="sp-energy-item">
-                  <span className="sp-energy-dot" aria-hidden="true" />
-                  {d}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+          {data.what_you_do?.length > 0 && (
+            <div className="sp-hyper-col">
+              <p className="sp-hyper-col-label">
+                <span aria-hidden="true">⚡</span> What you&apos;ll actually do
+              </p>
+              <ol className="sp-numbered-list">
+                {data.what_you_do.map((d, i) => (
+                  <li key={i} className="sp-numbered-item">
+                    <span className="sp-num">{i + 1}</span>
+                    <span>{d}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Programme flow: step badges */}
+      {/* How it works — full-width horizontal timeline */}
       {data.programme_flow?.length > 0 && (
-        <div className="sp-section">
+        <div className="sp-section sp-section--flow">
           <h3 className="sp-section-title">🪜 How it works</h3>
-          <ol className="sp-flow">
+          <ol className="sp-timeline">
             {data.programme_flow.map((step, i) => (
-              <li key={i} className="sp-flow-step">
-                <span className="sp-flow-badge">{i + 1}</span>
-                <span className="sp-flow-label">{step}</span>
-                {i < data.programme_flow.length - 1 && (
-                  <span className="sp-flow-arrow" aria-hidden="true">→</span>
-                )}
+              <li key={i} className="sp-timeline-step">
+                <div className="sp-timeline-top">
+                  <span className="sp-flow-badge">{i + 1}</span>
+                  {i < data.programme_flow.length - 1 && (
+                    <span className="sp-timeline-connector" aria-hidden="true" />
+                  )}
+                </div>
+                <span className="sp-timeline-label">{step}</span>
               </li>
             ))}
           </ol>
         </div>
       )}
 
-      <div className="sp-grid-2">
-        {/* Must know */}
-        {data.must_know?.length > 0 && (
-          <div className="sp-section sp-callout">
-            <h3 className="sp-section-title">🚨 Must know</h3>
-            <ul className="sp-note-list">
-              {data.must_know.map((m, i) => (
-                <li key={i} className="sp-note-item">{m}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Is this for you? */}
-        {data.is_this_for_you?.length > 0 && (
-          <div className="sp-section">
-            <h3 className="sp-section-title">🎯 Is this for you?</h3>
-            <ul className="sp-checklist">
-              {data.is_this_for_you.map((f, i) => (
-                <li key={i} className="sp-checklist-item">
-                  <span className="sp-check" aria-hidden="true">✓</span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -765,7 +753,8 @@ function ProfileCombined({ data }) {
   if (!data) return null;
   return (
     <div className="sp-profile sp-profile--combined">
-      {/* Quick overview: 2 lines */}
+
+      {/* Quick overview — 2-line summary */}
       {data.quick_overview?.length > 0 && (
         <div className="sp-section sp-summary-lines">
           {data.quick_overview.map((line, i) => (
@@ -776,75 +765,69 @@ function ProfileCombined({ data }) {
         </div>
       )}
 
-      {/* What makes it good: 3 value prop chips */}
+      {/* What makes it good — horizontal pill row */}
       {data.what_makes_it_good?.length > 0 && (
-        <div className="sp-section">
-          <h3 className="sp-section-title">⭐ What makes it good</h3>
-          <ul className="sp-value-chips">
+        <div className="sp-combined-good-row">
+          <p className="sp-combined-good-label">
+            <span aria-hidden="true">⭐</span> What makes it good
+          </p>
+          <ul className="sp-combined-good-pills">
             {data.what_makes_it_good.map((v, i) => (
-              <li key={i} className="sp-value-chip">{v}</li>
+              <li key={i} className="sp-combined-good-pill">{v}</li>
             ))}
           </ul>
         </div>
       )}
 
-      <div className="sp-grid-2">
-        {/* What you'll learn */}
-        {data.what_you_learn?.length > 0 && (
-          <div className="sp-section">
-            <h3 className="sp-section-title">📚 What you&apos;ll learn</h3>
-            <ul className="sp-tag-list">
-              {data.what_you_learn.map((s, i) => (
-                <li key={i} className="sp-tag">{s}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+      {/* What you'll learn + Simple steps — two columns */}
+      {(data.what_you_learn?.length > 0 || data.simple_steps?.length > 0) && (
+        <div className="sp-hyper-two-col">
+          {data.what_you_learn?.length > 0 && (
+            <div className="sp-hyper-col">
+              <p className="sp-hyper-col-label">
+                <span aria-hidden="true">📚</span> What you&apos;ll learn
+              </p>
+              <ul className="sp-tag-list">
+                {data.what_you_learn.map((s, i) => (
+                  <li key={i} className="sp-tag">{s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-        {/* Simple steps */}
-        {data.simple_steps?.length > 0 && (
-          <div className="sp-section">
-            <h3 className="sp-section-title">🪜 Simple steps</h3>
-            <ol className="sp-numbered-list">
-              {data.simple_steps.map((step, i) => (
-                <li key={i} className="sp-numbered-item">
-                  <span className="sp-num">{i + 1}</span>
-                  <span>{step}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
-      </div>
+          {data.simple_steps?.length > 0 && (
+            <div className="sp-hyper-col">
+              <p className="sp-hyper-col-label">
+                <span aria-hidden="true">🪜</span> Simple steps
+              </p>
+              <ol className="sp-numbered-list">
+                {data.simple_steps.map((step, i) => (
+                  <li key={i} className="sp-numbered-item">
+                    <span className="sp-num">{i + 1}</span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+      )}
 
-      <div className="sp-grid-2">
-        {/* Requirements */}
-        {data.requirements?.length > 0 && (
-          <div className="sp-section">
-            <h3 className="sp-section-title">✅ Requirements</h3>
-            <ul className="sp-checklist">
-              {data.requirements.map((r, i) => (
-                <li key={i} className="sp-checklist-item">
-                  <span className="sp-check" aria-hidden="true">✓</span>
-                  <span>{r}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+      {/* Important — full-width callout */}
+      {data.important?.length > 0 && (
+        <div className="sp-section sp-combined-important">
+          <h3 className="sp-section-title">⚠️ Important to know</h3>
+          <ul className="sp-combined-important-list">
+            {data.important.map((n, i) => (
+              <li key={i} className="sp-combined-important-item">
+                <span className="sp-combined-important-dot" aria-hidden="true" />
+                {n}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-        {/* Important */}
-        {data.important?.length > 0 && (
-          <div className="sp-section sp-callout">
-            <h3 className="sp-section-title">⚠️ Important</h3>
-            <ul className="sp-note-list">
-              {data.important.map((n, i) => (
-                <li key={i} className="sp-note-item">{n}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -1135,7 +1118,7 @@ export default function SimplifyJobDescriptionPage() {
             </div>
 
             {/* Quick Snapshot chips */}
-            <QuickSnapshotBar result={simplifiedResult} />
+            <QuickSnapshotBar result={simplifiedResult} profileKey={activeProfile} />
 
             {/* Profile-specific layout */}
             <ActiveProfile activeKey={activeProfile} result={simplifiedResult} />
