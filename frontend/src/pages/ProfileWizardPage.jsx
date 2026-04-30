@@ -1644,12 +1644,15 @@ export default function ProfileWizardPage() {
                           "Profile ready to use."
                         ) : (
                           <>
-                            <span className="q-subtitle-hero-lead">
-                              {`${completedRequiredCount}/4 sections done — finish the rest to unlock full results.`}
-                            </span>
                             {missingHint ? (
-                              <span className="q-subtitle-hero-hint"> {missingHint}</span>
+                              <span className="q-subtitle-hero-hint" role="alert">
+                                <span aria-hidden="true">⚠ </span>
+                                {missingHint}
+                              </span>
                             ) : null}
+                            <span className="q-subtitle-hero-lead">
+                              Finish the rest to unlock full results.
+                            </span>
                           </>
                         )}
                       </p>

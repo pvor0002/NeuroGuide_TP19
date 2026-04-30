@@ -2119,8 +2119,16 @@ button:disabled {
 }
 
 .q-profile-hero-card--compact .q-subtitle-hero-hint {
-  color: #8a553d;
-  font-weight: 600;
+  color: #b30000;
+  background: #ffe6e6;
+  border: 1px solid #ff8a8a;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  margin-right: 0.35rem;
+  font-weight: 500;
 }
 
 .q-profile-hero-card--compact .q-profile-hero-right {

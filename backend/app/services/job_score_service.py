@@ -98,7 +98,9 @@ def _select_best_occupation_match(
         ["(CASE WHEN occupation_name ILIKE %s THEN 1 ELSE 0 END)" for _ in terms]
     )
 
-    anzsco_sql = "CAST(anzsco_code AS TEXT) LIKE '26%'" if ict_only else "TRUE"
+    # NOTE: psycopg2 treats '%' as placeholder syntax unless escaped.
+    # Use LEFT(...)= '26' for ICT major group filter to avoid format parsing issues.
+    anzsco_sql = "LEFT(CAST(anzsco_code AS TEXT), 2) = '26'" if ict_only else "TRUE"
 
     query = f"""
         SELECT
