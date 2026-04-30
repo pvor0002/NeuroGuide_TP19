@@ -2671,8 +2671,8 @@ a.btn.btn-primary:hover {
 
 .simplify-flip-card__face--front {
   text-align: center;
-  border-top: 5px solid #b04030;
-  background: linear-gradient(160deg, #fffaf7 0%, #fef5ef 100%);
+  border-top: 5px solid #4a8fa8;
+  background: linear-gradient(160deg, #f4fafc 0%, #eaf4f8 100%);
 }
 
 .simplify-flip-card__face--back {
@@ -2682,8 +2682,8 @@ a.btn.btn-primary:hover {
   gap: 0.8rem;
   padding-bottom: 1rem;
   overflow: hidden;
-  border-top: 5px solid rgba(176, 64, 48, 0.45);
-  background: #fffcfa;
+  border-top: 5px solid rgba(74, 143, 168, 0.45);
+  background: #f6fbfd;
 }
 
 /* Front face: large emoji */
@@ -2699,7 +2699,7 @@ a.btn.btn-primary:hover {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   line-height: 1.2;
-  color: #3a1e14;
+  color: #1e4d5e;
 }
 
 .simplify-flip-card__chip {
@@ -2709,9 +2709,9 @@ a.btn.btn-primary:hover {
   gap: 0.35rem;
   padding: 0.22rem 0.6rem;
   border-radius: 999px;
-  border: 1.5px solid rgba(176, 64, 48, 0.22);
-  background: rgba(176, 64, 48, 0.07);
-  color: #8a2c1e;
+  border: 1.5px solid rgba(74, 143, 168, 0.28);
+  background: rgba(74, 143, 168, 0.09);
+  color: #2a6478;
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -3457,8 +3457,8 @@ a.btn.btn-primary:hover {
   gap: 0.85rem;
   padding: 1.4rem 1.75rem 1.5rem;
   border-radius: 20px;
-  background: linear-gradient(135deg, #b04030 0%, #c95842 60%, #d4694a 100%);
-  box-shadow: 0 4px 0 rgba(140, 40, 28, 0.25), 0 10px 32px rgba(140, 40, 28, 0.18);
+  background: linear-gradient(135deg, #3d7a54 0%, #4e8f64 60%, #5a9e72 100%);
+  box-shadow: 0 4px 0 rgba(40, 90, 58, 0.22), 0 10px 32px rgba(40, 90, 58, 0.15);
   margin-bottom: 0.25rem;
 }
 
@@ -3562,62 +3562,62 @@ a.btn.btn-primary:hover {
 
 /* Calm & Clear — warm terracotta / clay */
 .sp-profile--inattentive {
-  --sp-accent:       #b04030;
-  --sp-accent-mid:   #c85a42;
-  --sp-accent-light: #fae6e0;
-  --sp-accent-pale:  #fdf3f0;
-  --sp-title:        #8a2c1e;
-  --sp-num-bg:       #f5d0c4;
-  --sp-num-fg:       #6a1e12;
-  --sp-check:        #b04030;
-  --sp-tag-bg:       rgba(176,64,48,0.09);
-  --sp-tag-border:   rgba(176,64,48,0.26);
-  --sp-tag-fg:       #6a1e12;
-  --sp-dot:          #c85a42;
-  --sp-flow-bg:      #7a2818;
-  --sp-chip-bg:      rgba(176,64,48,0.09);
-  --sp-chip-border:  rgba(176,64,48,0.26);
-  --sp-chip-fg:      #6a1e12;
+  --sp-accent:       #4a8fa8;
+  --sp-accent-mid:   #5ba3be;
+  --sp-accent-light: #ddf0f6;
+  --sp-accent-pale:  #f0f8fb;
+  --sp-title:        #2a6478;
+  --sp-num-bg:       #c8e8f2;
+  --sp-num-fg:       #1e4d5e;
+  --sp-check:        #4a8fa8;
+  --sp-tag-bg:       rgba(74,143,168,0.09);
+  --sp-tag-border:   rgba(74,143,168,0.28);
+  --sp-tag-fg:       #1e4d5e;
+  --sp-dot:          #5ba3be;
+  --sp-flow-bg:      #1e4d5e;
+  --sp-chip-bg:      rgba(74,143,168,0.09);
+  --sp-chip-border:  rgba(74,143,168,0.28);
+  --sp-chip-fg:      #1e4d5e;
 }
 
-/* High Energy — golden amber */
+/* High Energy — rust orange (pairs with teal) */
 .sp-profile--hyperactive {
-  --sp-accent:       #c88010;
-  --sp-accent-mid:   #e09a28;
-  --sp-accent-light: #fef0c8;
-  --sp-accent-pale:  #fff9ec;
-  --sp-title:        #8a5800;
-  --sp-num-bg:       #fde4a0;
-  --sp-num-fg:       #6a3e00;
-  --sp-check:        #c88010;
-  --sp-tag-bg:       rgba(200,128,16,0.1);
-  --sp-tag-border:   rgba(200,128,16,0.28);
-  --sp-tag-fg:       #6a3e00;
-  --sp-dot:          #e09a28;
-  --sp-flow-bg:      #7a4e00;
-  --sp-chip-bg:      rgba(200,128,16,0.1);
-  --sp-chip-border:  rgba(200,128,16,0.28);
-  --sp-chip-fg:      #6a3e00;
+  --sp-accent:       #bf5130;
+  --sp-accent-mid:   #d4693c;
+  --sp-accent-light: #f9e0d4;
+  --sp-accent-pale:  #fdf3ee;
+  --sp-title:        #7a2e0e;
+  --sp-num-bg:       #f5c4a8;
+  --sp-num-fg:       #6b2508;
+  --sp-check:        #bf5130;
+  --sp-tag-bg:       rgba(191,81,48,0.09);
+  --sp-tag-border:   rgba(191,81,48,0.26);
+  --sp-tag-fg:       #7a2e0e;
+  --sp-dot:          #d4693c;
+  --sp-flow-bg:      #7a2e0e;
+  --sp-chip-bg:      rgba(191,81,48,0.09);
+  --sp-chip-border:  rgba(191,81,48,0.26);
+  --sp-chip-fg:      #7a2e0e;
 }
 
-/* Balanced — warm cinnamon / dark sienna */
+/* Balanced — plum / mauve */
 .sp-profile--combined {
-  --sp-accent:       #a05828;
-  --sp-accent-mid:   #be7840;
-  --sp-accent-light: #f5e4d0;
-  --sp-accent-pale:  #fdf5ec;
-  --sp-title:        #703a14;
-  --sp-num-bg:       #edcfac;
-  --sp-num-fg:       #502810;
-  --sp-check:        #a05828;
-  --sp-tag-bg:       rgba(160,88,40,0.1);
-  --sp-tag-border:   rgba(160,88,40,0.26);
-  --sp-tag-fg:       #502810;
-  --sp-dot:          #be7840;
-  --sp-flow-bg:      #6a3610;
-  --sp-chip-bg:      rgba(160,88,40,0.1);
-  --sp-chip-border:  rgba(160,88,40,0.26);
-  --sp-chip-fg:      #502810;
+  --sp-accent:       #9b5e8a;
+  --sp-accent-mid:   #b07099;
+  --sp-accent-light: #f2e4ee;
+  --sp-accent-pale:  #faf4f8;
+  --sp-title:        #5e2d52;
+  --sp-num-bg:       #e8cce0;
+  --sp-num-fg:       #4a1f40;
+  --sp-check:        #9b5e8a;
+  --sp-tag-bg:       rgba(155,94,138,0.09);
+  --sp-tag-border:   rgba(155,94,138,0.26);
+  --sp-tag-fg:       #5e2d52;
+  --sp-dot:          #b07099;
+  --sp-flow-bg:      #5e2d52;
+  --sp-chip-bg:      rgba(155,94,138,0.09);
+  --sp-chip-border:  rgba(155,94,138,0.26);
+  --sp-chip-fg:      #5e2d52;
 }
 
 .sp-profile {
@@ -4271,4 +4271,427 @@ a.btn.btn-primary:hover {
   color: #5a5048;
   line-height: 1.55;
   font-style: italic;
+}
+
+/* Skills breakdown */
+.jsc-skills-subtitle {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #6b5f56;
+}
+
+.jsc-skills-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .jsc-skills-grid { grid-template-columns: 1fr; }
+}
+
+.jsc-skills-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(82,70,55,0.12);
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.jsc-skills-col-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+
+.jsc-skills-col-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.jsc-skills-col-title {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4b4035;
+}
+
+.jsc-skills-col-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #7a6e65;
+  background: rgba(82,70,55,0.1);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
+
+.jsc-skill-chip {
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 0.3rem 0.55rem;
+  border: 1.5px solid;
+}
+
+.jsc-skill-chip--matched {
+  background: rgba(61,125,82,0.08);
+  border-color: rgba(61,125,82,0.35);
+  color: #2d6640;
+}
+
+.jsc-skill-chip--partial {
+  background: rgba(196,154,40,0.08);
+  border-color: rgba(196,154,40,0.35);
+  color: #7a5f10;
+}
+
+.jsc-skill-chip--missing {
+  background: rgba(192,68,42,0.07);
+  border-color: rgba(192,68,42,0.3);
+  color: #9a3020;
+}
+
+.jsc-skills-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #9a8e85;
+  font-style: italic;
+}
+
+/* ── Inattentive profile tabs ── */
+.sp-tabs-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sp-tabs {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0 0.2rem;
+  flex-wrap: wrap;
+}
+
+.sp-tab {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  border-radius: 12px 12px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: rgba(74, 143, 168, 0.08);
+  color: var(--sp-title, #2a6478);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  bottom: -1px;
+}
+
+.sp-tab:hover {
+  background: rgba(74, 143, 168, 0.15);
+}
+
+.sp-tab--active {
+  background: #fff;
+  color: var(--sp-accent, #4a8fa8);
+  border-color: rgba(74, 143, 168, 0.28);
+  border-bottom-color: #fff;
+  z-index: 1;
+}
+
+.sp-tab-panel {
+  border-radius: 0 12px 12px 12px !important;
+  border-top-left-radius: 0 !important;
+}
+
+/* Inattentive: summary + tabs side by side */
+.sp-inattentive-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.sp-summary-lines--compact {
+  height: 100%;
+}
+
+@media (max-width: 680px) {
+  .sp-inattentive-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Snapshot bar — profile variants */
+.simplify-snapshot-bar--hyperactive {
+  background: linear-gradient(135deg, #c8604a 0%, #d4724e 60%, #df8a62 100%);
+  box-shadow: 0 4px 0 rgba(150,70,40,0.18), 0 10px 28px rgba(150,70,40,0.12);
+}
+
+.simplify-snapshot-bar--combined {
+  background: linear-gradient(135deg, #7a3d6e 0%, #9b5e8a 60%, #b070a0 100%);
+  box-shadow: 0 4px 0 rgba(90,40,80,0.2), 0 10px 28px rgba(90,40,80,0.13);
+}
+
+.simplify-snapshot-bar--inattentive {
+  background: linear-gradient(135deg, #3d7a54 0%, #4e8f64 60%, #5a9e72 100%);
+  box-shadow: 0 4px 0 rgba(40,90,58,0.22), 0 10px 32px rgba(40,90,58,0.15);
+}
+
+/* Hyperactive headline banner */
+.sp-headline-block--hyper {
+  background: linear-gradient(135deg, var(--sp-accent-light, #f9e0d4) 0%, #fff 100%);
+  border-top-color: var(--sp-accent, #bf5130);
+}
+
+/* Must know — horizontal chip grid */
+.sp-must-know-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+.sp-must-know-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--sp-title);
+  background: rgba(255,255,255,0.7);
+  border: 1.5px solid var(--sp-tag-border);
+  border-radius: 10px;
+  padding: 0.4rem 0.75rem;
+}
+
+.sp-must-know-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--sp-accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sp-section--flow {
+  background: var(--sp-accent-pale);
+  border-top-color: var(--sp-accent-mid);
+}
+
+/* ─── Combined profile: new elements ────────────────────────────────────────── */
+
+/* "What makes it good" — horizontal pill row outside a card */
+.sp-combined-good-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sp-combined-good-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--sp-accent, #9b5e8a);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.sp-combined-good-pills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.sp-combined-good-pill {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--sp-title, #5e2d52);
+  background: var(--sp-accent-light, #f2e4ee);
+  border: 1.5px solid var(--sp-tag-border, rgba(155,94,138,0.26));
+  border-radius: 100px;
+  padding: 0.45rem 1rem;
+  line-height: 1.35;
+}
+
+/* "Important to know" — full-width callout */
+.sp-combined-important {
+  background: var(--sp-accent-pale, #faf4f8);
+  border-top: 3px solid var(--sp-accent, #9b5e8a);
+}
+
+.sp-combined-important-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sp-combined-important-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.92rem;
+  color: #3a2e28;
+  line-height: 1.5;
+}
+
+.sp-combined-important-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sp-accent, #9b5e8a);
+  flex-shrink: 0;
+  margin-top: 0.38rem;
+}
+
+/* ─── Hyperactive: two-column layout ────────────────────────────────────────── */
+.sp-hyper-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .sp-hyper-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sp-hyper-col {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.2rem 1.3rem;
+  border: 1px solid rgba(212, 103, 74, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sp-hyper-col-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--sp-accent, #d4674a);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+/* Pill chips for "Why exciting" */
+.sp-hyper-pills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sp-hyper-pill {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--sp-title, #9a3a22);
+  padding: 0.55rem 0.85rem;
+  background: var(--sp-accent-light, #fae0d8);
+  border-radius: 10px;
+  border-left: 3px solid var(--sp-accent, #d4674a);
+  line-height: 1.4;
+}
+
+/* Full-width horizontal timeline */
+.sp-timeline {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.sp-timeline-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 0;
+}
+
+.sp-timeline-top {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+  position: relative;
+}
+
+/* Connecting line after each badge (except last) */
+.sp-timeline-connector {
+  position: absolute;
+  left: 50%;
+  right: -50%;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2px;
+  background: var(--sp-accent-mid, #f59e0b);
+  opacity: 0.4;
+  z-index: 0;
+}
+
+.sp-timeline-step .sp-flow-badge {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.sp-timeline-label {
+  font-size: 0.8rem;
+  color: #3a2e28;
+  line-height: 1.4;
+  margin-top: 0.55rem;
+  padding: 0 0.3rem;
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .sp-timeline {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .sp-timeline-step {
+    flex-direction: row;
+    text-align: left;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+  .sp-timeline-top {
+    width: auto;
+    justify-content: flex-start;
+  }
+  .sp-timeline-connector { display: none; }
+  .sp-timeline-label { margin-top: 0.1rem; }
 }

@@ -6,10 +6,12 @@ Handles database connection, occupation lookup, model scoring, and saving result
 
 import json
 import logging
+import os
 from typing import Dict, Optional
 import psycopg2
 import psycopg2.extras
 from app.services.job_score_model_v2 import JobScoreModelV2
+from app.core.config import get_settings
 from app.services.occupation_match import build_ilike_terms, normalize_job_title
 
 logger = logging.getLogger(__name__)
@@ -17,23 +19,12 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # RDS CONNECTION
 # ============================================================================
-import os
-
 def get_db_connection():
-    """Create and return a PostgreSQL connection.
-    Uses DATABASE_URL if set (Lambda), otherwise falls back to individual vars (local).
-    """
-    database_url = os.environ.get("DATABASE_URL")
-    if database_url:
-        return psycopg2.connect(database_url)
-
-    return psycopg2.connect(
-        host=os.environ["RDS_HOST"],
-        port=int(os.environ.get("RDS_PORT", 5432)),
-        database=os.environ["RDS_DATABASE"],
-        user=os.environ["RDS_USER"],
-        password=os.environ["RDS_PASSWORD"],
-    )
+    """Create and return a PostgreSQL connection using DATABASE_URL from settings."""
+    settings = get_settings()
+    if not settings.database_url:
+        raise RuntimeError("DATABASE_URL is not set. Add it to your .env file.")
+    return psycopg2.connect(str(settings.database_url))
 
 
 # ============================================================================

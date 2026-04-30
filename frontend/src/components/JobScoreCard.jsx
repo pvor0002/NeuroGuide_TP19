@@ -1,7 +1,8 @@
 /**
  * JobScoreCard
  * ============
- * Displays the job match score with a plain-language reasoning explanation.
+ * Displays the job match score with skills breakdown:
+ * matched, partially matched, and missing skills.
  */
 
 // ─── Score gauge (SVG circle) ────────────────────────────────────────────────
@@ -43,43 +44,109 @@ function ScoreGauge({ score }) {
   );
 }
 
-// ─── Reasoning lines parser ───────────────────────────────────────────────────
-// The model returns reasoning as a multi-line string. We parse it into
-// a readable list of bullet points for display.
-function ReasoningSection({ reasoning }) {
-  if (!reasoning) return null;
+// ─── Skills breakdown logic ───────────────────────────────────────────────────
+function categoriseSkills(userSkills = [], jobSkills = []) {
+  const normalise = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-  // Split on newlines, strip bullet/dash prefixes, filter blanks
-  const lines = reasoning
-    .split("\n")
-    .map((l) => l.replace(/^[-*•]\s*/, "").trim())
-    .filter(Boolean);
+  const matched = [];
+  const partial = [];
+  const missing = [];
 
-  // Separate the intro sentence from the breakdown lines
-  const intro = lines[0] || "";
-  const bullets = lines.slice(1).filter((l) => l.includes("–") || l.includes(":") || l.startsWith("+") || l.startsWith("-"));
-  const narrative = lines.slice(1).filter((l) => !bullets.includes(l));
+  jobSkills.forEach((jobSkill) => {
+    const jobNorm = normalise(jobSkill);
+
+    // Exact match
+    const exactMatch = userSkills.find((u) => normalise(u) === jobNorm);
+    if (exactMatch) {
+      matched.push(jobSkill);
+      return;
+    }
+
+    // Partial match — job skill word appears in any user skill or vice versa
+    const jobWords = jobNorm.split(/\s+/);
+    const partialMatch = userSkills.find((u) => {
+      const uNorm = normalise(u);
+      const uWords = uNorm.split(/\s+/);
+      return (
+        jobWords.some((w) => uNorm.includes(w) && w.length > 3) ||
+        uWords.some((w) => jobNorm.includes(w) && w.length > 3)
+      );
+    });
+
+    if (partialMatch) {
+      partial.push(jobSkill);
+    } else {
+      missing.push(jobSkill);
+    }
+  });
+
+  return { matched, partial, missing };
+}
+
+// ─── Skills breakdown component ───────────────────────────────────────────────
+function SkillsBreakdown({ skillsFactor }) {
+  if (!skillsFactor) return null;
+
+  const userSkills = skillsFactor.user_skills || [];
+  const jobSkills = skillsFactor.job_skills || [];
+
+  if (jobSkills.length === 0) return null;
+
+  const { matched, partial, missing } = categoriseSkills(userSkills, jobSkills);
 
   return (
-    <div className="jsc-reasoning">
-      {intro && <p className="jsc-reasoning-intro">{intro}</p>}
-      {bullets.length > 0 && (
-        <ul className="jsc-reasoning-list">
-          {bullets.map((line, i) => {
-            const isPositive = line.startsWith("+") || line.includes("+");
-            const isNegative = line.startsWith("–") || line.includes("–") || (line.includes(":") && line.includes("-"));
-            const color = isPositive && !isNegative ? "#3d7d52" : isNegative ? "#c0442a" : "#4b4035";
-            return (
-              <li key={i} className="jsc-reasoning-item" style={{ "--dot-color": color }}>
-                {line}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {narrative.map((line, i) => (
-        <p key={i} className="jsc-reasoning-narrative">{line}</p>
-      ))}
+    <div className="jsc-section">
+      <h3 className="jsc-section-title">🧰 Skills breakdown</h3>
+      <p className="jsc-skills-subtitle">
+        Comparing your skills against what this job requires.
+      </p>
+
+      <div className="jsc-skills-grid">
+        {/* Matched */}
+        <div className="jsc-skills-col jsc-skills-col--matched">
+          <div className="jsc-skills-col-header">
+            <span className="jsc-skills-col-dot" style={{ background: "#3d7d52" }} />
+            <span className="jsc-skills-col-title">You have</span>
+            <span className="jsc-skills-col-count">{matched.length}</span>
+          </div>
+          {matched.length === 0
+            ? <p className="jsc-skills-empty">None matched</p>
+            : matched.map((s, i) => (
+              <div key={i} className="jsc-skill-chip jsc-skill-chip--matched">{s}</div>
+            ))
+          }
+        </div>
+
+        {/* Partially matched */}
+        <div className="jsc-skills-col jsc-skills-col--partial">
+          <div className="jsc-skills-col-header">
+            <span className="jsc-skills-col-dot" style={{ background: "#c49a28" }} />
+            <span className="jsc-skills-col-title">Partial overlap</span>
+            <span className="jsc-skills-col-count">{partial.length}</span>
+          </div>
+          {partial.length === 0
+            ? <p className="jsc-skills-empty">None</p>
+            : partial.map((s, i) => (
+              <div key={i} className="jsc-skill-chip jsc-skill-chip--partial">{s}</div>
+            ))
+          }
+        </div>
+
+        {/* Missing */}
+        <div className="jsc-skills-col jsc-skills-col--missing">
+          <div className="jsc-skills-col-header">
+            <span className="jsc-skills-col-dot" style={{ background: "#c0442a" }} />
+            <span className="jsc-skills-col-title">You&apos;re missing</span>
+            <span className="jsc-skills-col-count">{missing.length}</span>
+          </div>
+          {missing.length === 0
+            ? <p className="jsc-skills-empty">None — great!</p>
+            : missing.map((s, i) => (
+              <div key={i} className="jsc-skill-chip jsc-skill-chip--missing">{s}</div>
+            ))
+          }
+        </div>
+      </div>
     </div>
   );
 }
@@ -101,6 +168,8 @@ function TagList({ items, color }) {
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function JobScoreCard({ result, occupationName, onClose }) {
   if (!result) return null;
+
+  const skillsFactor = result.factor_breakdown?.skills;
 
   return (
     <div className="jsc-overlay" role="dialog" aria-modal="true" aria-label="Job match score">
@@ -133,11 +202,8 @@ export default function JobScoreCard({ result, occupationName, onClose }) {
           </div>
         </div>
 
-        {/* Why this score — plain language reasoning */}
-        <div className="jsc-section">
-          <h3 className="jsc-section-title">💬 Why this score?</h3>
-          <ReasoningSection reasoning={result.reasoning} />
-        </div>
+        {/* Skills breakdown */}
+        <SkillsBreakdown skillsFactor={skillsFactor} />
 
         {/* Strengths + Challenges */}
         <div className="jsc-two-col">
