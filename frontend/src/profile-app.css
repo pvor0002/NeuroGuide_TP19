@@ -1381,10 +1381,218 @@ button:disabled {
 .q-screen {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   padding: 0;
   background: transparent;
+}
+
+/* Career Profile wizard reuses simplify-hero visuals from jobinput.css (see JSX). */
+
+/* Fullscreen wizard: occupy viewport below nav so the question card can size to remaining height */
+.profile-app.profile-app--fullscreen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-app.profile-app--fullscreen > .site-nav-header {
+  flex-shrink: 0;
+}
+
+.profile-app.profile-app--fullscreen .q-screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 721px) {
+  /* Hero + sticky stepper keep natural height; main grid fills leftover viewport below them. */
+  .profile-app.profile-app--fullscreen .q-screen > .simplify-hero {
+    flex-shrink: 0;
+  }
+
+  .profile-app.profile-app--fullscreen .q-screen > .q-steps {
+    flex-shrink: 0;
+  }
+
+  /* Tighter hero on desktop wizard frees vertical space for the question card area */
+  .profile-app.profile-app--fullscreen .simplify-hero--profile-wizard {
+    padding: clamp(0.95rem, 2.2vw, 1.55rem) clamp(1rem, 3vw, 2rem)
+      clamp(0.78rem, 1.8vw, 1.08rem);
+    clip-path: polygon(0 0, 100% 0, 100% 97%, 0 100%);
+  }
+
+  .profile-app.profile-app--fullscreen .simplify-hero--profile-wizard .simplify-hero-grid {
+    gap: clamp(0.6rem, 1.8vw, 1.15rem);
+  }
+
+  .profile-app.profile-app--fullscreen .simplify-hero--profile-wizard .simplify-hero-eyebrow {
+    margin-bottom: 0.4rem;
+    padding: 0.28rem 0.62rem;
+    font-size: 0.62rem;
+  }
+
+  .profile-app.profile-app--fullscreen .simplify-hero--profile-wizard .simplify-hero-title {
+    font-size: clamp(1.05rem, 1.9vw + 0.55rem, 1.52rem);
+    line-height: 1.14;
+    max-width: min(48ch, 100%);
+  }
+
+  .profile-app.profile-app--fullscreen .simplify-hero--profile-wizard .simplify-hero-back {
+    margin-top: 0.7rem;
+    font-size: 0.82rem;
+  }
+
+  .profile-app.profile-app--fullscreen .simplify-hero--profile-wizard .simplify-shape-svg {
+    width: min(100%, 158px);
+  }
+
+  .profile-app.profile-app--fullscreen .q-layout:not(.q-layout--profile-ready) {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-self: stretch;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
+    padding: clamp(6px, 1.2vw, 12px) clamp(14px, 2.5vw, 28px) clamp(8px, 1.5vw, 14px);
+    gap: clamp(10px, 1.8vw, 20px);
+  }
+
+  .profile-app.profile-app--fullscreen .q-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .profile-app.profile-app--fullscreen .q-screen-inner {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Card consumes remaining chrome (hero strip + sticky stepper + padding) */
+  .profile-app.profile-app--fullscreen .q-card.q-card--withscene {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    gap: clamp(8px, 1.2vw, 14px);
+    padding: clamp(10px, 1.5vw, 18px);
+    --q-scene-box: min(400px, 30vw, min(48dvh, 460px));
+    --q-option-text-size: 0.84rem;
+    --q-option-line: 1.38;
+    --q-option-weight: 500;
+  }
+
+  .profile-app.profile-app--fullscreen .q-card.q-card--withscene.q-card--support-scene {
+    --q-scene-box: min(480px, 38vw, min(54dvh, 600px));
+  }
+
+  .profile-app.profile-app--fullscreen .q-card.q-card--withscene > .q-card-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /* Top-align PNG with the question column (same row), not vertically centered */
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-scene-col {
+    justify-content: flex-start;
+  }
+
+  /* Body scroll if needed; Save & Next pinned at bottom */
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-card-col {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: clamp(0.28rem, 0.85vh, 0.58rem);
+    min-height: 0;
+    height: 100%;
+  }
+
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-card-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+    gap: clamp(0.52rem, 1.15vh, 0.92rem);
+    padding-right: 4px;
+  }
+
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-card-foot {
+    margin-top: 0;
+    padding-top: clamp(6px, 1vh, 10px);
+    border-top: 1px solid rgba(45, 41, 38, 0.08);
+    background: linear-gradient(180deg, rgba(255, 251, 248, 0) 0%, var(--card) 22%);
+  }
+
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-title {
+    font-size: clamp(0.98rem, 1.05vw + 0.42rem, 1.22rem);
+    line-height: 1.34;
+    margin-bottom: 0.1rem;
+  }
+
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-subtitle {
+    font-size: 0.86rem;
+    line-height: 1.42;
+    margin-bottom: 0;
+  }
+
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-clear-row {
+    margin-top: 0;
+    margin-bottom: 0.35rem;
+  }
+
+  .profile-app.profile-app--fullscreen .q-card--withscene .q-choice-stack {
+    gap: 0.5rem;
+  }
+
+  .profile-app.profile-app--fullscreen .q-card--withscene .energy-check-grid {
+    gap: 8px;
+  }
+
+  .profile-app.profile-app--fullscreen .q-card--withscene .energy-check-item {
+    padding: 6px 10px 6px 8px;
+  }
+
+  .profile-app.profile-app--fullscreen .q-actions .button {
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: 0.88rem;
+  }
+
+  .profile-app.profile-app--fullscreen .q-sidepanel {
+    max-height: 100%;
+    align-self: stretch;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+/* Wizard (non–Profile Ready): fill viewport below the sticky stepper so the
+   question card can cap height and keep Save / Next in view without page scroll. */
+.q-screen > .q-layout:not(.q-layout--profile-ready) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.q-layout:not(.q-layout--profile-ready) .q-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.q-layout:not(.q-layout--profile-ready) .q-screen-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .q-top-progress {
@@ -1512,6 +1720,43 @@ button:disabled {
   gap: 18px;
 }
 
+.q-card.q-card--withscene {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Header + sticky stepper + inset — keeps actions in the first viewport on typical laptops */
+  max-height: min(1040px, calc(100dvh - 120px));
+  /* Same square slot for every question PNG (object-fit: contain inside). */
+  --q-scene-box: min(580px, 48vw, calc(100dvh - 142px));
+}
+
+/* Support Setup: larger illustration vs question column; dotted rule only under headline (right column). */
+.q-card-grid.q-card-grid--support-scenes {
+  grid-template-columns: minmax(0, 11fr) minmax(0, 14fr);
+}
+
+.q-card-matrix-head--support {
+  grid-template-columns: minmax(0, 11fr) minmax(0, 14fr);
+}
+
+.q-card-matrix-head--support .q-card-matrix-head-meta {
+  padding-bottom: 0.55rem;
+  border-bottom: 1px dotted rgba(45, 41, 38, 0.28);
+}
+
+.q-card.q-card--withscene.q-card--support-scene {
+  --q-scene-box: min(700px, 58vw, calc(100dvh - 96px));
+}
+
+@media (max-width: 980px) {
+  .q-card.q-card--withscene {
+    --q-scene-box: min(520px, 52vw, calc(100dvh - 152px));
+  }
+
+  .q-card.q-card--withscene.q-card--support-scene {
+    --q-scene-box: min(600px, 60vw, calc(100dvh - 128px));
+  }
+}
+
 /* Profile Ready (step 5) — full-width main column, no inner “card” chrome. */
 .q-card--profileready {
   max-width: none;
@@ -1546,6 +1791,249 @@ button:disabled {
   position: relative;
 }
 
+/* Staff-style Profile page: heading, ~40/60 split, full-width footer (theme colors unchanged). */
+.q-profile-ready-page-heading {
+  margin: 0 0 0.15rem;
+  padding-bottom: clamp(0.25rem, 1vw, 0.55rem);
+}
+
+.q-profile-ready-page-title {
+  margin: 0 0 0.28rem;
+  font-size: clamp(1.55rem, 3vw, 2.08rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.18;
+}
+
+.q-profile-ready-page-sub {
+  margin: 0;
+  font-size: 0.93rem;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+.q-profile-ready-top-split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: clamp(1rem, 2.2vw, 1.75rem);
+  align-items: stretch;
+  width: 100%;
+}
+
+.q-profile-ready-surface {
+  box-sizing: border-box;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #fff 0%, var(--peach-50) 100%);
+  box-shadow: 0 8px 28px rgba(45, 41, 38, 0.06);
+  padding: clamp(1.22rem, 2.2vw, 1.62rem);
+}
+
+.q-profile-ready-identity-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.48rem;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.q-profile-ready-identity-name {
+  margin: 0;
+  font-size: clamp(1.18rem, 2.3vw, 1.62rem);
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.q-profile-ready-identity-status {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.q-profile-ready-identity-status.is-complete {
+  color: #258f50;
+}
+
+.q-profile-ready-identity-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  max-width: 28rem;
+}
+
+.q-profile-ready-avatar-ring {
+  margin-top: 0.45rem;
+  width: min(220px, 70vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 6px solid rgba(45, 41, 38, 0.14);
+  box-shadow: 0 14px 36px rgba(45, 41, 38, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.q-profile-ready-avatar-ring img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.q-profile-ready-bio-title {
+  margin: 0 0 0.82rem;
+  font-size: 1.06rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.q-profile-ready-edit-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.48rem;
+  margin: 0 0 1.05rem;
+  padding-bottom: 0.88rem;
+  border-bottom: 1px solid rgba(45, 41, 38, 0.08);
+}
+
+.q-profile-ready-edit-chip {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #2f7ce0;
+  padding: 0.34rem 0.62rem;
+  border-radius: 999px;
+  border: 1px solid rgba(47, 124, 224, 0.3);
+  background: rgba(47, 124, 224, 0.07);
+}
+
+.q-profile-ready-edit-chip:hover {
+  background: rgba(47, 124, 224, 0.13);
+}
+
+.q-profile-ready-edit-chip:focus-visible {
+  outline: 2px solid #2f7ce0;
+  outline-offset: 2px;
+}
+
+.q-profile-ready-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 1.35rem) clamp(1rem, 2vw, 1.7rem);
+  margin: 0;
+}
+
+.q-profile-ready-kv {
+  margin: 0;
+}
+
+.q-profile-ready-kv dt {
+  font-size: 0.71rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.34rem;
+}
+
+.q-profile-ready-kv dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.46;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.q-profile-ready-kv--full {
+  grid-column: 1 / -1;
+}
+
+.q-profile-ready-insights-compact {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--ink);
+  font-size: 0.87rem;
+  line-height: 1.5;
+}
+
+.q-profile-ready-id-stack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.q-profile-ready-id-create-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.q-profile-id-help--inline {
+  margin: 0;
+  max-width: 26rem;
+}
+
+.q-profile-ready-sync--details {
+  margin-top: 0.95rem;
+}
+
+.q-profile-ready-footer-panel {
+  width: 100%;
+}
+
+.q-profile-ready-footer-title {
+  margin: 0 0 0.88rem;
+  font-size: 1.04rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.q-profile-ready-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.62rem 0.82rem;
+}
+
+.q-profile-ready-footer-sync-meta {
+  flex-basis: 100%;
+  font-size: 0.79rem;
+  color: var(--ink-soft);
+  margin: 0.15rem 0 0;
+}
+
+@media (max-width: 920px) {
+  .q-profile-ready-top-split {
+    grid-template-columns: 1fr;
+  }
+
+  .q-profile-ready-kv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .q-profile-ready-kv--full {
+    grid-column: 1;
+  }
+}
+
+@media (min-width: 921px) {
+  .q-profile-ready-footer-actions .q-profile-cta-gate {
+    flex-basis: 100%;
+  }
+}
+
 .q-profile-prev-top {
   display: flex;
   justify-content: flex-start;
@@ -1557,12 +2045,21 @@ button:disabled {
   align-items: center;
   gap: 0.38rem;
   padding: 0.3rem 0.55rem;
+  font-weight: 700;
   line-height: 1.15;
 }
 
 .q-profile-prev-icon {
   font-size: 0.98rem;
   line-height: 1;
+}
+
+/* Previous step control (quiz header row); illustration column no longer wraps it. */
+.q-scene-col .q-profile-prev-top {
+  align-self: stretch;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  box-sizing: border-box;
 }
 
 .q-profile-hero-card {
@@ -1581,6 +2078,76 @@ button:disabled {
   overflow: hidden;
 }
 
+/* Tighter profile summary strip so more of the page fits in view. */
+.q-profile-hero-card--compact {
+  align-items: center;
+  gap: 0.65rem 1rem;
+  padding: 0.65rem 0.9rem;
+}
+
+.q-profile-hero-card--compact .q-profile-hero-identity {
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.q-profile-hero-card--compact .q-profile-avatar-wrap .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+}
+
+.q-profile-hero-card--compact .q-title--profile-summary {
+  margin: 0;
+  font-size: clamp(1rem, 1.35vw, 1.15rem);
+  line-height: 1.25;
+}
+
+.q-profile-hero-card--compact .q-complete-chip {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+}
+
+.q-profile-hero-card--compact .q-subtitle--hero-compact {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.q-profile-hero-card--compact .q-subtitle-hero-hint {
+  color: #8a553d;
+  font-weight: 600;
+}
+
+.q-profile-hero-card--compact .q-profile-hero-right {
+  gap: 0.25rem;
+  max-width: min(100%, 280px);
+}
+
+.q-profile-hero-card--compact .q-profile-id-inline--hero {
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+}
+
+.q-profile-hero-card--compact .q-profile-ready-sync--hero {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.q-profile-hero-card--compact .q-profile-id-help {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+@media (max-width: 700px) {
+  .q-profile-hero-card--compact .q-profile-hero-right {
+    width: 100%;
+    max-width: none;
+  }
+}
+
 /* Dev illustration + four summary cards: image left, grid right (Profile Ready) */
 .q-profile-summary-and-dev {
   display: grid;
@@ -1590,6 +2157,12 @@ button:disabled {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+}
+
+@media (min-width: 901px) {
+  .q-profile-summary-and-dev {
+    grid-template-columns: minmax(260px, 400px) minmax(0, 1fr);
+  }
 }
 
 .q-profile-dev-panel {
@@ -1701,18 +2274,130 @@ button:disabled {
 }
 
 .q-profile-dashboard-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
-  align-items: start;
-  gap: clamp(1.5rem, 2.5vw, 2.25rem);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(1.75rem, 2.8vw, 2.5rem);
   width: 100%;
 }
 
-.q-profile-primary {
-  min-width: 0;
+/* Dev portrait + summary grid + Skills rail (single row, equal height). */
+.q-profile-dev-summary-aside {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(200px, 300px);
+  gap: clamp(1.15rem, 2.2vw, 1.85rem);
+  align-items: stretch;
+  width: 100%;
+}
+
+/* Portrait column: dev.png + Next step card below. */
+.q-profile-dev-stack {
   display: flex;
   flex-direction: column;
-  gap: clamp(1.5rem, 2vw, 2rem);
+  align-items: center;
+  gap: clamp(0.65rem, 1.2vw, 0.95rem);
+  min-width: min(280px, 24vw);
+  max-width: 320px;
+  width: 100%;
+  justify-self: center;
+  align-self: start;
+}
+
+.q-profile-dev-stack .q-profile-dev-figure {
+  width: 100%;
+}
+
+.q-profile-dev-figure {
+  margin: 0;
+  flex-shrink: 0;
+  justify-self: center;
+}
+
+.q-profile-dev-circle {
+  width: min(280px, 24vw);
+  min-width: 168px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 5px solid rgba(45, 41, 38, 0.12);
+  box-shadow: 0 12px 40px rgba(45, 41, 38, 0.1);
+  background: var(--peach-50);
+}
+
+.q-profile-dev-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.q-profile-summary-col--dashboard {
+  min-width: 0;
+  align-self: stretch;
+}
+
+/* Right rail: Skills card matches height of Work + Job focus + Support column. */
+.q-profile-skills-rail {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.q-profile-skills-rail .summary-block--skills-stretch {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.q-profile-skills-rail .summary-block--skills-stretch .summary-list {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.q-profile-skills-rail .summary-block-head {
+  flex-wrap: nowrap;
+  gap: 0.5rem 0.85rem;
+}
+
+.q-profile-skills-rail .summary-block-title-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.q-profile-skills-rail .summary-block-edit {
+  flex-shrink: 0;
+}
+
+.q-profile-skills-rail .summary-block--skills h3 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.q-profile-next-aside--under-portrait {
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+}
+
+.summary-block--dashboard .summary-block-meaning {
+  margin: -0.08rem 0 0.62rem;
+  padding: 0;
+  font-size: 0.79rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(45, 41, 38, 0.48);
+}
+
+.summary-block--dashboard.summary-block--support-wide .summary-block-meaning {
+  margin-bottom: 0.55rem;
 }
 
 .q-profile-next-aside {
@@ -1749,54 +2434,121 @@ button:disabled {
   line-height: 1.45;
 }
 
+/* Profile Ready 2×2 summary — bordered cards, tinted accent bars, uppercase labels */
 .summary-block--dashboard {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  padding: clamp(0.9rem, 1.2vw, 1.1rem) clamp(1rem, 1.4vw, 1.15rem);
-  border: 1px solid rgba(72, 62, 53, 0.14);
-  background: linear-gradient(180deg, #fffefd 0%, #fbf7f4 100%);
-  box-shadow: 0 8px 22px rgba(45, 41, 38, 0.08);
+  gap: 0;
+  padding: clamp(1rem, 1.3vw, 1.22rem) clamp(1rem, 1.35vw, 1.22rem)
+    clamp(0.92rem, 1.15vw, 1.06rem)
+    clamp(1.05rem + 10px, 1.55vw + 10px, 1.42rem + 10px);
+  border: 1px solid rgba(72, 62, 53, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(45, 41, 38, 0.04), 0 10px 24px rgba(45, 41, 38, 0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .summary-block--dashboard::before {
   content: "";
   position: absolute;
-  top: 0.7rem;
-  left: 0.5rem;
-  bottom: 0.7rem;
+  top: 14px;
+  bottom: 14px;
+  left: 11px;
   width: 4px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #dcb8a0 0%, #efded2 100%);
+}
+
+.summary-block--dashboard.summary-block--type::before {
+  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+}
+
+.summary-block--dashboard.summary-block--work::before {
+  background: linear-gradient(180deg, #fbbf24 0%, #ea580c 100%);
+}
+
+.summary-block--dashboard.summary-block--support::before {
+  background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+}
+
+.summary-block--dashboard.summary-block--jobs::before {
+  background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
+}
+
+.summary-block--dashboard.summary-block--skills::before {
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+}
+
+.summary-block--dashboard.summary-block--roles::before {
+  background: linear-gradient(180deg, #818cf8 0%, #4f46e5 100%);
 }
 
 .summary-block--dashboard:hover {
-  transform: translateY(-2px);
-  border-color: rgba(110, 93, 80, 0.24);
-  box-shadow: 0 12px 28px rgba(45, 41, 38, 0.11);
+  transform: translateY(-1px);
+  border-color: rgba(110, 93, 80, 0.2);
+  box-shadow: 0 14px 32px rgba(45, 41, 38, 0.1);
 }
 
-.summary-block--dashboard .summary-list {
-  line-height: 1.7;
+.summary-block--dashboard .summary-list,
+.summary-block--dashboard .summary-list--dashboard {
+  line-height: 1.65;
   margin: 0;
+  padding: 0.05rem 0 0;
+  list-style: none;
 }
 
 .summary-block--dashboard .summary-item {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.35rem;
-  margin-bottom: 0.65rem;
+  gap: 0;
+  margin-bottom: 1rem;
+}
+
+.summary-block--dashboard .summary-item:last-child {
+  margin-bottom: 0;
 }
 
 .summary-block-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem 1rem;
   flex-wrap: wrap;
+}
+
+.summary-block--dashboard .summary-block-head {
+  padding-bottom: 0.72rem;
+  margin-bottom: 0.42rem;
+  border-bottom: 1px solid rgba(45, 41, 38, 0.08);
+  align-items: center;
+}
+
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--work .summary-block-head,
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--roles .summary-block-head {
+  flex-wrap: nowrap;
+  gap: 0.5rem 0.85rem;
+}
+
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--work .summary-block-title-row,
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--roles .summary-block-title-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--work .summary-block-edit,
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--roles .summary-block-edit {
+  flex-shrink: 0;
+}
+
+/* Long headings share the row with Edit without overflowing equal columns */
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--work h3,
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--roles h3 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .summary-block-title-row {
@@ -1808,22 +2560,57 @@ button:disabled {
 
 .summary-block--dashboard h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: clamp(0.86rem, 1vw, 0.92rem);
+  font-weight: 800;
   line-height: 1.35;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .summary-block-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
-  background: linear-gradient(180deg, #f8eee8 0%, #f3e6df 100%);
-  border: 1px solid #ead4c8;
-  color: #1f1d1b;
   flex-shrink: 0;
+}
+
+.summary-block--dashboard.summary-block--type .summary-block-icon {
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
+
+.summary-block--dashboard.summary-block--work .summary-block-icon {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fde68a;
+  color: #c2410c;
+}
+
+.summary-block--dashboard.summary-block--support .summary-block-icon {
+  background: linear-gradient(180deg, #ecfdf3 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+.summary-block--dashboard.summary-block--jobs .summary-block-icon {
+  background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 1px solid #ddd6fe;
+  color: #6d28d9;
+}
+
+.summary-block--dashboard.summary-block--skills .summary-block-icon {
+  background: linear-gradient(180deg, #ecfeff 0%, #cffafe 100%);
+  border: 1px solid #a5f3fc;
+  color: #0e7490;
+}
+
+.summary-block--dashboard.summary-block--roles .summary-block-icon {
+  background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
+  border: 1px solid #c7d2fe;
+  color: #4338ca;
 }
 
 .pr-sec-ico {
@@ -1847,9 +2634,150 @@ button:disabled {
   white-space: nowrap;
 }
 
+.summary-block--dashboard .summary-block-edit {
+  border: none;
+  background: transparent;
+  padding: 0.28rem 0.42rem;
+  color: #2f7ce0;
+}
+
+.summary-block--dashboard .summary-block-edit:hover {
+  background: rgba(47, 124, 224, 0.1);
+}
+
+.summary-block--dashboard .summary-block-edit:focus-visible {
+  outline: 2px solid #2f7ce0;
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
 .summary-block-edit:hover {
   background: #faf6f2;
   border-color: rgba(45, 41, 38, 0.2);
+}
+
+.summary-block--dashboard .summary-block-edit-ico {
+  opacity: 1;
+  color: #2f7ce0;
+}
+
+.summary-block-edit-ico {
+  display: flex;
+  opacity: 0.85;
+}
+
+.summary-block--dashboard .summary-key {
+  display: block;
+  margin: 0 0 0.38rem;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #979088;
+}
+
+.summary-field {
+  width: 100%;
+  min-width: 0;
+}
+
+.summary-placeholder {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-style: italic;
+  font-weight: 500;
+  color: #9c958c;
+  line-height: 1.52;
+  text-align: left;
+}
+
+.summary-placeholder:hover {
+  color: #6f685f;
+}
+
+.summary-placeholder:focus-visible {
+  outline: 2px solid #2f7ce0;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.summary-placeholder-mark,
+.summary-placeholder-arr {
+  font-style: normal;
+}
+
+.summary-role-pill {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.52rem 0.82rem;
+  border-radius: 999px;
+  background: #f4f3f2;
+  border: 1px solid rgba(45, 41, 38, 0.08);
+  color: #4a433c;
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.summary-profile-pill {
+  display: inline-block;
+  padding: 0.48rem 0.92rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f8fbff 0%, #eff6ff 100%);
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.summary-skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.48rem;
+}
+
+.summary-skill-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.68rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #1d4ed8;
+  background: rgba(47, 124, 224, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.42);
+}
+
+.summary-muted-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.summary-muted-tag {
+  display: inline-flex;
+  padding: 0.34rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #49433c;
+  background: #f5f4f2;
+  border: 1px solid rgba(45, 41, 38, 0.1);
 }
 
 .summary-block-edit-ico {
@@ -1863,6 +2791,173 @@ button:disabled {
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 4px 20px rgba(45, 41, 38, 0.05);
+}
+
+/* Profile Ready rail: tighter “Next step” card alongside summary grid. */
+.q-profile-next-aside--rail .q-profile-cta-section {
+  position: relative;
+  padding: 0.78rem 0.85rem 0.74rem;
+  border-radius: 14px;
+  border: 1px solid rgba(47, 124, 224, 0.4);
+  border-left: 4px solid var(--accent-strong);
+  background: linear-gradient(145deg, #f5f9ff 0%, #ffffff 45%, #f0f6ff 100%);
+  box-shadow:
+    0 6px 26px rgba(47, 124, 224, 0.14),
+    0 2px 10px rgba(45, 41, 38, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  animation: q-profile-next-card-attention 3.2s ease-in-out infinite;
+  will-change: transform, box-shadow;
+}
+
+@keyframes q-profile-next-card-attention {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow:
+      0 6px 26px rgba(47, 124, 224, 0.14),
+      0 2px 10px rgba(45, 41, 38, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 0 rgba(47, 124, 224, 0);
+  }
+  50% {
+    transform: translateY(-6px);
+    box-shadow:
+      0 12px 36px rgba(47, 124, 224, 0.24),
+      0 6px 16px rgba(45, 41, 38, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 0 12px rgba(47, 124, 224, 0.06);
+  }
+}
+
+.q-profile-next-aside--rail .q-profile-cta-heading {
+  margin: 0 0 0.48rem;
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: #2358a8;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-heading-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.q-profile-next-aside--rail .q-profile-next-arrow-callout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #2f7ce0;
+}
+
+.q-profile-next-aside--rail .q-profile-next-arrow-callout svg {
+  width: 1.12rem;
+  height: 1.12rem;
+  display: block;
+  animation: q-profile-next-arrow-nudge 1.1s ease-in-out infinite;
+}
+
+@keyframes q-profile-next-arrow-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+}
+
+.q-profile-next-aside--rail .q-profile-next-flow {
+  margin: 0 0 0.52rem;
+  padding-left: 0.95rem;
+  gap: 0.1rem;
+  font-size: 0.75rem;
+  line-height: 1.38;
+  color: #5e564d;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-list {
+  gap: 0.42rem;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-item .q-profile-cta-btn {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  transition:
+    transform 0.22s cubic-bezier(0.34, 1.35, 0.64, 1),
+    box-shadow 0.22s ease,
+    filter 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-item .q-profile-cta-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(47, 124, 224, 0.22), 0 4px 8px rgba(45, 41, 38, 0.08);
+}
+
+.q-profile-next-aside--rail .q-profile-cta-item .q-profile-cta-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(45, 41, 38, 0.1);
+  transition-duration: 0.08s;
+}
+
+.q-profile-next-aside--rail .button.primary.q-profile-cta-btn:hover {
+  filter: brightness(1.06);
+  box-shadow:
+    0 12px 28px rgba(47, 124, 224, 0.4),
+    0 6px 12px rgba(45, 41, 38, 0.1);
+}
+
+.q-profile-next-aside--rail .button.ghost.q-profile-cta-btn--secondary:hover {
+  background: rgba(47, 124, 224, 0.08);
+  border-color: rgba(47, 124, 224, 0.45);
+  color: var(--accent-strong);
+  box-shadow: 0 8px 20px rgba(47, 124, 224, 0.15);
+}
+
+.q-profile-next-aside--rail .q-profile-cta-item .q-profile-cta-btn:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-profile-next-aside--rail .q-profile-cta-section {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+
+  .q-profile-next-aside--rail .q-profile-next-arrow-callout svg {
+    animation: none;
+  }
+
+  .q-profile-next-aside--rail .q-profile-cta-item .q-profile-cta-btn {
+    transition: none;
+  }
+
+  .q-profile-next-aside--rail .q-profile-cta-item .q-profile-cta-btn:hover,
+  .q-profile-next-aside--rail .q-profile-cta-item .q-profile-cta-btn:active,
+  .q-profile-next-aside--rail .button.primary.q-profile-cta-btn:hover,
+  .q-profile-next-aside--rail .button.ghost.q-profile-cta-btn--secondary:hover {
+    transform: none;
+    filter: none;
+    box-shadow: 0 2px 10px rgba(45, 41, 38, 0.08);
+  }
+}
+
+.q-profile-next-aside--rail .q-profile-next-sync {
+  margin-top: 0.42rem;
+  align-items: center;
+}
+
+.q-profile-next-aside--rail .q-profile-next-sync .button {
+  font-size: 0.74rem;
+  padding: 0.38rem 0.55rem;
 }
 
 .q-profile-cta-heading {
@@ -2066,42 +3161,86 @@ button:disabled {
 
 /* ----------------------------------------------------------------------- */
 /* Two-column layout when a scene is present:                              */
-/*   left  - "Question n/m" + illustration                                 */
-/*   right - block label + question + options                              */
+/*   top   - Previous step | block eyebrow + question count (full width,   */
+/*           columns align with illustration / question below)               */
+/*   left  - illustration                                                  */
+/*   right - question + options                                            */
 /* ----------------------------------------------------------------------- */
 
 .q-card-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 400px) minmax(0, 1.65fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  grid-template-rows: auto minmax(0, 1fr);
   column-gap: clamp(18px, 3.2vw, 44px);
   row-gap: 0;
-  align-items: start;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.q-card-matrix-head {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  column-gap: clamp(18px, 3.2vw, 44px);
+  align-items: center;
+  align-self: stretch;
+  margin: 0 0 14px;
+  padding-bottom: 0;
+  min-width: 0;
+}
+
+.q-card-matrix-head-prev {
+  justify-self: start;
+  align-self: center;
+  min-width: 0;
+}
+
+.q-card-matrix-head-spacer {
+  display: block;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.q-card-matrix-head-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+  width: 100%;
+}
+
+.q-profile-prev-btn--matrix {
+  margin: 0;
 }
 
 .q-card-col {
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  height: 100%;
 }
 
 .q-card--withscene .q-card-col {
   gap: clamp(0.65rem, 0.2lh + 0.45rem, 0.9rem);
 }
 
-/* Actions sit in the right column (under answers) so a tall left image
-   does not leave a large gap to Back / Save & exit. Space scales with
-   line-height and viewport. */
+/* Save & exit / Next: stay at bottom of the question column; body scrolls if needed. */
 .q-card--withscene .q-card-col > .q-card-foot {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
   width: 100%;
   min-width: 0;
+  flex-shrink: 0;
   font-size: 1rem;
   line-height: 1.45;
-  /* Extra air between answers and Back / Save & exit (see q-card-col gap) */
-  margin-top: clamp(0.8rem, 0.42lh + 0.45rem + 0.3vmin, 1.4rem);
+  margin-top: clamp(0.45rem, 0.25lh + 0.35rem, 0.85rem);
+  padding-top: 0.15rem;
 }
 
 .q-card--withscene .q-card-col > .q-card-foot .q-message {
@@ -2114,25 +3253,12 @@ button:disabled {
 
 .q-scene-col {
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 14px;
-}
-
-.q-scene-count {
-  margin: 0;
-  width: 100%;
-  text-align: center;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--ink-soft);
-  letter-spacing: 0.02em;
-  background: rgba(45, 41, 38, 0.06);
-  padding: 6px 12px;
-  border-radius: 999px;
-  box-sizing: border-box;
-  max-width: 100%;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
 }
 
 /* The illustration sits transparently beside the question - no background,
@@ -2145,7 +3271,7 @@ button:disabled {
   background: transparent;
   min-height: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   overflow: visible;
   isolation: isolate;
@@ -2157,33 +3283,44 @@ button:disabled {
   content: none;
 }
 
-.q-scene-frame {
+.q-card--withscene .q-scene-frame {
   position: relative;
   z-index: 1;
-  width: 100%;
-  max-width: 400px;
+  box-sizing: border-box;
+  width: min(100%, var(--q-scene-box));
+  max-width: min(100%, var(--q-scene-box));
   aspect-ratio: 1 / 1;
+  height: auto;
+  max-height: var(--q-scene-box);
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-inline: auto;
+  flex-shrink: 0;
 }
 
 /* The illustration sits directly on the card - no drop-shadow, no float
    animation. The PNGs themselves are visually active enough. */
-.q-scene-art {
+.q-card--withscene .q-scene-art {
   width: 100%;
   height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
+  object-position: center center;
   display: block;
 }
 
-/* --- Tablet: illustration column first (left in LTR), question column flexible. */
+/* --- Tablet: keep 40/60 split; tighten art cap on shorter viewports. */
 @media (max-width: 980px) {
   .q-card-grid {
-    grid-template-columns: minmax(220px, 320px) minmax(0, 1.5fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     column-gap: clamp(24px, 3.5vw, 48px);
   }
-  .q-scene-frame { max-width: 300px; }
+
+  .q-card-matrix-head {
+    column-gap: clamp(24px, 3.5vw, 48px);
+  }
 }
 
 @media (max-width: 1200px) {
@@ -2199,19 +3336,58 @@ button:disabled {
   }
 
   .q-card-grid {
-    grid-template-columns: minmax(190px, 250px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    column-gap: 16px;
+  }
+
+  .q-card-matrix-head {
     column-gap: 16px;
   }
 }
 
-/* --- Mobile: stack - scene (first in source) on top, then the question. --- */
+/* --- Mobile: stack — header strip, illustration, question column. --- */
 @media (max-width: 720px) {
+  .q-card.q-card--withscene {
+    max-height: none;
+    --q-scene-box: min(352px, 88vw, calc(100dvh - 200px));
+  }
+
+  .q-card.q-card--withscene.q-card--support-scene {
+    --q-scene-box: min(400px, 92vw, calc(100dvh - 180px));
+  }
+
   .q-card-grid {
     grid-template-columns: 1fr;
     column-gap: 0;
     row-gap: 18px;
+    grid-template-rows: auto auto auto;
   }
-  .q-scene-frame { max-width: 260px; }
+
+  .q-card-matrix-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 12px;
+    margin-bottom: 10px;
+    padding-bottom: 0;
+    grid-template-columns: none;
+  }
+
+  .q-card-matrix-head-meta {
+    justify-content: flex-end;
+    flex: 1 1 auto;
+    min-width: min(100%, 20rem);
+  }
+
+  .q-card-matrix-head-prev {
+    justify-self: auto;
+  }
+
+  /* One column reads better for long support labels on narrow screens. */
+  .q-card--withscene .support-needs-step .energy-check-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .q-card-body {
@@ -2255,9 +3431,13 @@ button:disabled {
   font-weight: 400;
 }
 
-/* Spacing: question text → options, and more room above the first option / below Clear all. */
+/* Spacing: question text → options; scroll inside body if the step is tall. */
 .q-card--withscene .q-card-body {
   gap: 1.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .q-card--withscene .q-subtitle,
@@ -2280,6 +3460,47 @@ button:disabled {
   --q-option-text-size: 0.9rem;
   --q-option-line: 1.45;
   --q-option-weight: 500;
+}
+
+/* Work-energy step: tighter copy after removing “Best with / Best in”. */
+.q-card--withscene .energy-patterns-step {
+  --q-option-text-size: 0.78rem;
+  --q-option-line: 1.38;
+  --q-option-weight: 500;
+}
+
+.q-card--withscene .energy-patterns-step .energy-check-item {
+  padding: 6px 11px 6px 8px;
+}
+
+.q-card--withscene .energy-patterns-step .energy-check-grid {
+  gap: 9px;
+}
+
+/* Support-needs: two columns max, grid rows so checkbox aligns with wrapped text cleanly. */
+.q-card--withscene .support-needs-step .energy-check-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.q-card--withscene .support-needs-step .energy-check-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 10px;
+  align-items: start;
+  justify-items: start;
+  border-radius: 14px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.q-card--withscene .support-needs-step .energy-check-box {
+  margin-top: 0.42em;
+  margin-right: 0;
+}
+
+.q-card--withscene .support-needs-step .energy-check-label {
+  min-width: 0;
 }
 
 .q-card--withscene .q-choice,
@@ -3122,8 +4343,8 @@ button:disabled {
   min-width: 0;
 }
 
-.q-layout--profile-ready .q-profile-summary-col .q-profile-summary-grid,
-.q-layout--profile-ready .q-profile-primary .q-profile-summary-grid {
+.q-layout--profile-ready .q-profile-summary-col--dashboard .q-profile-summary-grid,
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row {
   display: grid;
   width: 100%;
   min-width: 0;
@@ -3131,22 +4352,87 @@ button:disabled {
   margin-top: 0;
   box-sizing: border-box;
   gap: clamp(12px, 1.4vw, 18px);
+  /* Equal-width pair: Work Preferences | Job focus (Edit stays on one line). */
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   justify-content: stretch;
   justify-items: stretch;
 }
 
-.q-layout--profile-ready .q-profile-primary .q-profile-summary-grid .summary-block {
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .summary-block {
   min-width: 0;
   width: 100%;
   max-width: none;
   box-sizing: border-box;
 }
 
-@media (max-width: 1024px) {
-  .q-profile-dashboard-body {
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .summary-block--support-wide {
+  grid-column: 1 / -1;
+}
+
+.summary-support-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 1.65rem);
+  width: 100%;
+  padding: 0.05rem 0 0;
+  box-sizing: border-box;
+}
+
+.summary-support-two-col-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.summary-support-two-col-cell .summary-key {
+  display: block;
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.summary-support-two-col-value {
+  min-width: 0;
+  line-height: 1.65;
+}
+
+@media (max-width: 520px) {
+  .summary-support-two-col {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .q-profile-dev-summary-aside {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .q-profile-dev-figure {
+    justify-self: center;
+  }
+
+  .q-profile-next-aside--rail {
+    width: 100%;
+    max-width: 520px;
+    margin-inline: auto;
+  }
+
+  .q-profile-skills-rail {
+    width: 100%;
+    max-width: 520px;
+    margin-inline: auto;
+  }
+
+  .q-profile-skills-rail .summary-block--skills-stretch {
+    min-height: 0;
+    height: auto;
+    flex: 0 1 auto;
   }
 }
 
@@ -3166,7 +4452,7 @@ button:disabled {
 }
 
 @media (max-width: 700px) {
-  .q-layout--profile-ready .q-profile-primary .q-profile-summary-grid {
+  .q-layout--profile-ready .q-profile-summary-grid--dashboard-row {
     grid-template-columns: 1fr;
   }
 
@@ -3617,11 +4903,8 @@ button:disabled {
 }
 
 /* =========================================================================
-   Progress stepper — "Progress N/M" heading + numbered circle for each
-   block with its STEP N / title caption always visible. The active step's
-   circle and title are blue; completed steps turn green with a check;
-   future steps are muted gray. Every step is a clickable button so
-   visitors can preview upcoming sections or jump back.
+   Progress stepper — circular Progress N/M (completion ring) flush left,
+   numbered step circles + captions in one shorter row (scroll when tight).
    ========================================================================= */
 
 .q-steps {
@@ -3629,53 +4912,121 @@ button:disabled {
   top: 0;
   z-index: 5;
   /* Match .q-layout horizontal insets so the full-width stepper lines up with the page grid. */
-  padding: 10px clamp(16px, 3vw, 36px) 12px;
+  padding: 6px clamp(16px, 3vw, 36px) 8px;
   background: #ffffff;
   border-bottom: 1px solid rgba(45, 41, 38, 0.06);
   box-sizing: border-box;
   width: 100%;
 }
 
-.q-steps-header {
+.q-steps-inner {
   max-width: min(1480px, 100%);
   width: 100%;
-  margin: 0 auto 8px;
+  margin: 0 auto;
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 10px;
+  gap: clamp(10px, 2vw, 18px);
+  min-width: 0;
 }
 
-.q-steps-heading {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--ink);
-  letter-spacing: -0.01em;
+.q-steps-completion-ring-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  align-self: center;
+  max-width: 100%;
+  /* Ring colors — align with stepper (.is-active blue, .is-done green, warm track) */
+  --q-ring-seg-active: var(--accent-strong);
+  --q-ring-seg-done: #4eb377;
+  --q-ring-seg-track: color-mix(in srgb, var(--ink) 14%, var(--peach-100) 86%);
 }
 
-.q-steps-badge {
-  display: inline-flex;
+.q-steps-completion-ring-body {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  flex-shrink: 0;
+}
+
+.q-steps-completion-ring-wrap[data-complete="true"] .q-steps-completion-svg {
+  filter: drop-shadow(0 2px 10px rgba(78, 179, 119, 0.22));
+}
+
+.q-steps-completion-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.q-steps-completion-hub {
+  position: absolute;
+  inset: 16px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: rgba(47, 124, 224, 0.12);
-  color: #2f7ce0;
-  font-size: 0.78rem;
+  gap: 4px;
+  text-align: center;
+  pointer-events: none;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.q-steps-completion-heading {
+  display: block;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  line-height: 1.05;
+  max-width: 100%;
+  text-align: center;
+}
+
+.q-steps-completion-ring-wrap[data-complete="true"] .q-steps-completion-heading {
+  color: var(--ink);
+}
+
+.q-steps-completion-ratio {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.22rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.q-steps-completion-ring-wrap[data-complete="true"] .q-steps-completion-ratio {
+  color: #2a6b45;
+}
+
+.q-steps-completion-slash {
+  opacity: 0.5;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  margin-inline: 0.06em;
+  color: var(--ink-soft);
+  font-size: 0.92em;
 }
 
 .q-steps-list {
   list-style: none;
   padding: 0;
-  margin: 0 auto;
-  max-width: min(1480px, 100%);
-  width: 100%;
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .q-steps-item {
@@ -3683,8 +5034,14 @@ button:disabled {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding-top: 4px;
+  padding-top: 0;
   min-width: 0;
+  --q-steps-track-h: 56px;
+}
+
+.q-steps-item--profile-milestone {
+  /* Taller track so milestone + larger good.png clear the shared step row. */
+  --q-steps-track-h: 102px;
 }
 
 /* Connector line from the right edge of the *previous* dot to the left
@@ -3694,8 +5051,9 @@ button:disabled {
    this item, i.e. the left edge of this dot). */
 .q-steps-connector {
   position: absolute;
-  top: calc(4px + 16px);          /* vertical center of the 32px dot */
-  left: calc(-100% + 32px);
+  top: calc(var(--q-steps-track-h, 56px) / 2);
+  transform: translateY(-50%);
+  left: calc(-100% + 28px);
   right: 100%;
   height: 2px;
   background: rgba(45, 41, 38, 0.14);
@@ -3708,15 +5066,66 @@ button:disabled {
 }
 
 /* Whole item is a button so the entire caption (dot + label) is clickable. */
+/* First grid row: dot (good.png beside milestone only when on Profile Ready with all prior blocks done). */
+.q-steps-track-row {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: clamp(6px, 1.2vw, 10px);
+  min-height: var(--q-steps-track-h, 56px);
+  align-self: start;
+}
+
+.q-steps-milestone-good-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: clamp(112px, 36vw, 196px);
+  height: clamp(84px, 21vw, 118px);
+  margin-left: 0;
+}
+
+.q-steps-item--profile-milestone .q-steps-track-row {
+  min-height: var(--q-steps-track-h, 102px);
+}
+
+.q-steps-milestone-good-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+  animation: q-steps-good-pop 0.45s cubic-bezier(0.34, 1.25, 0.64, 1) forwards;
+}
+
+@keyframes q-steps-good-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-steps-milestone-good-badge img {
+    animation: none;
+  }
+}
+
 .q-steps-btn {
   all: unset;
   cursor: pointer;
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 4px 8px 4px 0;
+  display: grid;
+  grid-template-rows: var(--q-steps-track-h, 56px) auto;
+  align-items: start;
+  justify-items: start;
+  gap: 5px;
+  padding: 0 6px 2px 0;
   border-radius: 12px;
   transition: transform 180ms ease;
   font-family: inherit;
@@ -3736,36 +5145,112 @@ button:disabled {
   position: relative;
   z-index: 1;
   box-sizing: border-box;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
   background: #b9b4ad;                   /* default future: muted gray */
   color: #ffffff;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 700;
   line-height: 1;
   transition: background 220ms ease, box-shadow 220ms ease, color 220ms ease;
 }
 
+/* Profile Ready: destination milestone — noticeably larger than numbered steps. */
+.q-steps-dot--milestone {
+  width: 52px;
+  height: 52px;
+  font-size: 0;
+}
+
+.q-steps-milestone-ico {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+}
+
+.q-steps-milestone-check {
+  /* Legacy: corner badge on milestone; ring-complete tick is now beside the dot. */
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #1f5c36;
+  background: #fff;
+  border: 2px solid #4eb377;
+  box-shadow: 0 1px 4px rgba(45, 41, 38, 0.12);
+}
+
+@keyframes q-steps-milestone-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(47, 124, 224, 0.2);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(47, 124, 224, 0.08);
+    transform: scale(1.03);
+  }
+}
+
+.q-steps-dot--milestone.q-steps-dot--milestone-active {
+  animation: q-steps-milestone-pulse 1.85s ease-in-out infinite;
+}
+
+@keyframes q-steps-milestone-done-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(78, 179, 119, 0.28), 0 3px 10px rgba(78, 179, 119, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(78, 179, 119, 0.12), 0 4px 14px rgba(78, 179, 119, 0.32);
+  }
+}
+
+.q-steps-dot--milestone.q-steps-dot--milestone-done {
+  animation: q-steps-milestone-done-glow 2.4s ease-in-out infinite;
+}
+
 /* Active (current) — blue filled circle + soft halo. */
-.q-steps-item.is-active .q-steps-dot {
+.q-steps-item.is-active .q-steps-dot:not(.q-steps-dot--milestone) {
   background: #2f7ce0;
   color: #ffffff;
-  box-shadow: 0 0 0 4px rgba(47, 124, 224, 0.18);
+  box-shadow: 0 0 0 3px rgba(47, 124, 224, 0.18);
+}
+
+.q-steps-item.is-active .q-steps-dot--milestone {
+  background: #2f7ce0;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(47, 124, 224, 0.22);
 }
 
 /* Done — green filled circle with check. */
-.q-steps-item.is-done .q-steps-dot {
+.q-steps-item.is-done .q-steps-dot:not(.q-steps-dot--milestone) {
   background: #4eb377;
   color: #ffffff;
   box-shadow: 0 2px 6px -2px rgba(78, 179, 119, 0.4);
 }
 
+.q-steps-item.is-done .q-steps-dot--milestone {
+  background: #4eb377;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(78, 179, 119, 0.35);
+}
+
 /* Started but not active — slightly darker gray so it reads as "touched" */
-.q-steps-item.is-started .q-steps-dot {
+.q-steps-item.is-started .q-steps-dot:not(.q-steps-dot--milestone) {
   background: #9a938c;
 }
 
@@ -3774,12 +5259,12 @@ button:disabled {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  line-height: 1.2;
+  gap: 2px;
+  line-height: 1.15;
 }
 
 .q-steps-caption-eyebrow {
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -3787,7 +5272,7 @@ button:disabled {
 }
 
 .q-steps-caption-title {
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 700;
   color: var(--ink-soft);
   letter-spacing: -0.005em;
@@ -3847,6 +5332,10 @@ button:disabled {
   color: #1f1b19;
 }
 
+.q-profile-ready-type-accent {
+  color: var(--accent-strong);
+}
+
 .ng-confirm-overlay {
   position: fixed;
   inset: 0;
@@ -3903,7 +5392,31 @@ button:disabled {
 /* Responsive — stack the dot above the caption on narrower screens and
    scroll horizontally if labels get too tight. */
 @media (max-width: 760px) {
-  .q-steps { padding: 18px 12px 18px; }
+  .q-steps { padding: 8px 12px 10px; }
+
+  .q-steps-inner {
+    gap: 8px;
+    align-items: center;
+  }
+
+  .q-steps-completion-hub .q-steps-completion-ratio {
+    font-size: 1.12rem;
+  }
+
+  .q-steps-completion-heading {
+    font-size: 0.56rem;
+    letter-spacing: 0.1em;
+  }
+
+  .q-steps-completion-ring-body {
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+  }
+
+  .q-steps-completion-hub {
+    inset: 15px;
+  }
 
   .q-steps-list {
     grid-auto-columns: minmax(140px, 1fr);
@@ -3919,13 +5432,15 @@ button:disabled {
     max-width: 140px;
   }
 
+  /* Keep connector aligned with the shared track height (incl. large Profile Ready dot). */
   .q-steps-connector {
-    top: calc(4px + 14px);        /* center of smaller 28px dot */
+    top: calc(var(--q-steps-track-h, 56px) / 2);
+    transform: translateY(-50%);
     left: calc(-100% + 28px);
     right: 100%;
   }
 
-  .q-steps-dot {
+  .q-steps-dot:not(.q-steps-dot--milestone) {
     width: 28px;
     height: 28px;
     font-size: 0.82rem;
@@ -3941,15 +5456,27 @@ button:disabled {
 /* active question + options visible without page scrolling.                 */
 /* ------------------------------------------------------------------------- */
 @media (max-height: 920px) and (min-width: 721px) {
+  .q-card.q-card--withscene {
+    --q-scene-box: min(440px, 42vw, calc(100dvh - 168px));
+  }
+
+  .q-card.q-card--withscene.q-card--support-scene {
+    --q-scene-box: min(540px, 52vw, calc(100dvh - 140px));
+  }
+
+  .profile-app.profile-app--fullscreen .q-card.q-card--withscene {
+    --q-scene-box: min(360px, 30vw, min(44dvh, 440px));
+  }
+
+  .profile-app.profile-app--fullscreen .q-card.q-card--withscene.q-card--support-scene {
+    --q-scene-box: min(440px, 36vw, min(52dvh, 560px));
+  }
+
   .q-steps {
     padding: 8px clamp(12px, 2.2vw, 26px) 10px;
   }
 
-  .q-steps-header {
-    margin-bottom: 6px;
-  }
-
-  .q-steps-dot {
+  .q-steps-dot:not(.q-steps-dot--milestone) {
     width: 28px;
     height: 28px;
     font-size: 0.8rem;
@@ -3971,21 +5498,31 @@ button:disabled {
   }
 
   .q-card-grid {
-    grid-template-columns: minmax(170px, 220px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     column-gap: 12px;
   }
 
+  .q-card-grid.q-card-grid--support-scenes {
+    grid-template-columns: minmax(0, 11fr) minmax(0, 14fr);
+  }
+
+  .q-card-matrix-head {
+    column-gap: 12px;
+    margin-bottom: 10px;
+    padding-bottom: 0;
+  }
+
+  .q-card-matrix-head--support {
+    grid-template-columns: minmax(0, 11fr) minmax(0, 14fr);
+  }
+
   .q-scene-col {
-    gap: 8px;
+    gap: 0;
   }
 
-  .q-scene-count {
+  .q-card-head-count {
     font-size: 0.72rem;
-    padding: 4px 10px;
-  }
-
-  .q-scene-frame {
-    max-width: 220px;
+    padding: 4px 9px;
   }
 
   .q-card--withscene .q-title {
@@ -4003,8 +5540,31 @@ button:disabled {
   }
 
   .q-card--withscene .energy-check-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .q-card--withscene .energy-patterns-step .energy-check-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
+  }
+
+  .q-card--withscene .support-needs-step .energy-check-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+  }
+
+  .q-card--withscene .energy-patterns-step {
+    --q-option-text-size: 0.72rem;
+    --q-option-line: 1.35;
+  }
+
+  .q-card--withscene .energy-patterns-step .energy-check-item {
+    padding: 5px 9px 5px 7px;
+  }
+
+  .q-card--withscene .support-needs-step .energy-check-item {
+    padding: 8px 10px;
   }
 
   .q-choice {
@@ -4061,9 +5621,20 @@ button:disabled {
 }
 
 @media (min-width: 1180px) {
-  .q-card--withscene .energy-check-grid {
+  /* Three columns only for short work-energy labels; wider copy stays in two columns. */
+  .q-card--withscene .energy-patterns-step .energy-check-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px 10px;
+  }
+
+  .q-card--withscene .energy-check-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+  }
+
+  .q-card--withscene .support-needs-step .energy-check-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 11px 14px;
   }
 }
 

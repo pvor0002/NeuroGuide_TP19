@@ -1,15 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import SiteAppHeader from "../components/SiteAppHeader.jsx";
 import QuizScene from "../components/QuizScene.jsx";
 import UserIdEntryBox from "../components/UserIdEntryBox.jsx";
+import WarmHeroPaperShapes from "../components/WarmHeroPaperShapes.jsx";
 import {
   createProfile,
   fetchProfile,
   normalizeProfileId,
   updateProfile,
 } from "../services/profileApi.js";
+
+/** Resolved asset URL so the Profile Ready portrait always maps to repo `data/images/dev.png`. */
+import devPortraitUrl from "../../../data/images/dev.png";
+import goodPngUrl from "../../../data/images/good.png";
 
 const STORAGE_KEY = "neuroguide.careerProfile.react.v2";
 const MAX_VISIBLE_SKILL_RESULTS = 20;
@@ -24,7 +29,7 @@ const TRANSITION_MS = 260;
 // chunks. Keep this list short - ADHD visitors should be able to see the
 // whole shape of the flow at a glance.
 const BLOCKS = [
-  { id: "type",    label: "Find out your profile type" },
+  { id: "type",    label: "Profile type" },
   { id: "work",    label: "Work Preferences" },
   { id: "support", label: "Support Setup" }, // includes Time and Energy
   { id: "jobs",    label: "Jobs & Skills" },
@@ -49,6 +54,14 @@ const ENERGY_PATTERN_OPTIONS = [
   "Best with morning deep work",
   "Best with afternoon deep work",
 ];
+
+/** Stored values keep the full phrases; strip “Best with / Best in” for UI + summaries. */
+function energyPatternChoiceLabel(canonicalOption) {
+  let s = String(canonicalOption);
+  if (/^best with\s+/i.test(s)) return s.replace(/^best with\s+/i, "").trimStart();
+  if (/^best in\s+/i.test(s)) return s.replace(/^best in\s+/i, "").trimStart();
+  return s;
+}
 const WORK_STYLE_OPTIONS = [
   "Clear priorities",
   "Short tasks",
@@ -102,8 +115,22 @@ const ADHD_TYPE_DESCRIPTIONS = {
   combined: "A mix of both - attention wanders and there's restlessness driving you.",
 };
 
+/** Choosing "a" vs "an" before the profile type phrase (e.g. "an Inattentive type"). */
+function indefiniteArticleBeforeProfileLabel(label) {
+  const t = String(label || "").trim();
+  if (!t) return "a";
+  const c = t[0].toLowerCase();
+  return /^[aeiou]/.test(c) ? "an" : "a";
+}
+
 function ProfileReadySectionIcon({ sectionId }) {
-  const common = { className: "pr-sec-ico", "aria-hidden": true, width: 22, height: 22, viewBox: "0 0 24 24" };
+  const common = {
+    className: "pr-sec-ico",
+    "aria-hidden": true,
+    width: 22,
+    height: 22,
+    viewBox: "0 0 24 24",
+  };
   switch (sectionId) {
     case "type":
       return (
@@ -141,7 +168,14 @@ function ProfileReadySectionIcon({ sectionId }) {
             strokeWidth="1.5"
             strokeLinejoin="round"
           />
-          <path d="M9.2 12.3l1.5 1.4 3.1-2.8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M9.2 12.3l1.5 1.4 3.1-2.8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       );
     case "jobs":
@@ -154,12 +188,74 @@ function ProfileReadySectionIcon({ sectionId }) {
             strokeWidth="1.5"
             strokeLinejoin="round"
           />
-          <path d="M8.5 9.3V7.1a1.1 1.1 0 0 1 1-1.1h5a1.1 1.1 0 0 1 1 1.1v2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M8.5 9.3V7.1a1.1 1.1 0 0 1 1-1.1h5a1.1 1.1 0 0 1 1 1.1v2.2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        </svg>
+      );
+    case "roles":
+      return (
+        <svg {...common}>
+          <path
+            d="M4.5 9.5h15v8a1.2 1.2 0 0 1-1.2 1.2H5.7a1.2 1.2 0 0 1-1.2-1.2v-8Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M8.5 9.3V7.1a1.1 1.1 0 0 1 1-1.1h5a1.1 1.1 0 0 1 1 1.1v2.2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        </svg>
+      );
+    case "skills":
+      return (
+        <svg {...common}>
+          <path
+            d="M7.8 9.8h8.8M7.8 13.8h11M7.8 17.8h6.2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <path
+            d="M17.8 17.8l3.9 3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
         </svg>
       );
     default:
       return null;
   }
+}
+
+/** Build arcs for an N-segment donut (gaps between segments, flat caps). */
+function segmentedProgressArcs(cx, cy, r, segmentCount, totalGapFrac = 0.11) {
+  if (!segmentCount || segmentCount < 1) return [];
+  const totalGapRad = Math.PI * 2 * Math.min(0.35, Math.max(0.04, totalGapFrac));
+  const gapRad = totalGapRad / segmentCount;
+  const sweepRad = (Math.PI * 2 - totalGapRad) / segmentCount;
+  const large = sweepRad > Math.PI ? 1 : 0;
+  return Array.from({ length: segmentCount }, (_, i) => {
+    const start = -Math.PI / 2 + i * (sweepRad + gapRad);
+    const end = start + sweepRad;
+    const x1 = cx + r * Math.cos(start);
+    const y1 = cy + r * Math.sin(start);
+    const x2 = cx + r * Math.cos(end);
+    const y2 = cy + r * Math.sin(end);
+    return {
+      d: `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`,
+    };
+  });
 }
 
 /** ANZSCO-style titles: only IT / software and closely related technology roles. */
@@ -462,17 +558,15 @@ function isStepAnswered(step, answers) {
   return validateStep(step, answers) === null;
 }
 
-/** Profile Ready summary: show comma-joined or multi-select data as sub-bullets. */
+/** Profile Ready summary: comma-joined or multi-select data as sub-bullets. */
 function renderSummaryValue(row) {
   const { value, values } = row;
+  const summarizeItem = row.key === "Work style" ? energyPatternChoiceLabel : (x) => x;
   if (Array.isArray(values) && values.length > 0) {
-    if (values.length === 1) {
-      return <span className="summary-value">{values[0]}</span>;
-    }
     return (
       <ul className="summary-value-list">
         {values.map((v, i) => (
-          <li key={`${i}-${String(v).slice(0, 64)}`}>{v}</li>
+          <li key={`${i}-${String(v).slice(0, 64)}`}>{summarizeItem(v)}</li>
         ))}
       </ul>
     );
@@ -562,7 +656,7 @@ export default function ProfileWizardPage() {
   // eslint-disable-next-line no-unused-vars
   const [_progressBump, setProgressBump] = useState(false);
   const transitionTimerRef = useRef(null);
-  const profileTypeCardRef = useRef(null);
+  const wizardProgressHeadingId = useId();
 
   // Sync (POST/PUT) status for the "save to cloud" affordance.
   const [syncStatus, setSyncStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
@@ -917,13 +1011,7 @@ export default function ProfileWizardPage() {
     runTransition("back", (prev) => ({ ...prev, stepIndex: safeStepIndex - 1 }));
   };
 
-  const scrollToProfileDetails = () => {
-    const el = profileTypeCardRef.current;
-    if (!el) return;
-    const stickyHeaderOffset = 120;
-    const y = el.getBoundingClientRect().top + window.scrollY - stickyHeaderOffset;
-    window.scrollTo({ top: Math.max(y, 0), behavior: "smooth" });
-  };
+
 
   const jumpToStepById = (stepId) => {
     const idx = steps.findIndex((s) => s.id === stepId);
@@ -1094,13 +1182,14 @@ export default function ProfileWizardPage() {
   };
 
   /** Row + mini checkbox — work preferences, supports, and work-style (energy) only. */
-  const renderEnergyCheckRow = (key, label, selected, onClick) => (
+  const renderEnergyCheckRow = (key, label, selected, onClick, { ariaLabel } = {}) => (
     <button
       key={key}
       type="button"
       className={`energy-check-item ${selected ? "is-selected" : ""}`}
       onClick={onClick}
       aria-pressed={selected}
+      {...(ariaLabel != null ? { "aria-label": ariaLabel } : {})}
     >
       <span className={`energy-check-box ${selected ? "is-selected" : ""}`} aria-hidden="true">
         {selected ? "✓" : ""}
@@ -1275,71 +1364,6 @@ export default function ProfileWizardPage() {
     );
   };
 
-  const summarySections = [
-    {
-      id: "type",
-      title: "Find out your profile type",
-      firstStepId: "adhd-awareness",
-      rows: [
-        {
-          key: "Profile",
-          value: ADHD_TYPE_LABELS[state.answers.adhdProfileType]
-            ? `Your profile is ${ADHD_TYPE_LABELS[state.answers.adhdProfileType]}!`
-            : "We will show your type here once this step is complete.",
-        },
-      ],
-    },
-    {
-      id: "work",
-      title: "Work Preferences",
-      firstStepId: "work-style",
-      rows: [{ key: "Preferences", values: state.answers.workStyles }],
-    },
-    {
-      id: "support",
-      title: "Support Setup",
-      firstStepId: "support-needs",
-      rows: [
-        { key: "Supports", values: state.answers.supportNeeds },
-        { key: "Work style", values: state.answers.energyPatterns || [] },
-      ],
-    },
-    {
-      id: "jobs",
-      title: "Jobs & Skills",
-      firstStepId: "roles-pick",
-      rows: [
-        {
-          key: "Role(s)",
-          values: state.answers.selectedRoles.map(
-            (role) => `${role} (${state.answers.roleDuration?.[role] || "Duration not set"})`
-          ),
-        },
-        { key: "Skills", values: state.answers.selectedSkills },
-      ],
-    },
-  ];
-
-  const profileInsights = useMemo(() => {
-    const insights = [];
-    const topWork = (state.answers.workStyles || []).slice(0, 2);
-    if (topWork.length > 0) {
-      insights.push(`You work best with ${topWork.join(" and ").toLowerCase()}.`);
-    }
-    const supports = (state.answers.supportNeeds || []).slice(0, 2);
-    if (supports.length > 0) {
-      insights.push(`Helpful supports for you: ${supports.join(" and ")}.`);
-    }
-    const rhythms = (state.answers.energyPatterns || []).slice(0, 2);
-    if (rhythms.length > 0) {
-      insights.push(`Your preferred rhythm: ${rhythms.join(" and ").toLowerCase()}.`);
-    }
-    if (state.answers.selectedRoles?.[0]) {
-      insights.push(`Your selected target role is ${state.answers.selectedRoles[0]}.`);
-    }
-    return insights.slice(0, 3);
-  }, [state.answers]);
-
   const renderStepBody = (step) => {
     if (!step) return null;
     const a = state.answers;
@@ -1436,7 +1460,9 @@ export default function ProfileWizardPage() {
           <>
             <h2 className="q-title">Which supports help you most?</h2>
             <p className="q-subtitle">Pick up to {MAX_PICK_ALL_APPLY} that apply.</p>
-            {renderChips("supportNeeds", SUPPORT_NEED_OPTIONS, { mode: "multi" })}
+            <div className="support-needs-step">
+              {renderChips("supportNeeds", SUPPORT_NEED_OPTIONS, { mode: "multi" })}
+            </div>
           </>
         );
 
@@ -1496,124 +1522,251 @@ export default function ProfileWizardPage() {
               ? `Still to complete: ${missingLabels.join(", ")}.`
               : "";
 
-        const profileTypeLabel = ADHD_TYPE_LABELS[state.answers.adhdProfileType] || "";
-        const profileTypeHeading = profileTypeLabel
-          ? `Your profile is a ${profileTypeLabel} type`
-          : "Your profile type has not been set-up yet";
-        return (
-          <div className="q-profile-ready q-profile-dashboard">
-            <div className="q-profile-prev-top">
-              <button
-                type="button"
-                className="button ghost q-profile-prev-btn"
-                onClick={goBack}
-                disabled={safeStepIndex === 0}
+          const profileTypeLabel = ADHD_TYPE_LABELS[state.answers.adhdProfileType] || "Not set yet";
+
+          const dashboardSections = [
+            {
+              id: "work",
+              title: "Work Preferences",
+              iconId: "work",
+              firstStepId: "work-style",
+              meaning:
+                "Your picks on task size, interruptions, and pace shape every tailored timing tip.",
+              rows: [{ key: "Preferences", values: state.answers.workStyles }],
+            },
+            {
+              id: "skills",
+              title: "Skills",
+              iconId: "skills",
+              firstStepId: "skills",
+              meaning:
+                "Every listed skill is a proof point for fit scores and CV bullets tied to real work.",
+              rows: [{ key: "Skills", values: state.answers.selectedSkills }],
+            },
+            {
+              id: "roles",
+              title: "Job focus",
+              iconId: "roles",
+              firstStepId: "roles-pick",
+              meaning:
+                "Your saved title and stint length anchor scoring and examples to that role only.",
+              rows: (() => {
+                const roles = state.answers.selectedRoles || [];
+                if (roles.length === 0) {
+                  return [{ key: "Job role", values: [] }];
+                }
+                return [
+                  { key: "Job role", values: [...roles] },
+                  {
+                    key: "Experience",
+                    values: roles.map(
+                      (role) => state.answers.roleDuration?.[role] || "Duration not set"
+                    ),
+                  },
+                ];
+              })(),
+            },
+            {
+              id: "support",
+              title: "ADHD Support Setup",
+              iconId: "support",
+              firstStepId: "support-needs",
+              meaning:
+                "Saved supports plus when you focus best set how check-ins and next steps get scheduled.",
+              rows: [
+                { key: "Supports", values: state.answers.supportNeeds },
+                { key: "Work style", values: state.answers.energyPatterns || [] },
+              ],
+            },
+          ];
+
+          const profileSummaryMainSections = dashboardSections.filter((s) => s.id === "work" || s.id === "roles");
+          const profileSkillsSection = dashboardSections.find((s) => s.id === "skills");
+          const profileSupportSection = dashboardSections.find((s) => s.id === "support");
+
+          return (
+            <div className="q-profile-ready q-profile-dashboard">
+              <section
+                className="q-profile-hero-card q-profile-hero-card--compact"
+                aria-labelledby="summary-heading"
               >
-                <span className="q-profile-prev-icon" aria-hidden="true">←</span>
-                Previous step
-              </button>
-            </div>
-            <section className="q-profile-hero-card" aria-labelledby="summary-heading">
-              <div className="q-profile-hero-left">
-                <div className="q-profile-hero-identity">
-                  <div className="q-profile-avatar-wrap">
-                    <div className="avatar" aria-hidden="true">NG</div>
-                  </div>
-                  <div className="q-profile-hero-copy">
-                    <div className="q-profile-title-row">
-                      <h2 className="q-title q-title--profile-summary" id="summary-heading">
-                        {profileTypeHeading}
-                      </h2>
+                <div className="q-profile-hero-left">
+                  <div className="q-profile-hero-identity">
+                    <div className="q-profile-avatar-wrap">
+                      <div className="avatar" aria-hidden="true">
+                        NG
+                      </div>
+                    </div>
+                    <div className="q-profile-hero-copy">
+                      <div className="q-profile-title-row">
+                        <h2 className="q-title q-title--profile-summary" id="summary-heading">
+                          Your profile is{" "}
+                          {indefiniteArticleBeforeProfileLabel(profileTypeLabel)}{" "}
+                          <span className="q-profile-ready-type-accent">{`${profileTypeLabel} type`}</span>
+                        </h2>
+                        <p
+                          className={`q-complete-chip ${allRequiredDone ? "is-complete" : "is-incomplete"}`}
+                          role="status"
+                          aria-live="polite"
+                        >
+                          {allRequiredDone ? "Completed" : `${completedRequiredCount}/4 done`}
+                        </p>
+                      </div>
                       <p
-                        className={`q-complete-chip ${allRequiredDone ? "is-complete" : "is-incomplete"}`}
-                        role="status"
-                        aria-live="polite"
+                        className={`q-subtitle q-subtitle--hero-compact ${allRequiredDone ? "q-subtitle--success" : "q-subtitle--pending"}`}
+                        id="summary-subtitle"
                       >
-                        {allRequiredDone ? "Completed" : `${completedRequiredCount}/4 done`}
+                        {allRequiredDone ? (
+                          "Profile ready to use."
+                        ) : (
+                          <>
+                            <span className="q-subtitle-hero-lead">
+                              {`${completedRequiredCount}/4 sections done — finish the rest to unlock full results.`}
+                            </span>
+                            {missingHint ? (
+                              <span className="q-subtitle-hero-hint"> {missingHint}</span>
+                            ) : null}
+                          </>
+                        )}
                       </p>
                     </div>
-                    <p
-                      className={`q-subtitle ${allRequiredDone ? "q-subtitle--success" : "q-subtitle--pending"}`}
-                      id="summary-subtitle"
-                    >
-                      {allRequiredDone
-                        ? "Great work - your profile is ready to use."
-                        : "Your profile is almost complete. Finish the remaining steps to unlock full results."}
-                    </p>
-                    {!allRequiredDone && missingHint ? <p className="q-subtitle q-subtitle--hint">{missingHint}</p> : null}
-                    <button
-                      type="button"
-                      className="q-profile-details-jump"
-                      onClick={scrollToProfileDetails}
-                    >
-                      See your full profile details ↓
-                    </button>
                   </div>
                 </div>
-              </div>
-              <div className="q-profile-hero-right">
-                {state.profileId ? (
-                  <div className="q-profile-id-inline q-profile-id-inline--hero" aria-live="polite">
-                    <span className="q-profile-id-inline-label">Your code</span>
-                    <code className="q-profile-id-code-compact">{state.profileId}</code>
-                    <button
-                      type="button"
-                      className="button secondary q-profile-id-copy--compact"
-                      onClick={handleCopyProfileId}
+                <div className="q-profile-hero-right">
+                  {state.profileId ? (
+                    <div className="q-profile-id-inline q-profile-id-inline--hero" aria-live="polite">
+                      <span className="q-profile-id-inline-label">Your code</span>
+                      <code className="q-profile-id-code-compact">{state.profileId}</code>
+                      <button
+                        type="button"
+                        className="button secondary q-profile-id-copy--compact"
+                        onClick={handleCopyProfileId}
+                      >
+                        {copyFeedback || "Copy"}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="button secondary q-profile-id-create is-attention"
+                        onClick={() => {
+                          void syncProfileToServer();
+                        }}
+                        disabled={syncStatus === "saving"}
+                      >
+                        {syncStatus === "saving" ? "Creating…" : "Create my Profile ID"}
+                      </button>
+                      <p className="q-profile-id-help">Create your ID to save and reuse this profile.</p>
+                    </>
+                  )}
+                  {syncMessage ? (
+                    <p
+                      className="q-profile-ready-sync q-profile-ready-sync--hero"
+                      data-tone={syncStatus === "error" ? "error" : "info"}
+                      role="status"
                     >
-                      {copyFeedback || "Copy"}
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className={`button secondary q-profile-id-create ${currentStep?.kind === "profile-ready" && !state.profileId ? "is-attention" : ""}`}
-                      onClick={() => { void syncProfileToServer(); }}
-                      disabled={syncStatus === "saving"}
-                    >
-                      {syncStatus === "saving" ? "Creating…" : "Create my Profile ID"}
-                    </button>
-                    <p className="q-profile-id-help">Create your ID to save and reuse this profile.</p>
-                  </>
-                )}
-                {syncMessage ? (
-                  <p
-                    className="q-profile-ready-sync q-profile-ready-sync--hero"
-                    data-tone={syncStatus === "error" ? "error" : "info"}
-                    role="status"
-                  >
-                    {syncMessage === "Not Found" ? "No Profile ID yet" : syncMessage}
-                  </p>
-                ) : null}
-              </div>
-            </section>
+                      {syncMessage === "Not Found" ? "No Profile ID yet" : syncMessage}
+                    </p>
+                  ) : null}
+                </div>
+              </section>
 
-            <div className="q-profile-dashboard-body">
-              <div className="q-profile-primary">
-                {profileInsights.length > 0 ? (
-                  <section className="q-profile-insights" aria-label="Profile highlights">
-                    <h3 className="q-profile-insights-title">What this means for you</h3>
-                    <ul className="q-profile-insights-list">
-                      {profileInsights.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </section>
-                ) : null}
-                <div className="q-profile-summary-and-dev">
-                  <div className="q-profile-summary-col">
-                    <div className="summary-grid q-profile-summary-grid">
-                      {summarySections.map((section) => (
+              <div className="q-profile-dashboard-body">
+                <div className="q-profile-dev-summary-aside">
+                  <div className="q-profile-dev-stack">
+                    <figure className="q-profile-dev-figure">
+                      <div className="q-profile-dev-circle">
+                        <img
+                          src={devPortraitUrl}
+                          alt=""
+                          decoding="async"
+                          loading="lazy"
+                        />
+                      </div>
+                    </figure>
+                    <aside
+                      className="q-profile-next-aside q-profile-next-aside--rail q-profile-next-aside--under-portrait"
+                      aria-label="Next steps"
+                    >
+                      <div className="q-profile-cta-section">
+                        <h3 className="q-profile-cta-heading">
+                          <span className="q-profile-cta-heading-inner">
+                            <span className="q-profile-next-arrow-callout" aria-hidden="true">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.25"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M5 12h14M13 6l6 6-6 6" />
+                              </svg>
+                            </span>
+                            Next step
+                          </span>
+                        </h3>
+                        <ol className="q-profile-next-flow">
+                          <li>Review your profile summary</li>
+                          <li>Create your Profile ID</li>
+                          <li>Check job suitability score</li>
+                        </ol>
+                        <div className="q-profile-cta-list">
+                          <div className="q-profile-cta-item q-profile-cta-item--suitability">
+                            <button
+                              type="button"
+                              className="button primary q-profile-cta-btn"
+                              onClick={handleJobSuitabilityClick}
+                            >
+                              Check job suitability score
+                            </button>
+                            {showSuitabilityGate ? (
+                              <div className="q-profile-cta-gate" role="alert">
+                                <p className="q-profile-cta-gate-msg">
+                                  Please complete every profile question before checking job suitability.
+                                </p>
+                                <p className="q-profile-cta-gate-hint">
+                                  Use Progress at the top to see and finish any step you have not completed yet.
+                                </p>
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="q-profile-cta-item">
+                            <button
+                              type="button"
+                              className="button ghost q-profile-cta-btn q-profile-cta-btn--secondary"
+                              onClick={() => jumpToStepById("adhd-awareness")}
+                            >
+                              Review from first step
+                            </button>
+                          </div>
+                          <div className="q-profile-cta-item">
+                            <button
+                              type="button"
+                              className="button ghost q-profile-cta-btn q-profile-cta-btn--secondary"
+                              onClick={() => setShowResetConfirmModal(true)}
+                            >
+                              Start Over
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </aside>
+                  </div>
+
+                  <div className="q-profile-summary-col q-profile-summary-col--dashboard">
+                    <div className="summary-grid q-profile-summary-grid q-profile-summary-grid--dashboard-row">
+                      {profileSummaryMainSections.map((section) => (
                         <article
                           key={section.id}
-                          ref={section.id === "type" ? profileTypeCardRef : null}
-                          className="summary-block summary-block--dashboard"
+                          className={`summary-block summary-block--dashboard summary-block--${section.id}`}
                         >
                           <header className="summary-block-head">
                             <div className="summary-block-title-row">
                               <span className="summary-block-icon" aria-hidden="true">
-                                <ProfileReadySectionIcon sectionId={section.id} />
+                                <ProfileReadySectionIcon sectionId={section.iconId} />
                               </span>
                               <h3>{section.title}</h3>
                             </div>
@@ -1631,6 +1784,7 @@ export default function ProfileWizardPage() {
                               Edit
                             </button>
                           </header>
+                          <p className="summary-block-meaning">{section.meaning}</p>
                           <ul className="summary-list">
                             {section.rows.map((row) => (
                               <li key={row.key} className="summary-item">
@@ -1641,80 +1795,87 @@ export default function ProfileWizardPage() {
                           </ul>
                         </article>
                       ))}
+                      {profileSupportSection ? (
+                        <article
+                          className={`summary-block summary-block--dashboard summary-block--support summary-block--support-wide`}
+                        >
+                          <header className="summary-block-head">
+                            <div className="summary-block-title-row">
+                              <span className="summary-block-icon" aria-hidden="true">
+                                <ProfileReadySectionIcon sectionId={profileSupportSection.iconId} />
+                              </span>
+                              <h3>{profileSupportSection.title}</h3>
+                            </div>
+                            <button
+                              type="button"
+                              className="summary-block-edit"
+                              onClick={() => jumpToStepById(profileSupportSection.firstStepId)}
+                            >
+                              <span className="summary-block-edit-ico" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                                  <path d="M4 20h4l9.5-9.5a2.1 2.1 0 0 0-3-3L5 16v4Z" />
+                                  <path d="M13.5 6.5l4 4" />
+                                </svg>
+                              </span>
+                              Edit
+                            </button>
+                          </header>
+                          <p className="summary-block-meaning">{profileSupportSection.meaning}</p>
+                          <div className="summary-support-two-col" role="presentation">
+                            {profileSupportSection.rows.map((row) => (
+                              <div key={row.key} className="summary-support-two-col-cell">
+                                <span className="summary-key">{row.key}</span>
+                                <div className="summary-support-two-col-value">{renderSummaryValue(row)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </article>
+                      ) : null}
                     </div>
+                  </div>
+
+                  <div className="q-profile-skills-rail" aria-label="Skills summary">
+                    {profileSkillsSection ? (
+                      <article
+                        className={`summary-block summary-block--dashboard summary-block--skills summary-block--skills-stretch`}
+                      >
+                        <header className="summary-block-head">
+                          <div className="summary-block-title-row">
+                            <span className="summary-block-icon" aria-hidden="true">
+                              <ProfileReadySectionIcon sectionId={profileSkillsSection.iconId} />
+                            </span>
+                            <h3>{profileSkillsSection.title}</h3>
+                          </div>
+                          <button
+                            type="button"
+                            className="summary-block-edit"
+                            onClick={() => jumpToStepById(profileSkillsSection.firstStepId)}
+                          >
+                            <span className="summary-block-edit-ico" aria-hidden="true">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                                <path d="M4 20h4l9.5-9.5a2.1 2.1 0 0 0-3-3L5 16v4Z" />
+                                <path d="M13.5 6.5l4 4" />
+                              </svg>
+                            </span>
+                            Edit
+                          </button>
+                        </header>
+                        <p className="summary-block-meaning">{profileSkillsSection.meaning}</p>
+                        <ul className="summary-list">
+                          {profileSkillsSection.rows.map((row) => (
+                            <li key={row.key} className="summary-item">
+                              <span className="summary-key">{row.key}</span>
+                              {renderSummaryValue(row)}
+                            </li>
+                          ))}
+                        </ul>
+                      </article>
+                    ) : null}
                   </div>
                 </div>
               </div>
-
-              <aside className="q-profile-next-aside" aria-label="Next steps">
-                <div className="q-profile-cta-section">
-                  <h3 className="q-profile-cta-heading">Next step</h3>
-                  <ol className="q-profile-next-flow">
-                    <li>Review your profile summary</li>
-                    <li>Create your Profile ID</li>
-                    <li>Check job suitability score</li>
-                  </ol>
-                  <div className="q-profile-cta-list">
-                    <div className="q-profile-cta-item q-profile-cta-item--suitability">
-                      <button
-                        type="button"
-                        className="button primary q-profile-cta-btn"
-                        onClick={handleJobSuitabilityClick}
-                      >
-                        Check job suitability score
-                      </button>
-                      {showSuitabilityGate ? (
-                        <div className="q-profile-cta-gate" role="alert">
-                          <p className="q-profile-cta-gate-msg">
-                            Please complete every profile question before checking job suitability.
-                          </p>
-                          <p className="q-profile-cta-gate-hint">
-                            Use Progress at the top to see and finish any step you have not completed yet.
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="q-profile-cta-item">
-                      <button
-                        type="button"
-                        className="button ghost q-profile-cta-btn q-profile-cta-btn--secondary"
-                        onClick={() => jumpToStepById("adhd-awareness")}
-                      >
-                        Review from first step
-                      </button>
-                    </div>
-                    <div className="q-profile-cta-item">
-                      <button
-                        type="button"
-                        className="button ghost q-profile-cta-btn q-profile-cta-btn--secondary"
-                        onClick={() => setShowResetConfirmModal(true)}
-                      >
-                        Start Over
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {state.profileId ? (
-                  <div className="q-profile-next-sync">
-                    <button
-                      type="button"
-                      className="button ghost"
-                      onClick={() => { void syncProfileToServer(); }}
-                      disabled={syncStatus === "saving"}
-                    >
-                      {syncStatus === "saving" ? "Saving…" : "Sync latest changes"}
-                    </button>
-                    {state.syncedAt ? (
-                      <span className="q-profile-next-synced-at">
-                        Last synced {new Date(state.syncedAt).toLocaleString()}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </aside>
             </div>
-          </div>
-        );
+          );
         }
 
       case "energy":
@@ -1722,11 +1883,16 @@ export default function ProfileWizardPage() {
           <>
             <h2 className="q-title">When and how do you do your best work?</h2>
             <p className="q-subtitle">Pick up to {MAX_ENERGY_PATTERNS}.</p>
-            <div className="energy-check-grid" role="group" aria-label="Work style options">
-              {ENERGY_PATTERN_OPTIONS.map((option) => {
-                const selected = (a.energyPatterns || []).includes(option);
-                return renderEnergyCheckRow(option, option, selected, () => toggleEnergyPattern(option));
-              })}
+            <div className="energy-patterns-step">
+              <div className="energy-check-grid" role="group" aria-label="Work style options">
+                {ENERGY_PATTERN_OPTIONS.map((option) => {
+                  const selected = (a.energyPatterns || []).includes(option);
+                  const shortLabel = energyPatternChoiceLabel(option);
+                  return renderEnergyCheckRow(option, shortLabel, selected, () => toggleEnergyPattern(option), {
+                    ariaLabel: option,
+                  });
+                })}
+              </div>
             </div>
           </>
         );
@@ -1769,6 +1935,32 @@ export default function ProfileWizardPage() {
     const anyAnswered = stepsInBlock.some((s) => isStepAnswered(s, state.answers));
     return { ...b, status: anyAnswered ? "started" : "future" };
   });
+
+  const jumpToWizardBlock = (blockId) => {
+    const firstStep = steps.find((s) => s.block === blockId);
+    if (firstStep) jumpToStepById(firstStep.id);
+  };
+
+  const progressBlocksList = blockStatus;
+  /* Ring counts only the four journey blocks; Profile Ready is the destination, not /5. */
+  const progressRingBlocks = progressBlocksList.filter((b) => b.id !== "profile");
+  const doneBlocksCount = progressRingBlocks.filter((b) => b.status === "done").length;
+  const progressTotalBlocks = progressRingBlocks.length;
+  const progressVB = 128;
+  const progressRingCx = progressVB / 2;
+  const progressRingR = 48;
+  const progressRingStroke = 10;
+  const progressSegArcs =
+    progressTotalBlocks > 0
+      ? segmentedProgressArcs(progressRingCx, progressRingCx, progressRingR, progressTotalBlocks, 0.11)
+      : [];
+  const progressFilledSegs =
+    progressTotalBlocks === 0 ? 0 : Math.min(doneBlocksCount, progressTotalBlocks);
+  const progressRingComplete =
+    progressTotalBlocks > 0 && doneBlocksCount >= progressTotalBlocks;
+  /* good.png beside milestone: only on Profile Ready screen once all prior journey blocks are answered. */
+  const showProfileReadyGoodBadge =
+    progressRingComplete && currentStep?.kind === "profile-ready";
 
   return (
     <div className="profile-app profile-app--fullscreen">
@@ -1822,35 +2014,78 @@ export default function ProfileWizardPage() {
         </main>
       ) : (
         <main className="q-screen" aria-live="polite">
-          {/* Progress: five blocks including Profile Ready; each segment jumps to that section (same as other blocks). */}
-          {(() => {
-            const visibleBlocks = blockStatus;
-            const currentIdx = Math.max(0, visibleBlocks.findIndex((b) => b.status === "active"));
-            const doneCount  = visibleBlocks.filter((b) => b.status === "done").length;
-            const counterNum = visibleBlocks[currentIdx]?.status === "active" ? currentIdx + 1 : doneCount;
-            const jumpToBlock = (blockId) => {
-              const firstStep = steps.find((s) => s.block === blockId);
-              if (firstStep) jumpToStepById(firstStep.id);
-            };
-            return (
-              <nav className="q-steps" aria-label="Profile sections">
-                <header className="q-steps-header">
-                  <h2 className="q-steps-heading">Progress</h2>
-                  <span className="q-steps-badge">
-                    {counterNum}/{visibleBlocks.length}
-                  </span>
-                </header>
-                <ol className="q-steps-list" role="list">
-                  {visibleBlocks.map((b, i) => {
+          {currentStep?.kind !== "profile-ready" ? (
+            <header className="simplify-hero simplify-hero--profile-wizard" aria-labelledby="wizard-profile-hero-title">
+              <div className="simplify-hero-grid">
+                <div className="simplify-hero-copy">
+                  <p className="simplify-hero-eyebrow">Five short sections · your pace</p>
+                  <h1 id="wizard-profile-hero-title" className="simplify-hero-title">
+                    Build your Career Profile: focus style, supports, roles, and skills you can reuse.
+                  </h1>
+                  <Link to="/" className="simplify-hero-back">
+                    ← Back home
+                  </Link>
+                </div>
+                <WarmHeroPaperShapes />
+              </div>
+            </header>
+          ) : null}
+          {/* Progress ring: 4 segments (type, work, support, jobs). Stepper still lists Profile Ready as the fifth stop. */}
+              <nav
+                className="q-steps"
+                aria-labelledby={wizardProgressHeadingId}
+              >
+                <div className="q-steps-inner">
+                  <div
+                    className="q-steps-completion-ring-wrap"
+                    aria-label={`Completed sections ${doneBlocksCount} of ${progressTotalBlocks}`}
+                    data-complete={progressRingComplete ? "true" : "false"}
+                  >
+                    <p className="q-steps-completion-heading" id={wizardProgressHeadingId}>
+                      Progress
+                    </p>
+                    <div className="q-steps-completion-ring-body">
+                      <svg
+                        className="q-steps-completion-svg"
+                        viewBox={`0 0 ${progressVB} ${progressVB}`}
+                        aria-hidden="true"
+                      >
+                        {progressSegArcs.map((seg, i) => {
+                          const filled = i < progressFilledSegs;
+                          const strokeCol = filled ? "var(--q-ring-seg-done)" : "var(--q-ring-seg-track)";
+                          return (
+                            <path
+                              key={`seg-${i}`}
+                              d={seg.d}
+                              fill="none"
+                              stroke={strokeCol}
+                              strokeWidth={progressRingStroke}
+                              strokeLinecap="butt"
+                            />
+                          );
+                        })}
+                      </svg>
+                      <div className="q-steps-completion-hub">
+                        <span className="q-steps-completion-ratio">
+                          {doneBlocksCount}
+                          <span className="q-steps-completion-slash">/</span>
+                          {progressTotalBlocks}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <ol className="q-steps-list" role="list">
+                  {progressBlocksList.map((b, i) => {
                     const stepNumber = i + 1;
-                    const isDone   = b.status === "done";
+                    const isDone = b.status === "done";
                     const isActive = b.status === "active";
-                    const prev = i > 0 ? visibleBlocks[i - 1] : null;
+                    const isProfile = b.id === "profile";
+                    const prev = i > 0 ? progressBlocksList[i - 1] : null;
                     const prevFilled = prev && (prev.status === "done" || prev.status === "active");
                     return (
                       <li
                         key={b.id}
-                        className={`q-steps-item is-${b.status}`}
+                        className={`q-steps-item is-${b.status}${isProfile ? " q-steps-item--profile-milestone" : ""}`}
                         aria-current={isActive ? "step" : undefined}
                       >
                         {i > 0 ? (
@@ -1862,24 +2097,74 @@ export default function ProfileWizardPage() {
                         <button
                           type="button"
                           className="q-steps-btn"
-                          onClick={() => jumpToBlock(b.id)}
-                          aria-label={`Go to step ${stepNumber}: ${b.label}`}
+                          onClick={() => jumpToWizardBlock(b.id)}
+                          aria-label={
+                            b.id === "profile"
+                              ? isDone
+                                ? "Profile Ready — completed"
+                                : isActive
+                                  ? "Profile Ready — current step"
+                                  : "Go to Profile Ready"
+                              : `Go to step ${stepNumber}: ${b.label}`
+                          }
                         >
-                          <span className="q-steps-dot" aria-hidden="true">
-                            {isDone ? "✓" : stepNumber}
+                          <span className="q-steps-track-row">
+                            <span
+                              className={
+                                "q-steps-dot" +
+                                (isProfile ? " q-steps-dot--milestone" : "") +
+                                (isProfile && isActive ? " q-steps-dot--milestone-active" : "") +
+                                (isProfile && isDone ? " q-steps-dot--milestone-done" : "")
+                              }
+                              aria-hidden="true"
+                            >
+                              {isProfile ? (
+                                <svg
+                                  className="q-steps-milestone-ico"
+                                  width="30"
+                                  height="30"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.85"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <circle cx="12" cy="8" r="3.5" />
+                                  <path d="M6 20v-.6A6 6 0 0 1 18 19.4V20" />
+                                </svg>
+                              ) : isDone ? (
+                                "✓"
+                              ) : (
+                                stepNumber
+                              )}
+                            </span>
+                            {isProfile && showProfileReadyGoodBadge ? (
+                              <span className="q-steps-milestone-good-badge" aria-hidden="true">
+                                <img src={goodPngUrl} alt="" decoding="async" />
+                              </span>
+                            ) : null}
                           </span>
                           <span className="q-steps-caption">
-                            <span className="q-steps-caption-eyebrow">STEP {stepNumber}</span>
-                            <span className="q-steps-caption-title">{b.label}</span>
+                            {b.id === "profile" ? (
+                              <>
+                                <span className="q-steps-caption-eyebrow">STEP {stepNumber}</span>
+                                <span className="q-steps-caption-title">Profile Ready</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="q-steps-caption-eyebrow">STEP {stepNumber}</span>
+                                <span className="q-steps-caption-title">{b.label}</span>
+                              </>
+                            )}
                           </span>
                         </button>
                       </li>
                     );
                   })}
                 </ol>
+                </div>
               </nav>
-            );
-          })()}
 
           <div
             className={
@@ -1893,7 +2178,9 @@ export default function ProfileWizardPage() {
                   className={
                     currentStep?.kind === "profile-ready"
                       ? "q-card q-card--profileready"
-                      : "q-card q-card--withscene"
+                      : activeBlockId === "support"
+                        ? "q-card q-card--withscene q-card--support-scene"
+                        : "q-card q-card--withscene"
                   }
                 >
                   {currentStep?.kind === "profile-ready" ? (
@@ -1906,13 +2193,45 @@ export default function ProfileWizardPage() {
                       ) : null}
                     </>
                   ) : (
-                    <div className="q-card-grid">
+                    <div
+                      className={
+                        activeBlockId === "support"
+                          ? "q-card-grid q-card-grid--support-scenes"
+                          : "q-card-grid"
+                      }
+                    >
+                      <header
+                        className={`q-card-matrix-head${
+                          activeBlockId === "support" ? " q-card-matrix-head--support" : ""
+                        }`}
+                        aria-label="Section navigation"
+                      >
+                        <div className="q-card-matrix-head-prev">
+                          {currentStep?.kind !== "adhd-awareness" ? (
+                            <button
+                              type="button"
+                              className="button ghost q-profile-prev-btn q-profile-prev-btn--matrix"
+                              onClick={goBack}
+                              disabled={safeStepIndex === 0}
+                            >
+                              <span className="q-profile-prev-icon" aria-hidden="true">←</span>
+                              Previous step
+                            </button>
+                          ) : (
+                            <span className="q-card-matrix-head-spacer" aria-hidden="true" />
+                          )}
+                        </div>
+                        <div className="q-card-matrix-head-meta">
+                          <span className="q-card-head-eyebrow">{activeBlock.label}</span>
+                          {activeBlockSteps.length > 1 ? (
+                            <span className="q-card-head-count" aria-live="polite">
+                              Question {activeBlockStepIndex + 1} of {activeBlockSteps.length}
+                            </span>
+                          ) : null}
+                        </div>
+                      </header>
+
                       <div className="q-scene-col">
-                        {activeBlockSteps.length > 1 ? (
-                          <p className="q-scene-count">
-                            Question {activeBlockStepIndex + 1} of {activeBlockSteps.length}
-                          </p>
-                        ) : null}
                         <QuizScene
                           blockId={activeBlockId}
                           stepKind={currentStep?.kind}
@@ -1921,10 +2240,6 @@ export default function ProfileWizardPage() {
                       </div>
 
                       <div className="q-card-col">
-                        <header className="q-card-head">
-                          <span className="q-card-head-eyebrow">{activeBlock.label}</span>
-                        </header>
-
                         <div className="q-card-body">
                           {renderStepBody(currentStep)}
                           <div className="q-clear-row">
@@ -1939,14 +2254,6 @@ export default function ProfileWizardPage() {
                             <p className="q-message" data-tone={messageTone} role="alert">{message}</p>
                           ) : null}
                           <div className="q-actions">
-                            <button
-                              type="button"
-                              className="button ghost"
-                              onClick={goBack}
-                              disabled={safeStepIndex === 0}
-                            >
-                              Back
-                            </button>
                             <button type="button" className="button secondary" onClick={saveAndExit}>
                               Save &amp; exit
                             </button>

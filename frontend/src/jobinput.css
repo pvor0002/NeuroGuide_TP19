@@ -630,7 +630,7 @@ a.btn.btn-primary:hover {
 }
 
 .home-hero-tagline {
-  margin: 0 auto 1.25rem;
+  margin: 0 auto 1rem;
   max-width: 36rem;
   font-family: var(--font-ui);
   font-weight: 600;
@@ -641,6 +641,63 @@ a.btn.btn-primary:hover {
   text-align: center;
   color: #fde8df;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.home-hero-scroll {
+  margin: 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #fffefb;
+}
+
+.home-hero-scroll-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.15rem;
+  height: 3.15rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 251, 248, 0.5);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 10px 32px rgba(0, 0, 0, 0.28);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: home-hero-scroll-nudge 1.45s ease-in-out infinite;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.home-hero-scroll:hover .home-hero-scroll-circle {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 251, 248, 0.72);
+}
+
+.home-hero-scroll:focus-visible .home-hero-scroll-circle {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 4px;
+}
+
+@keyframes home-hero-scroll-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(7px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-scroll-circle {
+    animation: none;
+  }
 }
 
 .home-hero-lead {
@@ -889,18 +946,142 @@ a.btn.btn-primary:hover {
   background: rgba(235, 199, 185, 0.2);
 }
 
-.home-feature-figure {
-  margin: 0;
-  padding: 0;
+/* “Looking for what’s next?” — photo left, copy + CTAs right */
+.home-band--next-split {
+  overflow: hidden;
 }
 
-.home-feature-img {
+.home-next-split-inner {
+  max-width: min(1120px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: center;
+  text-align: left;
+}
+
+.home-next-figure {
+  margin: 0;
+  padding: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(45, 41, 38, 0.12);
+  border: 1px solid rgba(45, 41, 38, 0.06);
+}
+
+.home-next-img {
   display: block;
   width: 100%;
   height: auto;
-  max-height: min(52vh, 520px);
+  max-height: min(420px, 56vh);
   object-fit: cover;
-  border-radius: 0;
+}
+
+.home-next-copy {
+  min-width: 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.home-next-copy .home-next-title.home-section-title {
+  text-align: left;
+  font-size: clamp(1.28rem, 2.35vw, 1.62rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.home-next-copy .home-next-title.home-section-title::after {
+  margin-left: 0;
+  margin-right: auto;
+  width: 2.35rem;
+  height: 3px;
+  margin-top: 0.72rem;
+}
+
+.home-next-lead.home-section-lead {
+  margin-left: 0;
+  margin-right: 0;
+  margin-top: 0.95rem;
+  max-width: 36rem;
+  font-size: clamp(0.98rem, 1.85vw, 1.06rem);
+  line-height: 1.65;
+}
+
+.home-next-cta.home-cta-wrap {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  align-self: stretch;
+  width: 100%;
+  max-width: 36rem;
+  gap: 0.65rem;
+  margin-top: 1.35rem;
+  margin-bottom: 0;
+}
+
+/* Same peach styling, typography, and row layout for both actions. */
+.home-next-cta .home-next-cta-equal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 200px;
+  min-width: 0;
+  margin: 0;
+  padding: 0.7rem 1.15rem;
+  border-radius: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: 0.015em;
+  line-height: 1.25;
+  text-transform: none;
+  text-align: center;
+  text-decoration: none;
+  color: #2a2420;
+  box-sizing: border-box;
+}
+
+@media (max-width: 760px) {
+  .home-next-split-inner {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .home-next-copy {
+    text-align: center;
+    align-items: center;
+  }
+
+  .home-next-copy .home-next-title.home-section-title {
+    text-align: center;
+  }
+
+  .home-next-copy .home-next-title.home-section-title::after {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .home-next-lead.home-section-lead {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .home-next-cta.home-cta-wrap {
+    justify-content: center;
+    margin-inline: auto;
+  }
+
+  .home-next-figure {
+    order: -1;
+    max-width: min(100%, 480px);
+    margin-inline: auto;
+  }
 }
 
 /* Home: visual “focus” band - editorial tiles, warm neutrals */
@@ -911,7 +1092,7 @@ a.btn.btn-primary:hover {
 }
 
 .home-band.home-band--focus {
-  /* Tighter top: sits right below “How NeuroGuide works”; keep lower band airy. */
+  /* Tighter top: follows “Looking for what’s next?”; keep lower band airy. */
   padding-top: clamp(2.25rem, 5.2vw, 3.25rem);
   padding-bottom: clamp(4.25rem, 9.5vw, 6.5rem);
 }
@@ -1196,14 +1377,29 @@ a.btn.btn-primary:hover {
   max-width: 46rem;
 }
 
+/* Match marketing peach palette (not cool blue tiles). */
+.home-band.home-data {
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    var(--peach-50) 45%,
+    var(--peach-100) 100%
+  );
+  border-top: 1px solid var(--line);
+}
+
+.home-data .home-section-title::after {
+  background: linear-gradient(90deg, var(--btn-peach-hover), var(--btn-peach));
+}
+
 .home-data-grid {
   list-style: none;
   margin: clamp(1.75rem, 4vw, 2.5rem) auto 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.9rem 1rem;
-  max-width: 54rem;
+  gap: clamp(0.85rem, 2vw, 1.15rem);
+  max-width: 56rem;
   text-align: left;
 }
 
@@ -1219,41 +1415,52 @@ a.btn.btn-primary:hover {
 
 .home-data-card {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 0.65rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.85rem 1rem;
   text-decoration: none;
-  border-radius: 12px;
-  border: 1px solid rgba(80, 140, 200, 0.12);
-  background: #eef6ff;
-  padding: 0.85rem 0.9rem;
-  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff 0%, var(--peach-50) 100%);
+  padding: 1rem 1.15rem;
+  min-height: 5.5rem;
   width: 100%;
-  height: clamp(120px, 12vw, 150px);
-  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-  box-shadow: 0 1px 0 rgba(16, 40, 80, 0.03);
+  box-sizing: border-box;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 14px 36px -28px rgba(45, 41, 38, 0.18);
 }
 
 .home-data-card:hover {
-  background: #e8f2ff;
-  border-color: rgba(80, 140, 200, 0.22);
-  box-shadow: 0 10px 24px rgba(16, 40, 80, 0.08);
-  transform: translateY(-1px);
+  background: linear-gradient(180deg, #ffffff 0%, var(--peach-100) 100%);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 20px 44px -24px rgba(45, 41, 38, 0.22);
+  transform: translateY(-2px);
 }
 
 .home-data-icon {
   flex-shrink: 0;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.75rem;
+  height: 2.75rem;
   object-fit: contain;
-  background: transparent;
+  border-radius: 12px;
+  padding: 4px;
+  background: color-mix(in srgb, var(--peach-200) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, var(--peach-300));
 }
 
 .home-data-copy {
   display: flex;
   flex-direction: column;
-  gap: 0.12rem;
+  gap: 0.2rem;
   min-width: 0;
 }
 
@@ -1261,8 +1468,8 @@ a.btn.btn-primary:hover {
   display: block;
   font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.25;
-  color: #231f1d;
+  line-height: 1.28;
+  color: var(--ink);
   text-decoration: none;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -1273,9 +1480,9 @@ a.btn.btn-primary:hover {
 .home-data-note {
   display: block;
   margin-top: 0;
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   font-weight: 600;
-  color: rgba(35, 31, 29, 0.62);
+  color: var(--ink-soft);
   line-height: 1.45;
 }
 
@@ -1284,8 +1491,9 @@ a.btn.btn-primary:hover {
   max-width: 46rem;
   font-size: 0.82rem;
   font-weight: 500;
-  color: #8a817b;
-  line-height: 1.5;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  text-align: center;
 }
 
 .home-contact-mini {
@@ -1340,8 +1548,12 @@ a.btn.btn-primary:hover {
 .simplify-page {
   position: relative;
   font-family: var(--font-ui);
+  /* Match Career Profile (/profile) accent — blue primary, not wizard-step green */
+  --simplify-accent: #87b8ff;
+  --simplify-accent-strong: #2f7ce0;
   /* Calmer, lower-contrast background for neurodivergent-friendly focus */
-  background: radial-gradient(1200px 700px at 15% 10%, rgba(90, 143, 106, 0.09), transparent 55%),
+  background:
+    radial-gradient(1200px 700px at 15% 10%, rgba(47, 124, 224, 0.09), transparent 55%),
     radial-gradient(900px 650px at 90% 20%, rgba(193, 127, 89, 0.1), transparent 55%),
     linear-gradient(160deg, #f8f6f3 0%, #f6f1eb 45%, #f3f2ee 100%);
   min-height: 100%;
@@ -1359,7 +1571,7 @@ a.btn.btn-primary:hover {
 .simplify-hero {
   position: relative;
   padding: clamp(2rem, 5vw, 3.25rem) clamp(1.25rem, 4vw, 2.5rem);
-  background: linear-gradient(120deg, #fffefc 0%, #fbf3ea 55%, #eef6f0 100%);
+  background: linear-gradient(120deg, #fffefc 0%, #fbf3ea 55%, #eff4fb 100%);
   clip-path: polygon(0 0, 100% 0, 100% 92%, 0 100%);
   border-bottom: none;
 }
@@ -1398,19 +1610,20 @@ a.btn.btn-primary:hover {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #3d2a22;
-  background: rgba(238, 246, 240, 0.92);
-  border: 1px solid rgba(90, 143, 106, 0.28);
+  color: #1e3f78;
+  background: rgba(239, 245, 255, 0.95);
+  border: 1px solid rgba(47, 124, 224, 0.28);
 }
 
 .simplify-hero-title {
   margin: 0;
-  font-size: clamp(1.65rem, 4.2vw, 2.65rem);
+  font-size: clamp(1.45rem, 3.2vw, 2.2rem);
   font-weight: 800;
   letter-spacing: -0.035em;
-  line-height: 1.08;
+  line-height: 1.1;
   color: #221c1f;
-  max-width: 24ch;
+  /* Longer measure + slightly smaller type so “…read.” ends on line 2 on typical widths */
+  max-width: min(44ch, 100%);
 }
 
 .simplify-hero-lead {
@@ -1447,6 +1660,11 @@ a.btn.btn-primary:hover {
   width: min(100%, 220px);
   height: auto;
   filter: drop-shadow(6px 12px 0 rgba(45, 41, 38, 0.06));
+}
+
+/* Career Profile wizard — stacked under header; inherits full simplify-hero styling */
+.profile-app .simplify-hero--profile-wizard {
+  flex-shrink: 0;
 }
 
 .simplify-studio {
@@ -1487,8 +1705,9 @@ a.btn.btn-primary:hover {
   }
 
   .simplify-hero-title {
-    font-size: clamp(1.45rem, 2.8vw, 2rem);
-    line-height: 1.03;
+    font-size: clamp(1.28rem, 2.55vw, 1.82rem);
+    line-height: 1.06;
+    max-width: min(46ch, 100%);
   }
 
   .simplify-hero-back {
@@ -1545,6 +1764,30 @@ a.btn.btn-primary:hover {
     line-height: 1.4;
   }
 
+  .simplify-file-dropzone {
+    min-height: 116px;
+    padding: 1.25rem 0.85rem;
+    gap: 0.4rem;
+  }
+
+  .simplify-file-dropzone-title {
+    font-size: 0.92rem;
+  }
+
+  .simplify-file-dropzone-sub {
+    font-size: 0.8rem;
+  }
+
+  .simplify-file-dropzone-plus-wrap {
+    width: 3.2rem;
+    height: 3.2rem;
+  }
+
+  .simplify-file-dropzone-plus {
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+
   .simplify-composer:has(.simplify-composer-attachments) .simplify-composer-input {
     min-height: 6.1rem;
   }
@@ -1581,7 +1824,7 @@ a.btn.btn-primary:hover {
 }
 
 .simplify-card--a {
-  border-left: 5px solid #5a8f6a;
+  border-left: 5px solid #2f7ce0;
 }
 
 .simplify-card--c {
@@ -1649,14 +1892,23 @@ a.btn.btn-primary:hover {
 }
 
 .simplify-input-mode-btn:hover {
-  border-color: rgba(90, 143, 106, 0.35);
+  border-color: rgba(47, 124, 224, 0.42);
+  background: rgba(255, 253, 252, 0.98);
 }
 
 .simplify-input-mode-btn--active {
-  background: linear-gradient(160deg, rgba(238, 246, 240, 0.95) 0%, rgba(250, 245, 239, 0.95) 100%);
-  border-color: rgba(90, 143, 106, 0.55);
-  box-shadow: 0 0 0 4px rgba(90, 143, 106, 0.12);
-  color: #1e3d28;
+  background: linear-gradient(
+    165deg,
+    rgba(239, 245, 255, 0.98) 0%,
+    rgba(252, 250, 255, 0.98) 100%
+  );
+  border-color: rgba(47, 124, 224, 0.55);
+  box-shadow: 0 0 0 4px rgba(47, 124, 224, 0.14);
+  color: #1e3f78;
+}
+
+.simplify-input-mode-btn--active:hover {
+  border-color: rgba(47, 124, 224, 0.62);
 }
 
 .simplify-input-mode-hint {
@@ -1667,18 +1919,92 @@ a.btn.btn-primary:hover {
 }
 
 .simplify-file-placeholder {
-  min-height: 7.5rem;
-  padding: 0.85rem 1rem 0.75rem;
-  border-radius: 14px;
-  border: 1px dashed rgba(45, 41, 38, 0.18);
-  background: rgba(255, 254, 254, 0.65);
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 
-.simplify-file-placeholder-lead {
+.simplify-file-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
   margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.68;
-  color: #524a45;
+  padding: 1.85rem clamp(1rem, 4vw, 2rem);
+  min-height: 200px;
+  box-sizing: border-box;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  border: 2px dashed rgba(45, 41, 38, 0.16);
+  border-radius: 16px;
+  background: rgba(244, 248, 253, 0.55);
+  color: inherit;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.simplify-file-dropzone:not(:disabled):hover {
+  border-color: rgba(47, 124, 224, 0.45);
+  background: rgba(237, 244, 253, 0.85);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.simplify-file-dropzone:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(47, 124, 224, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  border-color: rgba(47, 124, 224, 0.55);
+}
+
+.simplify-file-dropzone--active:not(:disabled) {
+  border-color: rgba(47, 124, 224, 0.65);
+  background: rgba(223, 236, 255, 0.72);
+  box-shadow: 0 0 0 3px rgba(47, 124, 224, 0.12);
+}
+
+.simplify-file-dropzone:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.simplify-file-dropzone-plus-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 2px rgba(45, 41, 38, 0.06);
+  color: var(--simplify-accent-strong, #2f7ce0);
+  margin-bottom: 0.15rem;
+}
+
+.simplify-file-dropzone-plus {
+  width: 2.55rem;
+  height: 2.55rem;
+}
+
+.simplify-file-dropzone-title {
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #3a332e;
+  max-width: 22rem;
+}
+
+.simplify-file-dropzone-sub {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #7a726c;
+  max-width: 24rem;
 }
 
 .simplify-file-replace {
@@ -1809,7 +2135,7 @@ a.btn.btn-primary:hover {
   margin: 0.45rem 0 0;
   font-size: 0.8rem;
   line-height: 1.45;
-  color: #3d6b4a;
+  color: #2f5faa;
 }
 
 .simplify-composer-warnings {
@@ -1843,8 +2169,10 @@ a.btn.btn-primary:hover {
 }
 
 .simplify-composer:focus-within {
-  border-color: rgba(90, 143, 106, 0.55);
-  box-shadow: 0 0 0 4px rgba(90, 143, 106, 0.14), 0 10px 34px rgba(45, 41, 38, 0.08);
+  border-color: rgba(47, 124, 224, 0.52);
+  box-shadow:
+    0 0 0 4px rgba(47, 124, 224, 0.15),
+    0 10px 34px rgba(45, 41, 38, 0.08);
 }
 
 .simplify-composer-input {
@@ -1887,8 +2215,8 @@ a.btn.btn-primary:hover {
   height: 2.5rem;
   border: none;
   border-radius: 50%;
-  background: rgba(240, 246, 242, 0.9);
-  color: #2d4a33;
+  background: rgba(239, 245, 255, 0.95);
+  color: #2563c4;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1897,8 +2225,8 @@ a.btn.btn-primary:hover {
 }
 
 .simplify-attach-icon:hover:not(:disabled) {
-  background: rgba(90, 143, 106, 0.16);
-  color: #1e3d28;
+  background: rgba(47, 124, 224, 0.14);
+  color: #1a4a9e;
 }
 
 .simplify-attach-icon:disabled {
@@ -1942,19 +2270,24 @@ a.btn.btn-primary:hover {
   height: 3rem;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(155deg, #2f6a44 0%, #2a5b3b 55%, #1e3d28 100%);
-  color: #f6fff8;
+  background: linear-gradient(
+    135deg,
+    var(--simplify-accent) 0%,
+    var(--simplify-accent-strong) 48%,
+    #2568d4 100%
+  );
+  color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 12px rgba(30, 61, 40, 0.28);
+  box-shadow: 0 2px 14px rgba(47, 124, 224, 0.38);
   transition: filter 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
 .simplify-composer-send:hover:not(:disabled) {
-  filter: brightness(1.07);
-  box-shadow: 0 4px 16px rgba(30, 61, 40, 0.34);
+  filter: brightness(1.06);
+  box-shadow: 0 4px 18px rgba(47, 124, 224, 0.45);
 }
 
 .simplify-composer-send:disabled {
@@ -2167,7 +2500,7 @@ a.btn.btn-primary:hover {
 }
 
 .simplify-export-option:hover {
-  background: rgba(90, 143, 106, 0.14);
+  background: rgba(47, 124, 224, 0.1);
 }
 
 .simplify-export-option:focus-visible {
@@ -2549,8 +2882,8 @@ a.btn.btn-primary:hover {
   margin: 0;
   font-size: 0.9rem;
   color: #2d2926;
-  background: rgba(236, 246, 239, 0.8);
-  border: 1px solid rgba(90, 143, 106, 0.3);
+  background: rgba(239, 245, 255, 0.85);
+  border: 1px solid rgba(47, 124, 224, 0.32);
   border-radius: 10px;
   padding: 0.55rem 0.75rem;
 }
@@ -2671,80 +3004,79 @@ a.btn.btn-primary:hover {
 }
 
 /* =========================================================================
-   "How NeuroGuide works" — four-step flow shown below the hero on the
-   home page. Each step is a soft card with a numbered badge, inline icon,
-   title, and short description. Arrows sit between the cards on wide
-   screens and disappear (→ vertical flow) on narrow screens.
+   "How NeuroGuide works" — four calm steps on a white / soft-peach band that
+   matches .marketing-app (same tokens as the hero and focus sections).
    ========================================================================= */
 
-/* Warm amber band on top, cream below - cards straddle the colour break
-   so the number badges float against the amber tile and the card bodies
-   drop onto the lighter cream background. Uses the site's warm palette
-   (no off-brand purple). */
 .home-band--how {
   background: linear-gradient(
     180deg,
-    #fff1dc 0%,
-    #ffe3bf 48%,
-    #fffaf2 48%,
-    #fff4e6 100%
+    #ffffff 0%,
+    var(--peach-50) 36%,
+    var(--peach-100) 100%
   );
-  padding: 72px 0 44px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: clamp(2.35rem, 5vw, 3rem) 0 clamp(1.65rem, 4vw, 2.35rem);
+  scroll-margin-top: 5.5rem;
 }
 
 .home-how-inner {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 1.65rem;
 }
 
 .home-how-head {
-  max-width: 760px;
+  max-width: 640px;
   margin: 0 auto;
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0.42rem;
   align-items: center;
-  color: #2d2926;
+  color: var(--ink);
 }
 
 .home-how-eyebrow {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #d97a3b;
+  color: var(--accent-strong);
 }
 
 .home-how-title.home-section-title {
   margin: 0;
-  font-size: clamp(1.7rem, 2.6vw, 2.25rem);
-  line-height: 1.2;
+  font-size: clamp(1.32rem, 2.1vw, 1.82rem);
+  line-height: 1.22;
   letter-spacing: -0.01em;
-  color: #2d2926;
+  color: var(--ink);
 }
 
 .home-how-title.home-section-title::after {
-  margin: 14px auto 0;
+  margin: 0.6rem auto 0;
+  height: 3px;
+  width: 2.85rem;
+  background: linear-gradient(90deg, var(--btn-peach-hover), var(--btn-peach));
 }
 
 .home-how-lead {
   margin: 0;
-  font-size: 1rem;
-  color: #5a544f;
-  line-height: 1.55;
-  max-width: 620px;
+  font-size: clamp(0.88rem, 1.65vw, 0.94rem);
+  color: var(--ink-soft);
+  line-height: 1.52;
+  max-width: 34rem;
 }
 
 .home-how-steps {
   list-style: none;
   margin: 0;
-  padding: 26px 0 0;
+  padding: 0.95rem 0 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 32px;
+  gap: 1.35rem;
   align-items: stretch;
 }
 
@@ -2759,7 +3091,7 @@ a.btn.btn-primary:hover {
 
 .home-how-step .home-how-card {
   opacity: 0;
-  transform: translateY(18px) scale(0.98);
+  transform: translateY(12px) scale(0.99);
   transition:
     transform 620ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 520ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -2814,17 +3146,14 @@ a.btn.btn-primary:hover {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 14px;
-  /* Extra top padding leaves room for the floating number badge. */
-  padding: 40px 22px 28px;
-  background: #ffffff;
-  border: 1px solid rgba(45, 41, 38, 0.06);
-  border-radius: 18px;
+  gap: 0.72rem;
+  padding: clamp(1.35rem, 2.8vw, 1.85rem) 1.1rem 1.25rem;
+  background: linear-gradient(180deg, #ffffff 0%, var(--peach-50) 100%);
+  border: 1px solid var(--line);
+  border-radius: 14px;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 22px 44px -28px rgba(45, 41, 38, 0.22);
-  /* transition is defined on .home-how-step .home-how-card so it covers
-     both the reveal animation and the hover lift. */
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 12px 32px -22px rgba(45, 41, 38, 0.12);
 }
 
 .home-how-card > * {
@@ -2832,11 +3161,11 @@ a.btn.btn-primary:hover {
 }
 
 .home-how-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(217, 122, 59, 0.35);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 26px 50px -26px rgba(45, 41, 38, 0.3);
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 18px 40px -22px rgba(45, 41, 38, 0.16);
 }
 
 /* The "number + label" row is a decorative wrapper for the badge only
@@ -2844,7 +3173,7 @@ a.btn.btn-primary:hover {
    floating circle badge sitting on the card's top edge. */
 .home-how-number-row {
   position: absolute;
-  top: -22px;
+  top: -18px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -2859,20 +3188,20 @@ a.btn.btn-primary:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   border-radius: 50%;
   background: #ffffff;
-  border: 2px solid #d97a3b;
-  color: #d97a3b;
+  border: 2px solid var(--accent-strong);
+  color: var(--accent-strong);
   font-family: inherit;
-  font-size: 0.96rem;
+  font-size: 0.84rem;
   font-weight: 800;
   letter-spacing: 0;
   box-shadow:
-    0 6px 14px -6px rgba(45, 41, 38, 0.28),
-    0 0 0 4px rgba(217, 122, 59, 0.14);
+    0 4px 12px -5px rgba(45, 41, 38, 0.1),
+    0 0 0 3px color-mix(in srgb, var(--peach-200) 85%, transparent);
 }
 
 .home-how-label {
@@ -2891,30 +3220,35 @@ a.btn.btn-primary:hover {
 
 .home-how-icon {
   position: relative;
-  width: 72px;
-  height: 72px;
-  margin: 4px auto 2px;
+  width: 58px;
+  height: 58px;
+  margin: 2px auto 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #fff3e4 0%, #ffe1c2 100%);
-  color: #d97a3b;
+  border-radius: 13px;
+  background: linear-gradient(
+    145deg,
+    var(--peach-200) 0%,
+    var(--peach-100) 48%,
+    #ffffff 100%
+  );
+  color: var(--accent-strong);
   flex-shrink: 0;
   overflow: visible;
   animation: howBadgeFloat 5s ease-in-out infinite;
   will-change: transform;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--peach-300));
 }
 
 .home-how-icon svg {
-  width: 38px;
-  height: 38px;
+  width: 30px;
+  height: 30px;
   position: relative;
   z-index: 1;
 }
 
-/* Two soft confetti shapes drifting around the badge - echoes the flat
-   illustration reference (floating squares / dots). */
+/* Two soft shapes drifting around the badge */
 .home-how-icon::before,
 .home-how-icon::after {
   content: "";
@@ -2923,22 +3257,22 @@ a.btn.btn-primary:hover {
 }
 
 .home-how-icon::before {
-  width: 10px;
-  height: 10px;
-  top: -14px;
-  right: -10px;
+  width: 8px;
+  height: 8px;
+  top: -11px;
+  right: -8px;
   border-radius: 3px;
-  background: rgba(217, 122, 59, 0.55);
+  background: color-mix(in srgb, var(--accent-strong) 42%, transparent);
   animation: howShapeDriftA 5.5s ease-in-out infinite;
 }
 
 .home-how-icon::after {
-  width: 8px;
-  height: 8px;
-  bottom: -10px;
-  left: -8px;
+  width: 7px;
+  height: 7px;
+  bottom: -8px;
+  left: -6px;
   border-radius: 50%;
-  background: rgba(217, 122, 59, 0.35);
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
   animation: howShapeDriftB 6.5s ease-in-out infinite;
 }
 
@@ -2959,7 +3293,7 @@ a.btn.btn-primary:hover {
 
 @keyframes howBadgeFloat {
   0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-6px); }
+  50%      { transform: translateY(-4px); }
 }
 
 @keyframes howShapeDriftA {
@@ -2982,18 +3316,18 @@ a.btn.btn-primary:hover {
 
 .home-how-step-title {
   margin: 0;
-  font-size: 1.02rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: #2d2926;
-  line-height: 1.3;
+  color: var(--ink);
+  line-height: 1.28;
   letter-spacing: -0.005em;
 }
 
 .home-how-step-desc {
   margin: 0;
-  font-size: 0.88rem;
-  color: #6b635c;
-  line-height: 1.55;
+  font-size: 0.79rem;
+  color: var(--ink-soft);
+  line-height: 1.52;
   flex-grow: 1;
   max-width: 26ch;
 }
@@ -3002,22 +3336,22 @@ a.btn.btn-primary:hover {
   align-self: center;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.88rem;
+  gap: 5px;
+  font-size: 0.79rem;
   font-weight: 700;
-  color: #d97a3b;
+  color: var(--accent-strong);
   text-decoration: none;
-  padding: 6px 0;
+  padding: 5px 0;
   transition: gap 180ms ease, color 180ms ease;
 }
 
 .home-how-step-link:hover {
-  color: #b45f28;
-  gap: 10px;
+  color: var(--focus);
+  gap: 8px;
 }
 
 .home-how-step-link:focus-visible {
-  outline: 2px solid #d97a3b;
+  outline: 2px solid var(--focus);
   outline-offset: 3px;
   border-radius: 4px;
 }
@@ -3026,45 +3360,46 @@ a.btn.btn-primary:hover {
    columns on tablet rows, or below each step on mobile. */
 .home-how-arrow {
   position: absolute;
-  left: calc(100% + 16px);
+  left: calc(100% + 12px);
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   margin: 0;
   padding: 0;
-  font-size: 1.35rem;
+  font-size: 1.12rem;
   font-weight: 700;
   line-height: 1;
-  color: #d97a3b;
+  color: var(--accent-strong);
   pointer-events: none;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .home-how-note {
   margin: 0 auto;
-  max-width: 560px;
+  max-width: 32rem;
   text-align: center;
-  font-size: 0.86rem;
-  color: #8a837c;
-  line-height: 1.5;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  line-height: 1.48;
+  opacity: 0.92;
 }
 
 /* -- Tablet: 2 columns ------------------------------------------------- */
 @media (max-width: 980px) {
   .home-how-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 48px 32px;
+    gap: 2rem 1.35rem;
   }
 
   /* Between columns on the same row */
   .home-how-step:nth-child(1) .home-how-arrow,
   .home-how-step:nth-child(3) .home-how-arrow {
-    left: calc(100% + 16px);
+    left: calc(100% + 12px);
     top: 50%;
     transform: translate(-50%, -50%);
   }
@@ -3072,19 +3407,17 @@ a.btn.btn-primary:hover {
   /* From step 2 down into the row below (step 3) */
   .home-how-step:nth-child(2) .home-how-arrow {
     left: 50%;
-    top: calc(100% + 24px);
+    top: calc(100% + 18px);
     transform: translate(-50%, 0) rotate(90deg);
   }
 
-  /* Shift the warm colour break slightly so the amber tile still hugs
-     the top of the cards when they take more vertical space. */
+  /* Slightly richer peach at the fold when the grid is taller */
   .home-band--how {
     background: linear-gradient(
       180deg,
-      #fff1dc 0%,
-      #ffe3bf 38%,
-      #fffaf2 38%,
-      #fff4e6 100%
+      #ffffff 0%,
+      var(--peach-50) 32%,
+      var(--peach-100) 100%
     );
   }
 }
@@ -3092,26 +3425,25 @@ a.btn.btn-primary:hover {
 /* -- Mobile: single column ------------------------------------------- */
 @media (max-width: 640px) {
   .home-band--how {
-    padding: 56px 0 40px;
+    padding: clamp(1.95rem, 5vw, 2.85rem) 0 clamp(1.45rem, 4vw, 2rem);
     background: linear-gradient(
       180deg,
-      #fff1dc 0%,
-      #ffe3bf 32%,
-      #fffaf2 32%,
-      #fff4e6 100%
+      #ffffff 0%,
+      var(--peach-50) 28%,
+      var(--peach-100) 100%
     );
   }
 
   .home-how-steps {
     grid-template-columns: 1fr;
-    gap: 34px;
+    gap: 1.65rem;
   }
 
   .home-how-step .home-how-arrow {
     position: static;
     transform: rotate(90deg);
     align-self: center;
-    margin: -6px 0 4px;
+    margin: -8px 0 2px;
   }
 }
 
@@ -3797,8 +4129,8 @@ a.btn.btn-primary:hover {
 }
 
 .jsc-callout {
-  background: rgba(236, 246, 239, 0.6);
-  border: 1px solid rgba(90, 143, 106, 0.25);
+  background: rgba(239, 245, 255, 0.65);
+  border: 1px solid rgba(47, 124, 224, 0.22);
   border-radius: 12px;
   padding: 0.85rem 1rem;
 }

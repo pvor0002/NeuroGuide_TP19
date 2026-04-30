@@ -209,10 +209,27 @@ export default function HomePage() {
           <p className="home-hero-tagline" role="doc-subtitle">
             Simplifying jobs and interviews for the way your mind works
           </p>
+          <a
+            href="#home-main-start"
+            className="home-hero-scroll"
+            aria-label="Scroll down to the rest of this page"
+          >
+            <span className="home-hero-scroll-circle" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 5v14m-7-6 7 7 7-7"
+                  stroke="currentColor"
+                  strokeWidth="2.15"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </a>
         </div>
       </section>
 
-      <section className="home-band home-band--how" aria-labelledby="home-how-title">
+      <section className="home-band home-band--how" id="home-main-start" aria-labelledby="home-how-title">
         <div className="home-band-inner home-band-inner--wide home-how-inner">
           <header className="home-how-head">
             <p className="home-how-eyebrow">How NeuroGuide works</p>
@@ -264,6 +281,38 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="home-band home-band--white home-band--next-split" aria-labelledby="home-next-title">
+        <div className="home-band-inner home-band-inner--wide home-next-split-inner">
+          <figure className="home-next-figure">
+            <img
+              src={sectionImage}
+              alt="Hands writing notes in a planner on a light wood desk"
+              className="home-next-img"
+              width={1600}
+              height={900}
+              loading="lazy"
+              decoding="async"
+            />
+          </figure>
+          <div className="home-next-copy">
+            <h2 id="home-next-title" className="home-section-title home-next-title">
+              Looking for what’s next?
+            </h2>
+            <p className="home-section-lead home-next-lead">
+              Start with a posting broken into short, scannable sections. When you are ready, capture how you fit in the guided profile builder.
+            </p>
+            <div className="home-next-cta home-cta-wrap">
+              <Link to="/profile" className="home-btn-peach home-next-cta-equal">
+                Build your profile
+              </Link>
+              <Link to="/simplify-job-description" className="home-btn-peach home-next-cta-equal">
+                Simplify job description
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="home-band home-band--focus" aria-labelledby="home-focus-title">
         <div className="home-band-inner home-band-inner--wide home-focus-inner">
           <header className="home-focus-head">
@@ -301,35 +350,6 @@ export default function HomePage() {
           </ul>
 
           <p className="home-focus-note">Reading tool only-not medical or career advice.</p>
-        </div>
-      </section>
-
-      <section className="home-band home-band--white" aria-labelledby="home-next-title">
-        <div className="home-band-inner">
-          <h2 id="home-next-title" className="home-section-title">
-            Looking for what’s next?
-          </h2>
-          <p className="home-section-lead">
-            Start with a posting broken into short, scannable sections. When you are ready, capture how you fit in the guided profile builder.
-          </p>
-          <div className="home-cta-wrap">
-            <Link to="/profile" className="home-btn-peach">
-              Build your profile
-            </Link>
-            <Link to="/simplify-job-description" className="home-btn-peach">
-              Simplify Job Description
-            </Link>
-          </div>
-          <figure className="home-feature-figure">
-            <img
-              src={sectionImage}
-              alt="Hands writing notes in a planner on a light wood desk"
-              className="home-feature-img"
-              width={1600}
-              height={900}
-              loading="lazy"
-            />
-          </figure>
         </div>
       </section>
 

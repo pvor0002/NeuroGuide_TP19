@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
+import WarmHeroPaperShapes from "../components/WarmHeroPaperShapes.jsx";
 import JobScoreCard from "../components/JobScoreCard.jsx";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
 import { findOccupation, predictJobScore } from "../services/jobDescriptionApi.js";
@@ -467,27 +468,6 @@ function SimplifyExportToolbar({ outputVisible, simplifiedResult, warnings, sync
   );
 }
 
-/** Decorative shapes only (warm colors, no blue/purple as the main theme). */
-function HeroPaperShapes() {
-  return (
-    <div className="simplify-hero-shapes" aria-hidden="true">
-      <svg className="simplify-shape-svg" viewBox="0 0 240 200" preserveAspectRatio="xMidYMid meet">
-        <path
-          fill="#c4e0c8"
-          opacity="0.95"
-          d="M40 120c20-50 80-90 140-70s80 70 50 120-90 50-140 20-70-60-50-70z"
-        />
-        <path
-          fill="#e8b4a0"
-          opacity="0.88"
-          d="M120 40c45 8 85 50 75 100s-55 70-100 55-65-45-55-90 25-70 80-65z"
-        />
-        <circle cx="175" cy="55" r="18" fill="#d4a574" opacity="0.75" />
-      </svg>
-    </div>
-  );
-}
-
 // ─── Quick Snapshot: 3 must-have chips pinned at the top of output ──────────
 const SNAPSHOT_FALLBACK_EMOJIS = ["🔑", "📋", "✅"];
 
@@ -883,10 +863,12 @@ export default function SimplifyJobDescriptionPage() {
   } = useJobDescriptionSimplification();
 
   const fileInputRef = useRef(null);
+  const fileDropDepthRef = useRef(0);
   const outputRef = useRef(null);
   const inputId = useId();
   const composerMetaId = useId();
   const [scrollToOutputOnResult, setScrollToOutputOnResult] = useState(false);
+  const [fileDropActive, setFileDropActive] = useState(false);
 
   // Job score state
   const [jobScoreResult, setJobScoreResult] = useState(null);
@@ -907,6 +889,13 @@ export default function SimplifyJobDescriptionPage() {
     return () => window.clearTimeout(t);
   }, [scrollToOutputOnResult, outputVisible]);
 
+  useEffect(() => {
+    if (inputMode !== "file") {
+      fileDropDepthRef.current = 0;
+      setFileDropActive(false);
+    }
+  }, [inputMode]);
+
   return (
     <div className="simplify-page">
       <DataConsentModal />
@@ -923,7 +912,7 @@ export default function SimplifyJobDescriptionPage() {
               ← Back home
             </Link>
           </div>
-          <HeroPaperShapes />
+          <WarmHeroPaperShapes />
         </div>
       </header>
 
@@ -1014,9 +1003,54 @@ export default function SimplifyJobDescriptionPage() {
               ) : (
                 <div className="simplify-file-placeholder">
                   {!attachment && !isExtracting ? (
-                    <p className="simplify-file-placeholder-lead">
-                      Upload one file with the job posting. We&apos;ll read the text when you submit.
-                    </p>
+                    <button
+                      type="button"
+                      className={`simplify-file-dropzone ${fileDropActive ? "simplify-file-dropzone--active" : ""}`}
+                      disabled={isBusy}
+                      aria-describedby={composerMetaId}
+                      aria-label="Add job posting file: drag and drop here, or click to browse"
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                      }}
+                      onKeyDown={(e) => {
+                        if (isBusy || (e.key !== "Enter" && e.key !== " ")) return;
+                        e.preventDefault();
+                        fileInputRef.current?.click();
+                      }}
+                      onDragEnter={(e) => {
+                        e.preventDefault();
+                        fileDropDepthRef.current += 1;
+                        setFileDropActive(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        fileDropDepthRef.current = Math.max(0, fileDropDepthRef.current - 1);
+                        if (fileDropDepthRef.current === 0) setFileDropActive(false);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        fileDropDepthRef.current = 0;
+                        setFileDropActive(false);
+                        if (!isBusy) {
+                          const files = e.dataTransfer?.files;
+                          if (files?.length) onFileSelected(files);
+                        }
+                      }}
+                    >
+                      <span className="simplify-file-dropzone-plus-wrap" aria-hidden="true">
+                        <svg className="simplify-file-dropzone-plus" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10.75" stroke="currentColor" strokeWidth="1.35" opacity="0.45" />
+                          <path d="M12 7.75v8.5M7.75 12h8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </span>
+                      <span className="simplify-file-dropzone-title">Drag a file here or click to browse</span>
+                      <span className="simplify-file-dropzone-sub">
+                        Accepts .txt, .pdf, .doc, or .docx · one file · max 5 MB
+                      </span>
+                    </button>
                   ) : null}
                   {attachment && !isExtracting ? (
                     <button
