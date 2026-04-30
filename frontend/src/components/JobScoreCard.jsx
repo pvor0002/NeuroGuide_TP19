@@ -136,7 +136,7 @@ function SkillsBreakdown({ skillsFactor }) {
         <div className="jsc-skills-col jsc-skills-col--missing">
           <div className="jsc-skills-col-header">
             <span className="jsc-skills-col-dot" style={{ background: "#c0442a" }} />
-            <span className="jsc-skills-col-title">You're missing</span>
+            <span className="jsc-skills-col-title">You&apos;re missing</span>
             <span className="jsc-skills-col-count">{missing.length}</span>
           </div>
           {missing.length === 0
