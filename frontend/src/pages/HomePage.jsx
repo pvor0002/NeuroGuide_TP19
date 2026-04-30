@@ -168,6 +168,19 @@ export default function HomePage() {
   const howStepsRef = useRef(null);
   const [howRevealed, setHowRevealed] = useState(false);
 
+  const handleScrollToNext = () => {
+    const target = document.getElementById("home-how");
+    if (!target) return;
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({
+      behavior: prefersReduced ? "auto" : "smooth",
+      block: "start",
+    });
+  };
+
   useEffect(() => {
     const target = howStepsRef.current;
     if (!target || howRevealed) return undefined;
@@ -210,9 +223,30 @@ export default function HomePage() {
             Simplifying jobs and interviews for the way your mind works
           </p>
         </div>
+        <button
+          type="button"
+          className="home-hero-scroll"
+          onClick={handleScrollToNext}
+          aria-label="Scroll to next section"
+        >
+          <span className="home-hero-scroll-label">More below</span>
+          <span className="home-hero-scroll-icon" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              focusable="false"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </span>
+        </button>
       </section>
 
-      <section className="home-band home-band--how" aria-labelledby="home-how-title">
+      <section id="home-how" className="home-band home-band--how" aria-labelledby="home-how-title">
         <div className="home-band-inner home-band-inner--wide home-how-inner">
           <header className="home-how-head">
             <p className="home-how-eyebrow">How NeuroGuide works</p>
@@ -304,32 +338,34 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="home-band home-band--white" aria-labelledby="home-next-title">
-        <div className="home-band-inner">
-          <h2 id="home-next-title" className="home-section-title">
-            Looking for what’s next?
-          </h2>
-          <p className="home-section-lead">
-            Start with a posting broken into short, scannable sections. When you are ready, capture how you fit in the guided profile builder.
-          </p>
-          <div className="home-cta-wrap">
-            <Link to="/profile" className="home-btn-peach">
-              Build your profile
-            </Link>
-            <Link to="/simplify-job-description" className="home-btn-peach">
-              Simplify Job Description
-            </Link>
-          </div>
-          <figure className="home-feature-figure">
+      <section className="home-band home-band--white home-next" aria-labelledby="home-next-title">
+        <div className="home-band-inner home-band-inner--wide home-next-inner">
+          <figure className="home-feature-figure home-next-figure">
             <img
               src={sectionImage}
               alt="Hands writing notes in a planner on a light wood desk"
-              className="home-feature-img"
+              className="home-feature-img home-next-img"
               width={1600}
               height={900}
               loading="lazy"
             />
           </figure>
+          <div className="home-next-content">
+            <h2 id="home-next-title" className="home-section-title home-next-title">
+              Looking for what’s next?
+            </h2>
+            <p className="home-section-lead home-next-lead">
+              Start with a posting broken into short, scannable sections. When you are ready, capture how you fit in the guided profile builder.
+            </p>
+            <div className="home-cta-wrap home-next-cta">
+              <Link to="/profile" className="home-btn-peach">
+                Build your profile
+              </Link>
+              <Link to="/simplify-job-description" className="home-btn-peach">
+                Simplify Job Description
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
