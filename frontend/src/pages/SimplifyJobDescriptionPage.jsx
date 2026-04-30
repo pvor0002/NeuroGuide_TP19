@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
+import { SimplifyLineIcon } from "../components/SimplifyLineIcons.jsx";
 import WarmHeroPaperShapes from "../components/WarmHeroPaperShapes.jsx";
 import JobScoreCard from "../components/JobScoreCard.jsx";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
@@ -48,9 +49,9 @@ function getProfileTabFromCareerProfile() {
 }
 
 const CARD_SECTIONS = [
-  { key: "basic_info", label: "Basic info", emoji: "📍" },
-  { key: "responsibilities", label: "Responsibilities", emoji: "💼" },
-  { key: "skills_qualifications", label: "Skills needed", emoji: "🧰" },
+  { key: "basic_info", label: "Basic info", icon: "mapPin" },
+  { key: "responsibilities", label: "Responsibilities", icon: "briefcase" },
+  { key: "skills_qualifications", label: "Skills needed", icon: "clipboard" },
 ];
 
 const CARD_POINT_LIMIT = {
@@ -245,11 +246,71 @@ function renderImportantLines(text) {
   return blocks;
 }
 
+/**
+ * Basic info often arrives as one line: "Job Title: X | Company: Y | ...".
+ */
+function parseBasicInfoPipeFields(text) {
+  const normalized = String(text ?? "").replace(/\r\n/g, " ").trim();
+  if (!normalized) return [];
+
+  const segments = normalized
+    .split(/\s*\|\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const rows = [];
+  for (const chunk of segments) {
+    const m = chunk.match(/^(.+?):\s*(.+)$/);
+    if (m) {
+      const labelPart = m[1].trim();
+      const valuePart = m[2].trim();
+      if (labelPart && valuePart) rows.push({ label: labelPart, value: valuePart });
+      continue;
+    }
+    const idx = chunk.indexOf(":");
+    if (idx > 0 && idx < chunk.length - 1) {
+      const lbl = chunk.slice(0, idx).trim();
+      const val = chunk.slice(idx + 1).trim();
+      if (lbl && val) rows.push({ label: lbl, value: val });
+    }
+  }
+  return rows;
+}
+
+function renderBasicInfoBulletRows(text) {
+  const rows = parseBasicInfoPipeFields(text);
+  if (rows.length === 0) return null;
+
+  return (
+    <ul className="simplify-dash-bullets">
+      {rows.map(({ label, value }, i) => (
+        <li key={`${label}-${i}`} className="simplify-dash-bullets__item">
+          <div className="simplify-dash-bullets__pill">
+            <span className="simplify-dash-bullets__dot" aria-hidden="true" />
+            <span className="simplify-dash-bullets__text">
+              <strong className="simplify-dash-bullets__label">{label}:</strong>
+              <span className="simplify-dash-bullets__value">{value}</span>
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** ~18rem baseline; JS syncs to taller face so lists stay visible without inner scroll. */
+const FLIP_CARD_MIN_PX = 288;
+
 /** Front shows title only; click flips to content (ADHD-friendly: one focus at a time). */
-function SimplifyFlipCard({ cardKey, label, emoji, body }) {
+function SimplifyFlipCard({ cardKey, label, icon, body }) {
   const [flipped, setFlipped] = useState(false);
+  const innerRef = useRef(null);
+  const frontFaceRef = useRef(null);
+  const backFaceRef = useRef(null);
   const { text, points } = getCardViewModel(cardKey, body);
   const hasPoints = points.length > 0;
+  const basicBulletRows =
+    cardKey === "basic_info" ? renderBasicInfoBulletRows(text) : null;
   const focusHint = "Quick view";
   const toggle = () => setFlipped((v) => !v);
   const onKeyDown = (e) => {
@@ -259,8 +320,29 @@ function SimplifyFlipCard({ cardKey, label, emoji, body }) {
     }
   };
 
+  useLayoutEffect(() => {
+    const inner = innerRef.current;
+    const front = frontFaceRef.current;
+    const back = backFaceRef.current;
+    if (!inner || !front || !back) return;
+
+    const syncHeight = () => {
+      const fh = front.scrollHeight;
+      const bh = back.scrollHeight;
+      inner.style.minHeight = `${Math.max(fh, bh, FLIP_CARD_MIN_PX)}px`;
+    };
+
+    syncHeight();
+    const ro = new ResizeObserver(syncHeight);
+    ro.observe(front);
+    ro.observe(back);
+    const bodyEl = back.querySelector(".simplify-flip-card__body");
+    if (bodyEl) ro.observe(bodyEl);
+    return () => ro.disconnect();
+  }, [body, cardKey]);
+
   return (
-    <div className="simplify-flip-card">
+    <div className={`simplify-flip-card simplify-flip-card--${cardKey}`}>
       <div
         className={`simplify-flip-card__hitbox ${flipped ? "simplify-flip-card__hitbox--flipped" : ""}`}
         role="button"
@@ -276,28 +358,38 @@ function SimplifyFlipCard({ cardKey, label, emoji, body }) {
             : `${label}. Activate to read this section.`
         }
       >
-        <div className="simplify-flip-card__inner">
-          <div className="simplify-flip-card__face simplify-flip-card__face--front">
-            <span className="simplify-flip-card__emoji" aria-hidden="true">{emoji}</span>
-            <h3 className="simplify-flip-card__title">{label}</h3>
-            <p className="simplify-flip-card__chip" aria-hidden="true">{focusHint}</p>
+        <div className="simplify-flip-card__inner" ref={innerRef}>
+          <div
+            ref={frontFaceRef}
+            className="simplify-flip-card__face simplify-flip-card__face--front"
+          >
+            <span className="simplify-flip-card__icon-tile" aria-hidden="true">
+              <SimplifyLineIcon name={icon} />
+            </span>
+            <div className="simplify-flip-card__heading">
+              <h3 className="simplify-flip-card__title">{label}</h3>
+              <p className="simplify-flip-card__chip">{focusHint}</p>
+            </div>
             <p className="simplify-flip-card__cta">
               <FlipCardsIcon />
               <span>Tap to open</span>
             </p>
           </div>
           <div
+            ref={backFaceRef}
             className="simplify-flip-card__face simplify-flip-card__face--back"
             id={`simplify-flip-panel-${cardKey}`}
             aria-label={`${label} details`}
           >
             <div className="simplify-flip-card__back-head">
-              <span className="simplify-flip-card__back-title">
-                {emoji} {label}
+              <span className="simplify-flip-card__icon-tile simplify-flip-card__icon-tile--compact" aria-hidden="true">
+                <SimplifyLineIcon name={icon} />
               </span>
+              <span className="simplify-flip-card__back-title">{label}</span>
             </div>
             <div className="simplify-flip-card__body">
-              {hasPoints ? (
+              {basicBulletRows ??
+                (hasPoints ? (
                 <ul className="simplify-flip-card__focus-list">
                   {points.map((point, idx) => (
                     <li key={`${cardKey}-focus-${idx}`} className="simplify-flip-card__focus-item">
@@ -310,7 +402,7 @@ function SimplifyFlipCard({ cardKey, label, emoji, body }) {
                 </ul>
               ) : (
                 renderImportantLines(text)
-              )}
+              ))}
             </div>
             <p className="simplify-flip-card__cta simplify-flip-card__cta--back">
               <FlipCardsIcon />
@@ -329,7 +421,7 @@ function FlipCardRow({ result }) {
     <div className="simplify-flip-row" aria-label="Quick-view cards">
       <p className="simplify-flip-row__label">Flip for details</p>
       <div className="simplify-flip-row__grid">
-        {CARD_SECTIONS.map(({ key, label, emoji }) => {
+        {CARD_SECTIONS.map(({ key, label, icon }) => {
           const body = result[key];
           if (!body || String(body).trim() === "-") return null;
           return (
@@ -337,7 +429,7 @@ function FlipCardRow({ result }) {
               key={key}
               cardKey={key}
               label={label}
-              emoji={emoji}
+              icon={icon}
               body={body}
             />
           );
@@ -468,10 +560,13 @@ function SimplifyExportToolbar({ outputVisible, simplifiedResult, warnings, sync
   );
 }
 
-// ─── Quick Snapshot: 3 must-have chips pinned at the top of output ──────────
-const SNAPSHOT_FALLBACK_EMOJIS = ["🔑", "📋", "✅"];
-
-// Simple emoji detection: checks if string starts with a non-ASCII character
+/** Text shown in a Quick snapshot chip (drops a leading emoji from model text when present). */
+function snapshotChipText(chip) {
+  const { label } = splitChipContent(chip);
+  const t = label.trim();
+  if (t) return t;
+  return String(chip ?? "").trim();
+}
 function hasLeadingEmoji(str) {
   if (!str) return false;
   const cp = str.codePointAt(0);
@@ -532,6 +627,9 @@ function resolveSnapshotChips(result) {
   return lines;
 }
 
+/** Icons for the three Quick snapshot requirement chips (ordered: location, commitment, eligibility). */
+const SNAPSHOT_CHIP_ICONS = ["mapPin", "briefcase", "bookmark"];
+
 function QuickSnapshotBar({ result, profileKey }) {
   const chips = resolveSnapshotChips(result);
   if (chips.length === 0) return null;
@@ -541,21 +639,21 @@ function QuickSnapshotBar({ result, profileKey }) {
   return (
     <div className={`simplify-snapshot-bar${profileMod}`} aria-label="Quick snapshot: must-have requirements">
       <div className="simplify-snapshot-header">
-        <span className="simplify-snapshot-icon" aria-hidden="true">⚡</span>
+        <span className="simplify-snapshot-icon" aria-hidden="true">
+          <SimplifyLineIcon name="bolt" />
+        </span>
         <span className="simplify-snapshot-title">Quick snapshot</span>
         <span className="simplify-snapshot-label">3 must-haves at a glance</span>
       </div>
       <div className="simplify-snapshot-chips">
-        {chips.map((chip, i) => {
-          const { emoji, label } = splitChipContent(chip);
-          const icon = emoji || SNAPSHOT_FALLBACK_EMOJIS[i] || "📌";
-          return (
-            <span key={i} className="simplify-snapshot-chip">
-              <span className="simplify-snapshot-chip__emoji" aria-hidden="true">{icon}</span>
-              <span className="simplify-snapshot-chip__text">{label || chip}</span>
+        {chips.map((chip, i) => (
+          <span key={i} className="simplify-snapshot-chip">
+            <span className="simplify-snapshot-chip__mark" aria-hidden="true">
+              <SimplifyLineIcon name={SNAPSHOT_CHIP_ICONS[i % SNAPSHOT_CHIP_ICONS.length]} />
             </span>
-          );
-        })}
+            <span className="simplify-snapshot-chip__text">{snapshotChipText(chip)}</span>
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -576,9 +674,9 @@ function ProfileLabel({ profileKey }) {
 
 // ─── Calm & Clear (Inattentive) ──────────────────────────────────────────────
 const INATTENTIVE_TABS = [
-  { key: "what_you_do",      label: "What you'll do",    emoji: "💼" },
-  { key: "skills_you_learn", label: "Skills you'll learn", emoji: "🧰" },
-  { key: "important_notes",  label: "Important notes",   emoji: "⚠️" },
+  { key: "what_you_do", label: "What you'll do", icon: "briefcase" },
+  { key: "skills_you_learn", label: "Skills you'll learn", icon: "clipboard" },
+  { key: "important_notes", label: "Important notes", icon: "alert" },
 ];
 
 function ProfileInattentive({ data }) {
@@ -609,7 +707,7 @@ function ProfileInattentive({ data }) {
       {availableTabs.length > 0 && (
         <div className="sp-tabs-wrap">
           <div className="sp-tabs" role="tablist">
-            {availableTabs.map(({ key, label, emoji }) => (
+            {availableTabs.map(({ key, label, icon }) => (
               <button
                 key={key}
                 role="tab"
@@ -617,7 +715,7 @@ function ProfileInattentive({ data }) {
                 className={`sp-tab ${activeTab === key ? "sp-tab--active" : ""}`}
                 onClick={() => setActiveTab(key)}
               >
-                <span aria-hidden="true">{emoji}</span> {label}
+                <SimplifyLineIcon name={icon} className="sp-tab__glyph" aria-hidden /> {label}
               </button>
             ))}
           </div>
@@ -676,7 +774,7 @@ function ProfileHyperactive({ data }) {
           {data.why_exciting?.length > 0 && (
             <div className="sp-hyper-col">
               <p className="sp-hyper-col-label">
-                <span aria-hidden="true">🔥</span> Why this is exciting
+                <SimplifyLineIcon name="sparkle" aria-hidden /> Why this is exciting
               </p>
               <ul className="sp-hyper-pills">
                 {data.why_exciting.map((r, i) => (
@@ -689,7 +787,7 @@ function ProfileHyperactive({ data }) {
           {data.what_you_do?.length > 0 && (
             <div className="sp-hyper-col">
               <p className="sp-hyper-col-label">
-                <span aria-hidden="true">⚡</span> What you&apos;ll actually do
+                <SimplifyLineIcon name="bolt" aria-hidden /> What you&apos;ll actually do
               </p>
               <ol className="sp-numbered-list">
                 {data.what_you_do.map((d, i) => (
@@ -707,7 +805,10 @@ function ProfileHyperactive({ data }) {
       {/* How it works — full-width horizontal timeline */}
       {data.programme_flow?.length > 0 && (
         <div className="sp-section sp-section--flow">
-          <h3 className="sp-section-title">🪜 How it works</h3>
+          <h3 className="sp-section-title sp-section-title--with-icon">
+            <SimplifyLineIcon name="milestones" aria-hidden />
+            How it works
+          </h3>
           <ol className="sp-timeline">
             {data.programme_flow.map((step, i) => (
               <li key={i} className="sp-timeline-step">
@@ -749,7 +850,7 @@ function ProfileCombined({ data }) {
       {data.what_makes_it_good?.length > 0 && (
         <div className="sp-combined-good-row">
           <p className="sp-combined-good-label">
-            <span aria-hidden="true">⭐</span> What makes it good
+            <SimplifyLineIcon name="bookmark" aria-hidden /> What makes it good
           </p>
           <ul className="sp-combined-good-pills">
             {data.what_makes_it_good.map((v, i) => (
@@ -765,7 +866,7 @@ function ProfileCombined({ data }) {
           {data.what_you_learn?.length > 0 && (
             <div className="sp-hyper-col">
               <p className="sp-hyper-col-label">
-                <span aria-hidden="true">📚</span> What you&apos;ll learn
+                <SimplifyLineIcon name="bookOpen" aria-hidden /> What you&apos;ll learn
               </p>
               <ul className="sp-tag-list">
                 {data.what_you_learn.map((s, i) => (
@@ -778,7 +879,7 @@ function ProfileCombined({ data }) {
           {data.simple_steps?.length > 0 && (
             <div className="sp-hyper-col">
               <p className="sp-hyper-col-label">
-                <span aria-hidden="true">🪜</span> Simple steps
+                <SimplifyLineIcon name="listOrdered" aria-hidden /> Simple steps
               </p>
               <ol className="sp-numbered-list">
                 {data.simple_steps.map((step, i) => (
@@ -796,7 +897,10 @@ function ProfileCombined({ data }) {
       {/* Important — full-width callout */}
       {data.important?.length > 0 && (
         <div className="sp-section sp-combined-important">
-          <h3 className="sp-section-title">⚠️ Important to know</h3>
+          <h3 className="sp-section-title sp-section-title--with-icon">
+            <SimplifyLineIcon name="alert" aria-hidden />
+            Important to know
+          </h3>
           <ul className="sp-combined-important-list">
             {data.important.map((n, i) => (
               <li key={i} className="sp-combined-important-item">
