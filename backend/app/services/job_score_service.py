@@ -16,17 +16,17 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # RDS CONNECTION
 # ============================================================================
-RDS_CONFIG = {
-    "host": "neuroguide-db.clksac42w16c.ap-southeast-2.rds.amazonaws.com",
-    "port": 5432,
-    "database": "neuroguide",
-    "user": "neuroguide_admin",
-    "password": "NeuroGuide2025!"
-}
+import os
 
 def get_db_connection():
-    """Create and return a PostgreSQL connection."""
-    return psycopg2.connect(**RDS_CONFIG)
+    """Create and return a PostgreSQL connection using environment variables."""
+    return psycopg2.connect(
+        host=os.environ["RDS_HOST"],
+        port=int(os.environ.get("RDS_PORT", 5432)),
+        database=os.environ["RDS_DATABASE"],
+        user=os.environ["RDS_USER"],
+        password=os.environ["RDS_PASSWORD"],
+    )
 
 
 # ============================================================================
