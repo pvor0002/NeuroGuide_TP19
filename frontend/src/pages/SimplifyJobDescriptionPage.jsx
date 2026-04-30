@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
+import JobScoreCard from "../components/JobScoreCard.jsx";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
+import { findOccupation, predictJobScore } from "../services/jobDescriptionApi.js";
 import {
   buildExportPdfFilename,
   buildExportTxtFilename,
@@ -885,7 +887,12 @@ export default function SimplifyJobDescriptionPage() {
   const inputId = useId();
   const composerMetaId = useId();
   const [scrollToOutputOnResult, setScrollToOutputOnResult] = useState(false);
-  const [showInterviewPrepPrompt, setShowInterviewPrepPrompt] = useState(false);
+
+  // Job score state
+  const [jobScoreResult, setJobScoreResult] = useState(null);
+  const [jobScoreOccupationName, setJobScoreOccupationName] = useState("");
+  const [jobScoreBusy, setJobScoreBusy] = useState(false);
+  const [jobScoreError, setJobScoreError] = useState("");
 
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
@@ -1140,13 +1147,80 @@ export default function SimplifyJobDescriptionPage() {
               <button
                 type="button"
                 className="simplify-next-step-btn"
-                onClick={() => setShowInterviewPrepPrompt(true)}
+                disabled={jobScoreBusy}
+                onClick={async () => {
+                  setJobScoreError("");
+                  setJobScoreResult(null);
+
+                  // 1. Read career profile from localStorage
+                  let profile = null;
+                  try {
+                    const raw = window.localStorage.getItem(CAREER_PROFILE_STORAGE_KEY);
+                    if (raw) profile = JSON.parse(raw);
+                  } catch { /* ignore */ }
+
+                  if (!profile?.answers) {
+                    setJobScoreError("Complete your profile first so we can calculate your match score.");
+                    return;
+                  }
+
+                  const answers = profile.answers;
+
+                  // roleDuration is stored as { roleName: "Internship" } — extract the first value
+                  const roleDurationRaw = answers.roleDuration;
+                  const roleDuration =
+                    typeof roleDurationRaw === "string"
+                      ? roleDurationRaw
+                      : Object.values(roleDurationRaw || {}).find(Boolean) || "Internship";
+
+                  const userQuestionnaire = {
+                    adhd_profile_type: answers.adhdProfileType || "inattentive",
+                    work_preferences: (answers.workStyles ?? answers.workPreferences ?? []).slice(0, 2),
+                    support_needs: (answers.supportNeeds ?? []).slice(0, 2),
+                    energy_patterns: (answers.energyPatterns ?? []).slice(0, 2),
+                    primary_role: answers.selectedRoles?.[0] || answers.primaryRole || "",
+                    role_duration: roleDuration,
+                    skills: answers.selectedSkills ?? answers.autoSelectedSkills ?? [],
+                  };
+
+                  const jobTitle = simplifiedResult?.job_title || "";
+                  const extractedSkills = simplifiedResult?.extracted_skills ?? [];
+
+                  if (!jobTitle) {
+                    setJobScoreError("No job title found. Try simplifying the job description again.");
+                    return;
+                  }
+
+                  setJobScoreBusy(true);
+                  try {
+                    // 2. Find occupation_id from job title
+                    const occResult = await findOccupation(jobTitle);
+                    const occupationId = occResult.occupation_id;
+                    const occupationName = occResult.occupation_name;
+
+                    // 3. Calculate job match score
+                    const scoreResult = await predictJobScore(
+                      userQuestionnaire,
+                      occupationId,
+                      extractedSkills.length > 0 ? extractedSkills : null,
+                      null
+                    );
+
+                    setJobScoreOccupationName(occupationName);
+                    setJobScoreResult(scoreResult);
+                  } catch (err) {
+                    setJobScoreError(err?.message || "Could not calculate job match score. Please try again.");
+                  } finally {
+                    setJobScoreBusy(false);
+                  }
+                }}
               >
-                See Job match score
+                {jobScoreBusy ? "Calculating…" : "See Job match score"}
               </button>
-              {showInterviewPrepPrompt ? (
-                <p className="simplify-next-step-prompt" role="status">
-                  Functionality coming in iteration 2.
+
+              {jobScoreError ? (
+                <p className="simplify-next-step-prompt" role="alert" style={{ color: "#7e2a25" }}>
+                  {jobScoreError}
                 </p>
               ) : null}
             </div>
@@ -1157,6 +1231,15 @@ export default function SimplifyJobDescriptionPage() {
       <div role="status" aria-live="polite" className="sr-only">
         {isSimplifying ? "Simplifying job description" : ""}
       </div>
+
+      {/* Job Score Card modal */}
+      {jobScoreResult ? (
+        <JobScoreCard
+          result={jobScoreResult}
+          occupationName={jobScoreOccupationName}
+          onClose={() => setJobScoreResult(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -3662,3 +3662,281 @@ a.btn.btn-primary:hover {
 .simplify-details-classic[open] .simplify-output-grid {
   padding: 0 1rem 1rem;
 }
+
+/* ============================================================
+   JOB SCORE CARD  (jsc-)
+   ============================================================ */
+
+.jsc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  background: rgba(36, 31, 27, 0.48);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem 1rem 2rem;
+  overflow-y: auto;
+}
+
+.jsc-panel {
+  width: min(52rem, 100%);
+  background: linear-gradient(180deg, #fffdf9 0%, #f8f1e8 100%);
+  border: 1px solid rgba(82, 70, 55, 0.22);
+  border-radius: 20px;
+  padding: 1.6rem 1.6rem 2rem;
+  box-shadow: 0 28px 64px rgba(29, 23, 18, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+/* Header */
+.jsc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.jsc-eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6f8a57;
+}
+
+.jsc-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #2f2720;
+  letter-spacing: -0.01em;
+}
+
+.jsc-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid rgba(82, 70, 55, 0.25);
+  background: #fff;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: #4b4035;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.jsc-close:hover { background: #f0e8df; }
+
+/* Score row */
+.jsc-score-row {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(82,70,55,0.14);
+  border-radius: 14px;
+  padding: 1rem 1.2rem;
+}
+
+.jsc-gauge-wrap {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.jsc-gauge-svg {
+  width: 100px;
+  height: 100px;
+}
+
+.jsc-gauge-label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.jsc-recommendation {
+  flex: 1;
+}
+
+.jsc-recommendation-text {
+  margin: 0 0 0.5rem;
+  font-size: 0.97rem;
+  color: #2f2720;
+  line-height: 1.55;
+}
+
+.jsc-confidence {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b5f56;
+}
+
+/* Sections */
+.jsc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.jsc-section-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #2f2720;
+}
+
+.jsc-callout {
+  background: rgba(236, 246, 239, 0.6);
+  border: 1px solid rgba(90, 143, 106, 0.25);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+
+/* Factor breakdown */
+.jsc-factors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.jsc-factor-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.jsc-factor-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.jsc-factor-emoji {
+  font-size: 0.9rem;
+}
+
+.jsc-factor-label {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2f2720;
+}
+
+.jsc-factor-adj {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.jsc-factor-bar-track {
+  height: 6px;
+  background: #e8e0d4;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.jsc-factor-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.jsc-factor-reason {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #7a6e65;
+  line-height: 1.45;
+}
+
+/* Two-col grid */
+.jsc-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 540px) {
+  .jsc-two-col { grid-template-columns: 1fr; }
+  .jsc-score-row { flex-direction: column; text-align: center; }
+}
+
+/* Tags */
+.jsc-tag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.jsc-tag {
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1.5px solid;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  background: rgba(255,255,255,0.7);
+}
+
+/* Loading state on the trigger button */
+.simplify-next-step-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* Reasoning section */
+.jsc-reasoning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.jsc-reasoning-intro {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2f2720;
+  line-height: 1.5;
+}
+
+.jsc-reasoning-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.jsc-reasoning-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: #3a3330;
+  line-height: 1.5;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.6);
+  border-left: 3px solid var(--dot-color, #4b4035);
+}
+
+.jsc-reasoning-narrative {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #5a5048;
+  line-height: 1.55;
+  font-style: italic;
+}

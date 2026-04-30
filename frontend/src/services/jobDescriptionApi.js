@@ -81,3 +81,38 @@ export async function simplifyJobDescription(text) {
 
   return readJsonOrText(res);
 }
+
+export async function findOccupation(jobTitle) {
+  const res = await fetch(`${API_BASE}/find-occupation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ job_title: jobTitle }),
+  });
+
+  if (!res.ok) {
+    const err = await readJsonOrText(res);
+    throw new Error(apiFailureMessage(res, err) || `Find occupation failed (${res.status}).`);
+  }
+
+  return readJsonOrText(res);
+}
+
+export async function predictJobScore(userQuestionnaire, occupationId, jobSkills, sessionId) {
+  const res = await fetch(`${API_BASE}/predict-job-score`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_questionnaire: userQuestionnaire,
+      occupation_id: occupationId,
+      job_skills_from_gemini: jobSkills,
+      session_id: sessionId ?? null,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await readJsonOrText(res);
+    throw new Error(apiFailureMessage(res, err) || `Job score failed (${res.status}).`);
+  }
+
+  return readJsonOrText(res);
+}

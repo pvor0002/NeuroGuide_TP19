@@ -16,17 +16,23 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # RDS CONNECTION
 # ============================================================================
-RDS_CONFIG = {
-    "host": "neuroguide-db.clksac42w16c.ap-southeast-2.rds.amazonaws.com",
-    "port": 5432,
-    "database": "neuroguide",
-    "user": "neuroguide_admin",
-    "password": "NeuroGuide2025!"
-}
+import os
 
 def get_db_connection():
-    """Create and return a PostgreSQL connection."""
-    return psycopg2.connect(**RDS_CONFIG)
+    """Create and return a PostgreSQL connection.
+    Uses DATABASE_URL if set (Lambda), otherwise falls back to individual vars (local).
+    """
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        return psycopg2.connect(database_url)
+
+    return psycopg2.connect(
+        host=os.environ["RDS_HOST"],
+        port=int(os.environ.get("RDS_PORT", 5432)),
+        database=os.environ["RDS_DATABASE"],
+        user=os.environ["RDS_USER"],
+        password=os.environ["RDS_PASSWORD"],
+    )
 
 
 # ============================================================================
@@ -115,7 +121,8 @@ def find_occupation_by_name(occupation_name: str) -> Optional[Dict]:
                 typical_hours_per_week,
                 ({match_count_expr}) AS match_count
             FROM occupations
-            WHERE {conditions}
+            WHERE anzsco_code LIKE '26%%'
+              AND ({conditions})
             ORDER BY match_count DESC, adhd_friendliness_score DESC, LENGTH(occupation_name) ASC
             LIMIT 1
         """

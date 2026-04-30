@@ -28,6 +28,8 @@ You must respond with a single JSON object only (no markdown fences), using this
 {
   "is_job_description": boolean,
   "rejection_reason": string or null,
+  "job_title": string or null,
+  "extracted_skills": array of strings or null,
   "summary": string or null,
   "basic_info": string or null,
   "responsibilities": string or null,
@@ -70,6 +72,10 @@ Rules:
 1. Set is_job_description to true only if the text is clearly a job posting, vacancy, role description,
    or similar hiring content. Set it to false for stories, emails, random text, homework, etc.
 2. If is_job_description is false, set rejection_reason to a short, kind explanation. All other fields must be null.
+2a. job_title: Extract the job title exactly as stated in the posting (e.g. "Software Developer", "Marketing Coordinator").
+    If not clearly stated, infer a concise title from the role description (under 5 words).
+2b. extracted_skills: Extract 5-10 concrete skills required by the job (e.g. ["Python", "Communication", "Excel", "Project management"]).
+    Use plain short labels, no bullet prefixes, no jargon expansion.
 3. If is_job_description is true, fill ALL content fields including all three profiles:
 
    summary: A gentle, plain-language overview (short paragraphs, bullets OK). Optimize for clarity and
@@ -289,10 +295,15 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
 
     logger.info("[Gemini] is_job_description=true — extracting content fields")
 
+    job_title = (data.get("job_title") or "").strip()
+    extracted_skills = _to_str_list(data.get("extracted_skills"), min_len=0)
+
     summary = (data.get("summary") or "").strip()
     basic_info = (data.get("basic_info") or "").strip()
     responsibilities = (data.get("responsibilities") or "").strip()
     skills = (data.get("skills_qualifications") or "").strip()
+
+    logger.info("[Gemini] job_title=%s, extracted_skills=%s", job_title, extracted_skills)
 
     logger.info(
         "[Gemini] Field lengths — summary=%d, basic_info=%d, responsibilities=%d, skills=%d",
@@ -325,6 +336,8 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
         responsibilities=responsibilities or "-",
         skills_qualifications=skills or "-",
         quick_snapshot=snapshot,
+        job_title=job_title,
+        extracted_skills=extracted_skills,
         profile_inattentive=_parse_inattentive(data.get("profile_inattentive")),
         profile_hyperactive=_parse_hyperactive(data.get("profile_hyperactive")),
         profile_combined=_parse_combined(data.get("profile_combined")),
