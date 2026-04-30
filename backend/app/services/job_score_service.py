@@ -19,7 +19,13 @@ logger = logging.getLogger(__name__)
 import os
 
 def get_db_connection():
-    """Create and return a PostgreSQL connection using environment variables."""
+    """Create and return a PostgreSQL connection.
+    Uses DATABASE_URL if set (Lambda), otherwise falls back to individual vars (local).
+    """
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        return psycopg2.connect(database_url)
+
     return psycopg2.connect(
         host=os.environ["RDS_HOST"],
         port=int(os.environ.get("RDS_PORT", 5432)),
