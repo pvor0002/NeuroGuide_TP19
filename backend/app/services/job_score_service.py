@@ -115,7 +115,8 @@ def find_occupation_by_name(occupation_name: str) -> Optional[Dict]:
                 typical_hours_per_week,
                 ({match_count_expr}) AS match_count
             FROM occupations
-            WHERE {conditions}
+            WHERE anzsco_code LIKE '26%%'
+              AND ({conditions})
             ORDER BY match_count DESC, adhd_friendliness_score DESC, LENGTH(occupation_name) ASC
             LIMIT 1
         """

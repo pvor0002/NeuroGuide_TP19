@@ -63,6 +63,10 @@ class SimplifyResponse(BaseModel):
     # Quick Snapshot: exactly 3 must-have requirement chips pinned at top
     quick_snapshot: list[str]
 
+    # Job scoring fields: extracted by Gemini for use with the scoring model
+    job_title: str = Field(default="", description="Extracted job title (e.g. 'Software Developer')")
+    extracted_skills: list[str] = Field(default_factory=list, description="Key skills extracted from the posting")
+
     # Per-profile structured data
     profile_inattentive: InattentiveProfile
     profile_hyperactive: HyperactiveProfile
