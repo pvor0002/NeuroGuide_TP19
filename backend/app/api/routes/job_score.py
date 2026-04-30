@@ -12,6 +12,7 @@ from typing import Optional
 
 from app.schemas.job_score import JobScoreRequest, JobScoreResponse
 from app.services.job_score_service import calculate_job_score, find_occupation_by_name
+from app.services.occupation_match import normalize_job_title
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,12 @@ async def find_occupation(request: FindOccupationRequest):
         Output: { "occupation_id": 683, "adhd_friendliness_score": 96, ... }
     """
     try:
-        logger.info(f"[FindOccupation] Searching for: {request.job_title}")
+        normalized = normalize_job_title(request.job_title)
+        logger.info(
+            "[FindOccupation] Searching for: %r (normalized: %r)",
+            request.job_title,
+            normalized or request.job_title,
+        )
         occupation = find_occupation_by_name(request.job_title)
 
         if not occupation:

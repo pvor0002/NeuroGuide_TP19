@@ -12,6 +12,7 @@ import psycopg2
 import psycopg2.extras
 from app.services.job_score_model_v2 import JobScoreModelV2
 from app.core.config import get_settings
+from app.services.occupation_match import build_ilike_terms, normalize_job_title
 
 logger = logging.getLogger(__name__)
 
@@ -72,72 +73,102 @@ def fetch_occupation(occupation_id: int) -> Optional[Dict]:
         raise
 
 
+def _select_best_occupation_match(
+    conn,
+    job_title: str,
+    *,
+    ict_only: bool,
+) -> Optional[Dict]:
+    """
+    Rank occupations by how many ILIKE terms hit, then ADHD friendliness, then name length.
+    """
+    raw = (job_title or "").strip()
+    if not raw:
+        return None
+
+    normalized = normalize_job_title(raw)
+    terms = build_ilike_terms(normalized or raw)
+    if not terms:
+        return None
+
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    conditions = " OR ".join(["occupation_name ILIKE %s" for _ in terms])
+    match_count_expr = " + ".join(
+        ["(CASE WHEN occupation_name ILIKE %s THEN 1 ELSE 0 END)" for _ in terms]
+    )
+
+    anzsco_sql = "CAST(anzsco_code AS TEXT) LIKE '26%'" if ict_only else "TRUE"
+
+    query = f"""
+        SELECT
+            occupation_id,
+            anzsco_code,
+            occupation_name,
+            work_complexity,
+            adhd_friendliness_score,
+            implied_skills,
+            typical_hours_per_week,
+            ({match_count_expr}) AS match_count
+        FROM occupations
+        WHERE ({anzsco_sql})
+          AND ({conditions})
+        ORDER BY match_count DESC, adhd_friendliness_score DESC, LENGTH(occupation_name) ASC
+        LIMIT 1
+    """
+
+    params: tuple = tuple(terms + terms)
+    cursor.execute(query, params)
+    row = cursor.fetchone()
+    cursor.close()
+    return dict(row) if row else None
+
+
+def _row_to_occupation(row: Dict) -> Dict:
+    occ = dict(row)
+    occ.pop("match_count", None)
+    raw = occ.get("implied_skills")
+    if isinstance(raw, str) and raw.strip():
+        try:
+            occ["implied_skills"] = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.warning("[JobScore] Could not parse implied_skills JSON; using empty list")
+            occ["implied_skills"] = []
+    elif raw is None:
+        occ["implied_skills"] = []
+    return occ
+
+
 def find_occupation_by_name(occupation_name: str) -> Optional[Dict]:
     """
-    Find the best matching occupation by name using keyword search.
-    Splits the job title into keywords and searches for each one.
-    Returns the highest ADHD-friendliness scored match.
+    Resolve a free-text job title (from a job ad or Gemini extraction) to an
+    occupation row. Uses normalization, stopword filtering, software-role
+    alias expansion, ICT-prefixed ANZSCO first, then broader DB fallback.
     """
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            # Pass 1 — ICT professionals only (ANZSCO Major Group 26****)
+            row = _select_best_occupation_match(conn, occupation_name, ict_only=True)
+            if row:
+                return _row_to_occupation(row)
 
-        # Split job title into keywords and search for each
-        # e.g. "Software Developer" → ["Software", "Developer"]
-        keywords = occupation_name.strip().split()
+            # Pass 2 — same terms, all occupations (marketing / support roles, etc.)
+            row = _select_best_occupation_match(conn, occupation_name, ict_only=False)
+            if row:
+                logger.info(
+                    "[JobScore] Occupation matched outside ICT filter: %s",
+                    row.get("occupation_name"),
+                )
+                return _row_to_occupation(row)
+        finally:
+            conn.close()
 
-        # Build OR conditions for WHERE clause
-        conditions = " OR ".join([
-            f"occupation_name ILIKE %s" for _ in keywords
-        ])
-
-        # Count how many keywords appear in the occupation name
-        # More hits = more relevant match (tiebreaker 1)
-        # Shorter name = more specific match (tiebreaker 2)
-        match_count_expr = " + ".join([
-            f"(CASE WHEN occupation_name ILIKE %s THEN 1 ELSE 0 END)"
-            for _ in keywords
-        ])
-
-        param_values = [f"%{k}%" for k in keywords]
-
-        query = f"""
-            SELECT
-                occupation_id,
-                anzsco_code,
-                occupation_name,
-                work_complexity,
-                adhd_friendliness_score,
-                implied_skills,
-                typical_hours_per_week,
-                ({match_count_expr}) AS match_count
-            FROM occupations
-            WHERE anzsco_code LIKE '26%%'
-              AND ({conditions})
-            ORDER BY match_count DESC, adhd_friendliness_score DESC, LENGTH(occupation_name) ASC
-            LIMIT 1
-        """
-
-        # param_values passed twice: once for match_count in SELECT, once for WHERE
-        cursor.execute(query, param_values + param_values)
-        row = cursor.fetchone()
-        cursor.close()
-        conn.close()
-
-        if not row:
-            return None
-
-        occupation = dict(row)
-        if isinstance(occupation.get('implied_skills'), str):
-            occupation['implied_skills'] = json.loads(occupation['implied_skills'])
-
-        return occupation
+        return None
 
     except Exception as e:
         logger.error(f"[JobScore] DB error finding occupation by name: {e}")
         raise
-
-
 # ============================================================================
 # SAVE RECOMMENDATION
 # ============================================================================

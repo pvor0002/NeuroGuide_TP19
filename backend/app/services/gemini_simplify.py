@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from typing import Any
 
 from google import genai
@@ -206,6 +207,75 @@ def _parse_combined(raw: Any) -> CombinedProfile:
     )
 
 
+def _is_transient_gemini_capacity_error(exc: BaseException) -> bool:
+    s = str(exc).upper()
+    return any(
+        m in s
+        for m in (
+            "503",
+            "UNAVAILABLE",
+            "429",
+            "RESOURCE_EXHAUSTED",
+            "HIGH DEMAND",
+            "OVERLOADED",
+            "RATE LIMIT",
+            "TRY AGAIN LATER",
+        )
+    )
+
+
+def _gemini_error_should_fallback_to_next_model(exc: BaseException) -> bool:
+    """Capacity limits, deprecated model IDs (404 NOT_FOUND / no longer available), etc."""
+    if _is_transient_gemini_capacity_error(exc):
+        return True
+    s = str(exc).upper()
+    return (
+        ("404" in s and ("NOT_FOUND" in s or "NOT FOUND" in s))
+        or "NO LONGER AVAILABLE" in s
+    )
+
+
+def _gemini_model_fallback_chain(primary: str) -> list[str]:
+    # Stay on the 2.5 family; 2.0 / 1.5 Flash IDs are removed or blocked for new API keys.
+    ordered = (
+        primary.strip() or "gemini-2.5-flash",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro",
+    )
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in ordered:
+        if m and m not in seen:
+            seen.add(m)
+            out.append(m)
+    return out
+
+
+def _generate_content_for_model(
+    client: genai.Client, model_name: str, user_prompt: str
+) -> Any:
+    try:
+        return client.models.generate_content(
+            model=model_name,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_INSTRUCTION,
+                response_mime_type="application/json",
+            ),
+        )
+    except Exception as first_exc:
+        logger.warning(
+            "[Gemini] generate_content with JSON mode failed (%s: %s) — retrying without JSON mode",
+            type(first_exc).__name__,
+            first_exc,
+        )
+        return client.models.generate_content(
+            model=model_name,
+            contents=f"{SYSTEM_INSTRUCTION}\n\n{user_prompt}",
+        )
+
+
 def simplify_job_description_with_gemini(text: str, settings: Settings) -> SimplifyResponse:
     # Call Gemini with our system prompt; return structured fields or raise HTTPException.
     logger.info("[Gemini] simplify_job_description_with_gemini called, text length=%d", len(text))
@@ -217,7 +287,7 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
             detail="Gemini API is not configured. Set GEMINI_API_KEY in the backend environment.",
         )
 
-    logger.info("[Gemini] Using model=%s", settings.gemini_model)
+    logger.info("[Gemini] Primary model=%s (with automatic model fallback)", settings.gemini_model)
 
     user_prompt = (
         "Analyze the following text.\n\n---\n"
@@ -228,35 +298,39 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
     try:
         logger.info("[Gemini] Creating genai.Client")
         client = genai.Client(api_key=settings.gemini_api_key)
-        logger.info("[Gemini] Client created — calling generate_content with JSON response mode")
-        try:
-            response = client.models.generate_content(
-                model=settings.gemini_model,
-                contents=user_prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_INSTRUCTION,
-                    response_mime_type="application/json",
-                ),
-            )
-            logger.info("[Gemini] generate_content (JSON mode) completed successfully")
-        except Exception as first_exc:
-            logger.warning(
-                "[Gemini] generate_content with JSON mode failed (%s: %s) — retrying without JSON mode",
-                type(first_exc).__name__, first_exc,
-            )
-            # JSON response mode is not supported for this model — retry without it.
+        model_chain = _gemini_model_fallback_chain(settings.gemini_model)
+        logger.info("[Gemini] Model fallback chain: %s", model_chain)
+
+        response = None
+        last_exc: BaseException | None = None
+        for idx, model_name in enumerate(model_chain):
             try:
-                response = client.models.generate_content(
-                    model=settings.gemini_model,
-                    contents=f"{SYSTEM_INSTRUCTION}\n\n{user_prompt}",
-                )
-                logger.info("[Gemini] generate_content (plain mode) completed successfully")
-            except Exception as second_exc:
-                logger.error("[Gemini] generate_content plain mode also failed: %s", second_exc)
+                response = _generate_content_for_model(client, model_name, user_prompt)
+                logger.info("[Gemini] generate_content succeeded with model=%s", model_name)
+                break
+            except Exception as exc:
+                last_exc = exc
+                if _gemini_error_should_fallback_to_next_model(exc) and idx < len(model_chain) - 1:
+                    logger.warning(
+                        "[Gemini] Retryable error on model=%s (%s) — trying next model",
+                        model_name,
+                        exc,
+                    )
+                    if _is_transient_gemini_capacity_error(exc):
+                        time.sleep(min(2.0, 0.4 + idx * 0.35))
+                    continue
+                logger.error("[Gemini] Giving up on model=%s: %s", model_name, exc)
                 raise HTTPException(
                     status_code=502,
-                    detail=f"Gemini request failed: {second_exc!s}",
-                ) from second_exc
+                    detail=f"Gemini request failed: {exc!s}",
+                ) from exc
+
+        if response is None:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Gemini request failed: {last_exc!s}" if last_exc else "Gemini request failed.",
+            ) from last_exc
+
     except HTTPException:
         raise
     except Exception as exc:
