@@ -265,30 +265,53 @@ function renderImportantLines(text) {
 
 /**
  * Basic info often arrives as one line: "Job Title: X | Company: Y | ...".
+ * It can also arrive as multiple lines, each "Label: value" (see flip-card back).
  */
 function parseBasicInfoPipeFields(text) {
-  const normalized = String(text ?? "").replace(/\r\n/g, " ").trim();
-  if (!normalized) return [];
+  const raw = String(text ?? "").replace(/\r\n/g, "\n").trim();
+  if (!raw) return [];
 
-  const segments = normalized
-    .split(/\s*\|\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const labelValueFromLine = (line) => {
+    const trimmed = String(line ?? "").trim();
+    if (!trimmed) return null;
+    const m = trimmed.match(/^([A-Za-z][A-Za-z0-9 &'/().-]{1,60}):\s*(.+)$/);
+    if (!m) return null;
+    const labelPart = m[1].trim();
+    const valuePart = m[2].trim();
+    if (!labelPart || !valuePart) return null;
+    return { label: labelPart, value: valuePart };
+  };
+
+  const segments = [];
+  raw.split("\n").forEach((ln) => {
+    const t = String(ln ?? "").trim();
+    if (!t) return;
+    t.split(/\s*\|\s*/).forEach((piece) => {
+      const p = String(piece ?? "").trim();
+      if (p) segments.push(p);
+    });
+  });
 
   const rows = [];
+  const seen = new Set();
+  const pushRow = (label, value) => {
+    const key = `${label.toLowerCase()}::${value.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push({ label, value });
+  };
+
   for (const chunk of segments) {
-    const m = chunk.match(/^(.+?):\s*(.+)$/);
-    if (m) {
-      const labelPart = m[1].trim();
-      const valuePart = m[2].trim();
-      if (labelPart && valuePart) rows.push({ label: labelPart, value: valuePart });
+    const fromLv = labelValueFromLine(chunk);
+    if (fromLv) {
+      pushRow(fromLv.label, fromLv.value);
       continue;
     }
     const idx = chunk.indexOf(":");
     if (idx > 0 && idx < chunk.length - 1) {
       const lbl = chunk.slice(0, idx).trim();
       const val = chunk.slice(idx + 1).trim();
-      if (lbl && val) rows.push({ label: lbl, value: val });
+      if (lbl && val) pushRow(lbl, val);
     }
   }
   return rows;
