@@ -14,6 +14,15 @@ import {
   downloadBlob,
   parseJobTitleAndCompany,
 } from "../utils/simplifiedJobExport.js";
+import {
+  appendJobScoreHistory,
+  clearPersistedJobScore,
+  isJobScoreCacheValid,
+  normalizeJobTitleKey,
+  readJobScoreHistory,
+  readPersistedJobScore,
+  writePersistedJobScore,
+} from "../utils/jobScorePersistence.js";
 
 // ─── Profile definitions ────────────────────────────────────────────────────
 const PROFILE_META = {
@@ -129,6 +138,14 @@ function PaperclipIcon() {
       />
     </svg>
   );
+}
+
+function shortText(value, max = 92) {
+  const src = String(value || "").trim();
+  if (src.length <= max) return src;
+  const cut = src.slice(0, max);
+  const last = cut.lastIndexOf(" ");
+  return `${(last > 30 ? cut.slice(0, last) : cut).trim()}...`;
 }
 
 function FileDocIcon() {
@@ -962,8 +979,34 @@ export default function SimplifyJobDescriptionPage() {
   const [jobScoreOccupationName, setJobScoreOccupationName] = useState("");
   const [jobScoreBusy, setJobScoreBusy] = useState(false);
   const [jobScoreError, setJobScoreError] = useState("");
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [jobScoreHistory, setJobScoreHistory] = useState([]);
 
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
+
+  useEffect(() => {
+    if (!simplifiedResult || !hasRenderableSimplifiedOutput(simplifiedResult)) return;
+    const cached = readPersistedJobScore();
+    if (!cached) {
+      setJobScoreResult(null);
+      setJobScoreOccupationName("");
+      return;
+    }
+    if (!isJobScoreCacheValid(cached, simplifiedResult)) {
+      clearPersistedJobScore();
+      setJobScoreResult(null);
+      setJobScoreOccupationName("");
+      return;
+    }
+    setJobScoreResult(cached.result);
+    setJobScoreOccupationName(cached.occupationName || "");
+    setJobScoreError("");
+  }, [simplifiedResult]);
+
+  useEffect(() => {
+    if (!historyDrawerOpen) return;
+    setJobScoreHistory(readJobScoreHistory());
+  }, [historyDrawerOpen, jobScoreResult]);
 
   useEffect(() => {
     if (!scrollToOutputOnResult) return;
@@ -1271,7 +1314,6 @@ export default function SimplifyJobDescriptionPage() {
                 disabled={jobScoreBusy}
                 onClick={async () => {
                   setJobScoreError("");
-                  setJobScoreResult(null);
 
                   // 1. Read career profile from localStorage
                   let profile = null;
@@ -1329,6 +1371,19 @@ export default function SimplifyJobDescriptionPage() {
 
                     setJobScoreOccupationName(occupationName);
                     setJobScoreResult(scoreResult);
+                    writePersistedJobScore(
+                      normalizeJobTitleKey(jobTitle),
+                      simplifiedResult?._ng_simp_ver ?? null,
+                      occupationName,
+                      scoreResult,
+                    );
+                    appendJobScoreHistory({
+                      jobTitleNorm: normalizeJobTitleKey(jobTitle),
+                      simplifiedVerStamp: simplifiedResult?._ng_simp_ver ?? null,
+                      occupationName,
+                      result: scoreResult,
+                      createdAt: Date.now(),
+                    });
                   } catch (err) {
                     setJobScoreError(err?.message || "Could not calculate job match score. Please try again.");
                   } finally {
@@ -1338,11 +1393,23 @@ export default function SimplifyJobDescriptionPage() {
               >
                 {jobScoreBusy ? "Calculating…" : "See Job match score"}
               </button>
-
               {jobScoreError ? (
                 <p className="simplify-next-step-prompt" role="alert" style={{ color: "#7e2a25" }}>
                   {jobScoreError}
                 </p>
+              ) : null}
+
+              {jobScoreResult ? (
+                <JobScoreCard
+                  result={jobScoreResult}
+                  occupationName={jobScoreOccupationName}
+                  onOpenHistory={() => setHistoryDrawerOpen(true)}
+                  onDismiss={() => {
+                    clearPersistedJobScore();
+                    setJobScoreResult(null);
+                    setJobScoreOccupationName("");
+                  }}
+                />
               ) : null}
             </div>
           </div>
@@ -1353,13 +1420,50 @@ export default function SimplifyJobDescriptionPage() {
         {isSimplifying ? "Simplifying job description" : ""}
       </div>
 
-      {/* Job Score Card modal */}
-      {jobScoreResult ? (
-        <JobScoreCard
-          result={jobScoreResult}
-          occupationName={jobScoreOccupationName}
-          onClose={() => setJobScoreResult(null)}
-        />
+      {historyDrawerOpen ? (
+        <>
+          <button
+            type="button"
+            className="jsc-history-overlay"
+            aria-label="Close comparison drawer"
+            onClick={() => setHistoryDrawerOpen(false)}
+          />
+          <aside className="jsc-history-drawer" role="dialog" aria-label="Past job match comparisons">
+            <div className="jsc-history-head">
+              <h3 className="jsc-history-title">Compare with Previous Simplified JDs</h3>
+              <button type="button" className="jsc-history-close" onClick={() => setHistoryDrawerOpen(false)}>
+                Close
+              </button>
+            </div>
+            <div className="jsc-history-list">
+              {(() => {
+                const currentKey = normalizeJobTitleKey(simplifiedResult?.job_title || "");
+                const currentStamp = simplifiedResult?._ng_simp_ver ?? null;
+                const prev3 = jobScoreHistory
+                  .filter((item) => !(item.jobTitleNorm === currentKey && item.simplifiedVerStamp === currentStamp))
+                  .slice(0, 3);
+                if (prev3.length === 0) {
+                  return <p className="jsc-history-empty">No previous JD scores yet.</p>;
+                }
+                return prev3.map((item, idx) => {
+                  const score = Number(item?.result?.score || 0);
+                  const toneClass = score >= 75 ? "good" : score >= 55 ? "warn" : "risk";
+                  const when = item?.createdAt ? new Date(item.createdAt).toLocaleString() : "";
+                  return (
+                    <article key={`${item.jobTitleNorm}-${item.simplifiedVerStamp ?? "none"}-${idx}`} className="jsc-history-card">
+                      <div className="jsc-history-card-top">
+                        <p className="jsc-history-role">{item.occupationName || item.jobTitleNorm || "Role"}</p>
+                        <span className={`jsc-history-score jsc-history-score--${toneClass}`}>{Math.round(score)}/100</span>
+                      </div>
+                      <p className="jsc-history-line">{shortText(item?.result?.recommendation || "", 96)}</p>
+                      {when ? <p className="jsc-history-time">{when}</p> : null}
+                    </article>
+                  );
+                });
+              })()}
+            </div>
+          </aside>
+        </>
       ) : null}
     </div>
   );

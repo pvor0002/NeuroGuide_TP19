@@ -230,7 +230,11 @@ export function useJobDescriptionSimplification() {
     setInfoMessage("");
     try {
       const data = await simplifyJobDescription(String(payloadText).trim());
-      setSimplifiedResult(data && typeof data === "object" ? data : null);
+      const stamped =
+        data && typeof data === "object"
+          ? { ...data, _ng_simp_ver: Date.now() }
+          : null;
+      setSimplifiedResult(stamped);
       setInfoMessage("Simplified version is below.");
     } catch (err) {
       const msg =

@@ -1,230 +1,196 @@
-/**
- * JobScoreCard
- * ============
- * Displays the job match score with skills breakdown:
- * matched, partially matched, and missing skills.
- */
+import { Link } from "react-router-dom";
 
-// ─── Score gauge (SVG circle) ────────────────────────────────────────────────
-function ScoreGauge({ score }) {
-  const r = 48;
-  const circ = 2 * Math.PI * r;
-  const pct = Math.min(Math.max(score, 0), 100) / 100;
-  const dash = pct * circ;
-
-  const color =
-    score >= 75 ? "#3d7d52" :
-    score >= 55 ? "#c49a28" :
-    "#c0442a";
-
-  const label =
-    score >= 75 ? "Strong fit" :
-    score >= 55 ? "Good fit" :
-    "Consider carefully";
-
-  return (
-    <div className="jsc-gauge-wrap">
-      <svg className="jsc-gauge-svg" viewBox="0 0 120 120" aria-hidden="true">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#e8e0d4" strokeWidth="10" />
-        <circle
-          cx="60" cy="60" r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth="10"
-          strokeDasharray={`${dash} ${circ}`}
-          strokeLinecap="round"
-          transform="rotate(-90 60 60)"
-          style={{ transition: "stroke-dasharray 0.7s ease" }}
-        />
-        <text x="60" y="56" textAnchor="middle" fontSize="22" fontWeight="800" fill={color}>{Math.round(score)}</text>
-        <text x="60" y="72" textAnchor="middle" fontSize="11" fill="#7a6e65">/100</text>
-      </svg>
-      <p className="jsc-gauge-label" style={{ color }}>{label}</p>
-    </div>
-  );
+function shortLine(text, max = 90) {
+  const t = String(text || "").trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const last = cut.lastIndexOf(" ");
+  return `${(last > 30 ? cut.slice(0, last) : cut).trim()}...`;
 }
 
-// ─── Skills breakdown logic ───────────────────────────────────────────────────
-function categoriseSkills(userSkills = [], jobSkills = []) {
-  const normalise = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+function compactReasons(items = [], max = 2) {
+  return items.filter(Boolean).slice(0, max).map((line) => shortLine(line, 90));
+}
 
+function compactPrefs(lines = [], max = 3) {
+  return lines.slice(0, max).map((line) => {
+    const m = String(line).match(/^(✅|⚠️)\s*(.+?):\s*(.+)$/);
+    if (!m) return { ok: true, label: "Preference", text: shortLine(line, 72) };
+    return { ok: m[1] === "✅", label: m[2], text: shortLine(m[3], 72) };
+  });
+}
+
+function categoriseSkills(userSkills = [], jobSkills = []) {
+  const normalize = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const matched = [];
   const partial = [];
   const missing = [];
-
   jobSkills.forEach((jobSkill) => {
-    const jobNorm = normalise(jobSkill);
-
-    // Exact match
-    const exactMatch = userSkills.find((u) => normalise(u) === jobNorm);
-    if (exactMatch) {
+    const jn = normalize(jobSkill);
+    if (userSkills.some((u) => normalize(u) === jn)) {
       matched.push(jobSkill);
       return;
     }
-
-    // Partial match — job skill word appears in any user skill or vice versa
-    const jobWords = jobNorm.split(/\s+/);
-    const partialMatch = userSkills.find((u) => {
-      const uNorm = normalise(u);
-      const uWords = uNorm.split(/\s+/);
-      return (
-        jobWords.some((w) => uNorm.includes(w) && w.length > 3) ||
-        uWords.some((w) => jobNorm.includes(w) && w.length > 3)
-      );
+    const partialHit = userSkills.some((u) => {
+      const un = normalize(u);
+      return (jn.length > 3 && un.includes(jn)) || (un.length > 3 && jn.includes(un));
     });
-
-    if (partialMatch) {
-      partial.push(jobSkill);
-    } else {
-      missing.push(jobSkill);
-    }
+    if (partialHit) partial.push(jobSkill);
+    else missing.push(jobSkill);
   });
-
   return { matched, partial, missing };
 }
 
-// ─── Skills breakdown component ───────────────────────────────────────────────
-function SkillsBreakdown({ skillsFactor }) {
-  if (!skillsFactor) return null;
-
-  const userSkills = skillsFactor.user_skills || [];
-  const jobSkills = skillsFactor.job_skills || [];
-
-  if (jobSkills.length === 0) return null;
-
-  const { matched, partial, missing } = categoriseSkills(userSkills, jobSkills);
-
+function chipList(items, tone) {
+  if (!items.length) return <p className="jsc-muted-line">None</p>;
   return (
-    <div className="jsc-section">
-      <h3 className="jsc-section-title">🧰 Skills breakdown</h3>
-      <p className="jsc-skills-subtitle">
-        Comparing your skills against what this job requires.
-      </p>
-
-      <div className="jsc-skills-grid">
-        {/* Matched */}
-        <div className="jsc-skills-col jsc-skills-col--matched">
-          <div className="jsc-skills-col-header">
-            <span className="jsc-skills-col-dot" style={{ background: "#3d7d52" }} />
-            <span className="jsc-skills-col-title">You have</span>
-            <span className="jsc-skills-col-count">{matched.length}</span>
-          </div>
-          {matched.length === 0
-            ? <p className="jsc-skills-empty">None matched</p>
-            : matched.map((s, i) => (
-              <div key={i} className="jsc-skill-chip jsc-skill-chip--matched">{s}</div>
-            ))
-          }
-        </div>
-
-        {/* Partially matched */}
-        <div className="jsc-skills-col jsc-skills-col--partial">
-          <div className="jsc-skills-col-header">
-            <span className="jsc-skills-col-dot" style={{ background: "#c49a28" }} />
-            <span className="jsc-skills-col-title">Partial overlap</span>
-            <span className="jsc-skills-col-count">{partial.length}</span>
-          </div>
-          {partial.length === 0
-            ? <p className="jsc-skills-empty">None</p>
-            : partial.map((s, i) => (
-              <div key={i} className="jsc-skill-chip jsc-skill-chip--partial">{s}</div>
-            ))
-          }
-        </div>
-
-        {/* Missing */}
-        <div className="jsc-skills-col jsc-skills-col--missing">
-          <div className="jsc-skills-col-header">
-            <span className="jsc-skills-col-dot" style={{ background: "#c0442a" }} />
-            <span className="jsc-skills-col-title">You&apos;re missing</span>
-            <span className="jsc-skills-col-count">{missing.length}</span>
-          </div>
-          {missing.length === 0
-            ? <p className="jsc-skills-empty">None — great!</p>
-            : missing.map((s, i) => (
-              <div key={i} className="jsc-skill-chip jsc-skill-chip--missing">{s}</div>
-            ))
-          }
-        </div>
-      </div>
+    <div className="jsc-chip-row">
+      {items.slice(0, 6).map((it, idx) => (
+        <span key={`${it}-${idx}`} className={`jsc-mini-chip jsc-mini-chip--${tone}`}>{it}</span>
+      ))}
     </div>
   );
 }
 
-// ─── Tag list ────────────────────────────────────────────────────────────────
-function TagList({ items, color }) {
-  if (!items || items.length === 0) return null;
-  return (
-    <ul className="jsc-tag-list">
-      {items.map((item, i) => (
-        <li key={i} className="jsc-tag" style={{ borderColor: color, color }}>
-          {item}
-        </li>
-      ))}
-    </ul>
-  );
+function scoreTone(score) {
+  if (score >= 75) return "good";
+  if (score >= 55) return "warn";
+  return "risk";
 }
 
-// ─── Main component ──────────────────────────────────────────────────────────
-export default function JobScoreCard({ result, occupationName, onClose }) {
+function scoreLabel(score) {
+  if (score >= 75) return "Strong match";
+  if (score >= 55) return "Moderate match";
+  return "Low match";
+}
+
+function capitalizeFirst(text) {
+  const t = String(text || "").trim();
+  if (!t) return t;
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+export default function JobScoreCard({ result, occupationName, onOpenHistory }) {
   if (!result) return null;
 
-  const skillsFactor = result.factor_breakdown?.skills;
+  const score = Number(result.score || 0);
+  const tone = scoreTone(score);
+  const scorePct = Math.min(100, Math.max(0, score));
+  const showInterviewCta = score > 70;
+  const confidencePct = Math.round((result.match_confidence ?? 0) * 100);
+
+  const skillsFactor = result.factor_breakdown?.skills || {};
+  const split = categoriseSkills(skillsFactor.user_skills || [], skillsFactor.job_skills || []);
+  const curatedStrengths = [
+    "Best with Quiter Settings",
+    "Low Interruptions",
+    "Needs detail-orientation",
+    "Needs hyperfocus",
+  ];
+  const challenges = compactReasons(result.key_challenges, 2);
+  const prefs = compactPrefs(result.preference_alignment, 3);
 
   return (
-    <div className="jsc-overlay" role="dialog" aria-modal="true" aria-label="Job match score">
-      <div className="jsc-panel">
-
-        {/* Header */}
-        <div className="jsc-header">
-          <div>
-            <p className="jsc-eyebrow">Job Match Score</p>
-            <h2 className="jsc-title">{occupationName || "This role"}</h2>
-          </div>
-          <button
-            type="button"
-            className="jsc-close"
-            onClick={onClose}
-            aria-label="Close job match score"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Score + recommendation */}
-        <div className="jsc-score-row">
-          <ScoreGauge score={result.score} />
-          <div className="jsc-recommendation">
-            <p className="jsc-recommendation-text">{result.recommendation}</p>
-            <p className="jsc-confidence">
-              Confidence: <strong>{Math.round((result.match_confidence ?? 0) * 100)}%</strong>
+    <div className="jsc-inline jsc-inline--fullbleed" role="region" aria-labelledby="jsc-inline-heading">
+      <div className="jsc-panel jsc-panel--inline jsc-panel--assessment">
+        <div className="jsc-assess-topbar">
+          <div className="jsc-assess-brand">
+            <p className="jsc-assess-brand-title">Career Compatibility Score</p>
+            <p id="jsc-inline-heading" className="jsc-assess-role">
+              Assessment for: <strong>{occupationName || "this role"}</strong>
             </p>
           </div>
-        </div>
-
-        {/* Skills breakdown */}
-        <SkillsBreakdown skillsFactor={skillsFactor} />
-
-        {/* Strengths + Challenges */}
-        <div className="jsc-two-col">
-          <div className="jsc-section">
-            <h3 className="jsc-section-title">💪 Your strengths</h3>
-            <TagList items={result.key_strengths} color="#3d7d52" />
-          </div>
-          <div className="jsc-section">
-            <h3 className="jsc-section-title">⚠️ Watch out for</h3>
-            <TagList items={result.key_challenges} color="#c49a28" />
+          <div className="jsc-assess-top-actions">
+            {typeof onOpenHistory === "function" ? (
+              <button type="button" className="jsc-compare-btn" onClick={onOpenHistory}>
+                Compare with Previous Simplified JDs
+              </button>
+            ) : null}
           </div>
         </div>
 
-        {/* Accommodations */}
-        {result.suggested_accommodations?.length > 0 && (
-          <div className="jsc-section jsc-callout">
-            <h3 className="jsc-section-title">🤝 Suggested supports</h3>
-            <TagList items={result.suggested_accommodations} color="#5a6e8f" />
+        <div className="jsc-assess-score-wrap">
+          <div
+            className={`jsc-assess-score-ring jsc-assess-score-ring--${tone}`}
+            style={{ "--jsc-score-pct": `${scorePct}%` }}
+          >
+            <span className="jsc-assess-score-num">{Math.round(score)}</span>
+            <span className="jsc-assess-score-den">/100</span>
           </div>
-        )}
+          <div className="jsc-assess-score-text">
+            <p className="jsc-assess-score-title">
+              Match Score <span>{Math.round(score)}/100</span>
+            </p>
+            <p className="jsc-assess-score-sub">{scoreLabel(score)} - explore based on your profile fit.</p>
+            <p className="jsc-assess-score-meta">Model Confidence {confidencePct}%</p>
+          </div>
+          <div className="jsc-helpful-box" aria-label="Was it helpful?">
+            <span className="jsc-helpful-label">Was it helpful?</span>
+            <div className="jsc-helpful-actions">
+              <button type="button" className="jsc-helpful-btn" aria-label="Helpful">
+                <span className="jsc-helpful-emoji" aria-hidden="true">👍</span>
+              </button>
+              <button type="button" className="jsc-helpful-btn" aria-label="Not helpful">
+                <span className="jsc-helpful-emoji" aria-hidden="true">👎</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
+        <div className="jsc-assess-grid jsc-assess-grid--two-col">
+          <section className="jsc-assess-col">
+            <h3 className="jsc-assess-col-title">Skills Match</h3>
+            <div className="jsc-assess-box jsc-assess-box--good">
+              <p className="jsc-assess-box-head">Skills You Have ({split.matched.length})</p>
+              {chipList(split.matched, "good")}
+            </div>
+            <div className="jsc-assess-box jsc-assess-box--warn">
+              <p className="jsc-assess-box-head">Partial Matches ({split.partial.length})</p>
+              {chipList(split.partial, "warn")}
+            </div>
+            <div className="jsc-assess-box jsc-assess-box--risk">
+              <p className="jsc-assess-box-head">Missing Critical Skills ({split.missing.length})</p>
+              {chipList(split.missing, "risk")}
+            </div>
+          </section>
+
+          <section className="jsc-assess-col">
+            <h3 className="jsc-assess-col-title">ADHD Profile Compatibility</h3>
+            <div className="jsc-assess-box jsc-assess-box--good">
+              <p className="jsc-assess-box-head">Why is it good for you?</p>
+              <ul className="jsc-simple-list jsc-simple-list--ticks">
+                {curatedStrengths.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+            {prefs.length > 0 ? (
+              <div className="jsc-assess-box jsc-assess-box--neutral">
+                <p className="jsc-assess-box-head">Preferences</p>
+                <div className="jsc-pref-pill-row">
+                  {prefs.map((p, i) => (
+                    <div key={i} className={`jsc-pref-pill ${p.ok ? "jsc-pref-pill--ok" : "jsc-pref-pill--risk"}`}>
+                      <span className="jsc-pref-pill-label">{p.label}</span>
+                      <span className="jsc-pref-pill-text">{p.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="jsc-assess-box jsc-assess-box--warn">
+              <p className="jsc-assess-box-head">Watch out for following in this type of environment</p>
+              <ul className="jsc-simple-list jsc-simple-list--warn">
+                {challenges.map((c, i) => <li key={i}>{capitalizeFirst(c)}</li>)}
+              </ul>
+            </div>
+          </section>
+        </div>
+
+        {showInterviewCta ? (
+          <div className="jsc-cta-wrap">
+            <Link className="jsc-interview-cta" to="/interview-prep">
+              Start preparing for interview
+            </Link>
+          </div>
+        ) : null}
       </div>
     </div>
   );
