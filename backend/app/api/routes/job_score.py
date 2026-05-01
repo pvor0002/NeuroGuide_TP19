@@ -74,8 +74,9 @@ async def find_occupation(request: FindOccupationRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[FindOccupation] Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to find occupation.")
+        logger.error(f"[FindOccupation] Error: {type(e).__name__}: {e}")
+        # Surface the real error so it's visible in the frontend during development
+        raise HTTPException(status_code=500, detail=f"Failed to find occupation: {type(e).__name__}: {e}")
 
 
 # ============================================================================

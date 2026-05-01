@@ -2659,13 +2659,16 @@ a.btn.btn-primary:hover {
   }
 }
 
-/* ── Individual Flip Card — Profile Ready dashboard: white surface + left accent bar + icon tile ─ */
+/* ── Individual Flip Card ─────────────────────────────────────────────────── */
 .simplify-flip-card {
   display: flex;
   flex-direction: column;
   min-height: 18rem;
   width: 100%;
   perspective: 1100px;
+  border: 2px solid rgba(74, 143, 168, 0.38);
+  border-radius: 16px;
+  background: rgba(74, 143, 168, 0.06);
   --flip-accent: #2563eb;
   --flip-accent-soft: rgba(37, 99, 235, 0.11);
   --flip-bar-gradient: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
@@ -2725,59 +2728,52 @@ a.btn.btn-primary:hover {
 }
 
 .simplify-flip-card__inner {
-  position: relative;
+  /* CSS Grid overlay: both faces share one grid cell.
+     Cell height = max(front, back) automatically — no JS height sync needed. */
+  display: grid;
   flex: 1 1 auto;
   width: 100%;
   min-height: 18rem;
-  transform-style: preserve-3d;
-  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 14px;
-}
-
-.simplify-flip-card__hitbox--flipped .simplify-flip-card__inner {
-  transform: rotateY(180deg);
 }
 
 .simplify-flip-card__face {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  /* Stack both faces in the same grid cell */
+  grid-area: 1 / 1;
   border-radius: 14px;
-  border: 1px solid rgba(72, 62, 53, 0.12);
+  border: 1px solid rgba(72, 62, 53, 0.1);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding:
-    clamp(1rem, 1.3vw, 1.22rem)
-    clamp(1rem, 1.35vw, 1.22rem)
-    clamp(0.92rem, 1.15vw, 1.06rem)
-    clamp(1.05rem + 10px, 1.55vw + 12px, 1.42rem + 14px);
+  padding: 1.2rem 1.3rem;
   background: #fff;
   overflow: hidden;
-}
-
-.simplify-flip-card__face::before {
-  content: "";
-  position: absolute;
-  top: 14px;
-  bottom: 14px;
-  left: 11px;
-  width: 4px;
-  border-radius: 999px;
-  background: var(--flip-bar-gradient);
+  transition: opacity 0.28s ease, visibility 0.28s ease;
 }
 
 .simplify-flip-card__face--front {
   align-items: center;
   justify-content: center;
   text-align: center;
+  opacity: 1;
+  visibility: visible;
 }
 
 .simplify-flip-card__face--back {
-  transform: rotateY(180deg);
   align-items: stretch;
   justify-content: flex-start;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.simplify-flip-card__hitbox--flipped .simplify-flip-card__face--front {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.simplify-flip-card__hitbox--flipped .simplify-flip-card__face--back {
+  opacity: 1;
+  visibility: visible;
 }
 
 .simplify-flip-card__icon-tile {
@@ -2835,9 +2831,21 @@ a.btn.btn-primary:hover {
   z-index: 1;
 }
 
-.simplify-flip-card__emoji {
-  display: none;
+/* Front-face icon — large tile with coloured tint matching card type */
+.simplify-flip-card__face-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0.5rem;
+  border-radius: 12px;
+  margin-bottom: 0.5rem;
+  color: var(--flip-accent, #4a8fa8);
+  background: rgba(74, 143, 168, 0.1);
+  flex-shrink: 0;
 }
+
+.simplify-flip-card--basic_info           .simplify-flip-card__face-icon { color: #1d4ed8; background: #dbeafe; }
+.simplify-flip-card--responsibilities      .simplify-flip-card__face-icon { color: #c2410c; background: #fef3c7; }
+.simplify-flip-card--skills_qualifications .simplify-flip-card__face-icon { color: #0e7490; background: #cffafe; }
 
 .simplify-flip-card__title {
   margin: 0;
@@ -2909,6 +2917,18 @@ a.btn.btn-primary:hover {
   border-bottom: 1px solid rgba(45, 41, 38, 0.08);
   flex-shrink: 0;
 }
+
+/* Back-face header icon — small, colour-matched */
+.simplify-flip-card__back-head-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  color: var(--flip-accent, #4a8fa8);
+}
+
+.simplify-flip-card--basic_info           .simplify-flip-card__back-head-icon { color: #1d4ed8; }
+.simplify-flip-card--responsibilities      .simplify-flip-card__back-head-icon { color: #c2410c; }
+.simplify-flip-card--skills_qualifications .simplify-flip-card__back-head-icon { color: #0e7490; }
 
 .simplify-flip-card__back-title {
   flex: 1;

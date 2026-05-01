@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import { SimplifyLineIcon } from "../components/SimplifyLineIcons.jsx";
@@ -58,9 +58,9 @@ function getProfileTabFromCareerProfile() {
 }
 
 const CARD_SECTIONS = [
-  { key: "basic_info", label: "Basic info", icon: "mapPin" },
-  { key: "responsibilities", label: "Responsibilities", icon: "briefcase" },
-  { key: "skills_qualifications", label: "Skills needed", icon: "clipboard" },
+  { key: "basic_info",            label: "Basic info",       icon: "mapPin"    },
+  { key: "responsibilities",      label: "Responsibilities", icon: "briefcase" },
+  { key: "skills_qualifications", label: "Skills needed",    icon: "clipboard" },
 ];
 
 const CARD_POINT_LIMIT = {
@@ -267,28 +267,31 @@ function renderImportantLines(text) {
  * Basic info often arrives as one line: "Job Title: X | Company: Y | ...".
  */
 function parseBasicInfoPipeFields(text) {
-  const normalized = String(text ?? "").replace(/\r\n/g, " ").trim();
-  if (!normalized) return [];
+  const src = String(text ?? "").replace(/\r\n/g, "\n").trim();
+  if (!src) return [];
 
-  const segments = normalized
-    .split(/\s*\|\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // Detect separator: prefer pipes, fall back to newlines, then semicolons.
+  // Only split on semicolons if no pipes/newlines found (Gemini sometimes
+  // returns "Title: X; Employer: Y; ..." as one flat string).
+  let segments;
+  if (/\|/.test(src)) {
+    segments = src.replace(/\n/g, " ").split(/\s*\|\s*/);
+  } else if (/\n/.test(src)) {
+    segments = src.split(/\n+/);
+  } else {
+    // Flat semicolon-separated: split on "; " only before a "Word:" pattern
+    segments = src.split(/;\s*(?=[A-Z][a-zA-Z ]+:\s)/);
+    // If that didn't split (e.g. no capital-word labels), just split on "; "
+    if (segments.length === 1) segments = src.split(/;\s+/);
+  }
 
   const rows = [];
-  for (const chunk of segments) {
-    const m = chunk.match(/^(.+?):\s*(.+)$/);
+  for (const chunk of segments.map((s) => s.replace(/\.$/, "").trim()).filter(Boolean)) {
+    const m = chunk.match(/^(.+?):\s*(.+)$/s);
     if (m) {
       const labelPart = m[1].trim();
       const valuePart = m[2].trim();
       if (labelPart && valuePart) rows.push({ label: labelPart, value: valuePart });
-      continue;
-    }
-    const idx = chunk.indexOf(":");
-    if (idx > 0 && idx < chunk.length - 1) {
-      const lbl = chunk.slice(0, idx).trim();
-      const val = chunk.slice(idx + 1).trim();
-      if (lbl && val) rows.push({ label: lbl, value: val });
     }
   }
   return rows;
@@ -321,9 +324,6 @@ const FLIP_CARD_MIN_PX = 288;
 /** Front shows title only; click flips to content (ADHD-friendly: one focus at a time). */
 function SimplifyFlipCard({ cardKey, label, icon, body }) {
   const [flipped, setFlipped] = useState(false);
-  const innerRef = useRef(null);
-  const frontFaceRef = useRef(null);
-  const backFaceRef = useRef(null);
   const { text, points } = getCardViewModel(cardKey, body);
   const hasPoints = points.length > 0;
   const basicBulletRows =
@@ -337,26 +337,8 @@ function SimplifyFlipCard({ cardKey, label, icon, body }) {
     }
   };
 
-  useLayoutEffect(() => {
-    const inner = innerRef.current;
-    const front = frontFaceRef.current;
-    const back = backFaceRef.current;
-    if (!inner || !front || !back) return;
-
-    const syncHeight = () => {
-      const fh = front.scrollHeight;
-      const bh = back.scrollHeight;
-      inner.style.minHeight = `${Math.max(fh, bh, FLIP_CARD_MIN_PX)}px`;
-    };
-
-    syncHeight();
-    const ro = new ResizeObserver(syncHeight);
-    ro.observe(front);
-    ro.observe(back);
-    const bodyEl = back.querySelector(".simplify-flip-card__body");
-    if (bodyEl) ro.observe(bodyEl);
-    return () => ro.disconnect();
-  }, [body, cardKey]);
+  // Height sync removed — CSS Grid overlay handles it automatically.
+  // Both faces sit in grid-area: 1/1; the cell grows to whichever face is taller.
 
   return (
     <div className={`simplify-flip-card simplify-flip-card--${cardKey}`}>
@@ -375,33 +357,25 @@ function SimplifyFlipCard({ cardKey, label, icon, body }) {
             : `${label}. Activate to read this section.`
         }
       >
-        <div className="simplify-flip-card__inner" ref={innerRef}>
+        <div className="simplify-flip-card__inner">
           <div
-            ref={frontFaceRef}
             className="simplify-flip-card__face simplify-flip-card__face--front"
           >
-            <span className="simplify-flip-card__icon-tile" aria-hidden="true">
-              <SimplifyLineIcon name={icon} />
-            </span>
-            <div className="simplify-flip-card__heading">
-              <h3 className="simplify-flip-card__title">{label}</h3>
-              <p className="simplify-flip-card__chip">{focusHint}</p>
-            </div>
+            <SimplifyLineIcon name={icon} className="simplify-flip-card__face-icon" aria-hidden="true" />
+            <h3 className="simplify-flip-card__title">{label}</h3>
+            <p className="simplify-flip-card__chip" aria-hidden="true">{focusHint}</p>
             <p className="simplify-flip-card__cta">
               <FlipCardsIcon />
               <span>Tap to open</span>
             </p>
           </div>
           <div
-            ref={backFaceRef}
             className="simplify-flip-card__face simplify-flip-card__face--back"
             id={`simplify-flip-panel-${cardKey}`}
             aria-label={`${label} details`}
           >
             <div className="simplify-flip-card__back-head">
-              <span className="simplify-flip-card__icon-tile simplify-flip-card__icon-tile--compact" aria-hidden="true">
-                <SimplifyLineIcon name={icon} />
-              </span>
+              <SimplifyLineIcon name={icon} className="simplify-flip-card__back-head-icon" aria-hidden="true" />
               <span className="simplify-flip-card__back-title">{label}</span>
             </div>
             <div className="simplify-flip-card__body">

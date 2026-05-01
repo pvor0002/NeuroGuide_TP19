@@ -81,7 +81,10 @@ Rules:
 
    summary: A gentle, plain-language overview (short paragraphs, bullets OK). Optimize for clarity and
      reduced cognitive load (concrete language, avoid jargon where possible).
-   basic_info: Title, employer if stated, location/work arrangement, employment type, pay if stated, schedule.
+   basic_info: Use pipe-separated "Label: Value" format on ONE line, e.g.
+     "Title: Junior Engineer | Employer: Acme Corp | Location: Sydney | Type: Full-time | Pay: $60k | Start: ASAP"
+     Include: Title, Employer (if stated), Location/Work arrangement, Type, Pay (if stated), Start date (if stated).
+     Omit fields that are not mentioned. Keep each value short (under 6 words).
    responsibilities: The 3-4 most important day-to-day duties. Each line short (under 12 words),
      action-first, easy to scan. Use "- " bullet prefix.
    skills_qualifications: The 3-4 most important required skills. Each line short (under 10 words),
@@ -157,6 +160,16 @@ def _extract_text_from_gemini_response(response: Any) -> str:
     result = "\n".join(parts_out).strip()
     logger.info("[Gemini] Extracted from candidates, length=%d", len(result))
     return result
+
+
+def _to_str(value: Any) -> str:
+    """Coerce any Gemini field (string or accidental list) to a plain string.
+    Lists are joined with newlines so multi-line fields (bullets, responsibilities)
+    are preserved as separate lines for the frontend to parse correctly.
+    """
+    if isinstance(value, list):
+        return "\n".join(str(v) for v in value if str(v).strip()).strip()
+    return str(value or "").strip()
 
 
 def _to_str_list(value: Any, *, min_len: int = 1, fill: str = "-") -> list[str]:
@@ -236,9 +249,11 @@ def _gemini_error_should_fallback_to_next_model(exc: BaseException) -> bool:
 
 
 def _gemini_model_fallback_chain(primary: str) -> list[str]:
-    # Stay on the 2.5 family; 2.0 / 1.5 Flash IDs are removed or blocked for new API keys.
+    # Primary model first, then fallback through available models.
+    # gemini-3-flash-preview and gemini-2.5-flash are the most reliable options.
     ordered = (
-        primary.strip() or "gemini-2.5-flash",
+        primary.strip() or "gemini-3-flash-preview",
+        "gemini-3-flash-preview",
         "gemini-2.5-flash",
         "gemini-2.5-flash-lite",
         "gemini-2.5-pro",
@@ -369,13 +384,13 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
 
     logger.info("[Gemini] is_job_description=true — extracting content fields")
 
-    job_title = (data.get("job_title") or "").strip()
+    job_title = _to_str(data.get("job_title"))
     extracted_skills = _to_str_list(data.get("extracted_skills"), min_len=0)
 
-    summary = (data.get("summary") or "").strip()
-    basic_info = (data.get("basic_info") or "").strip()
-    responsibilities = (data.get("responsibilities") or "").strip()
-    skills = (data.get("skills_qualifications") or "").strip()
+    summary = _to_str(data.get("summary"))
+    basic_info = _to_str(data.get("basic_info"))
+    responsibilities = _to_str(data.get("responsibilities"))
+    skills = _to_str(data.get("skills_qualifications"))
 
     logger.info("[Gemini] job_title=%s, extracted_skills=%s", job_title, extracted_skills)
 
