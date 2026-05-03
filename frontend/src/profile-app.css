@@ -2133,12 +2133,14 @@ button:disabled {
 
 .q-profile-hero-card--compact .q-profile-hero-right {
   gap: 0.25rem;
-  max-width: min(100%, 280px);
+  max-width: min(100%, 360px);
 }
 
 .q-profile-hero-card--compact .q-profile-id-inline--hero {
   flex-wrap: nowrap;
+  align-items: center;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .q-profile-hero-card--compact .q-profile-ready-sync--hero {
@@ -2157,6 +2159,13 @@ button:disabled {
   .q-profile-hero-card--compact .q-profile-hero-right {
     width: 100%;
     max-width: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .q-profile-id-inline--hero,
+  .q-profile-hero-card--compact .q-profile-id-inline--hero {
+    flex-wrap: wrap;
   }
 }
 
@@ -3118,10 +3127,6 @@ button:disabled {
   color: #6a6057;
 }
 
-.q-profile-id-create.is-attention {
-  animation: qProfileIdShake 550ms ease-in-out 4;
-}
-
 .q-profile-id-inline {
   display: flex;
   flex-wrap: wrap;
@@ -3136,6 +3141,8 @@ button:disabled {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-soft);
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .q-profile-id-code-compact {
@@ -3146,12 +3153,20 @@ button:disabled {
   background: rgba(45, 41, 38, 0.06);
   color: var(--ink);
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .q-profile-id-copy--compact {
   padding: 4px 10px;
   font-size: 0.78rem;
   border-radius: 8px;
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  text-align: center;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .q-title--profile-summary {
@@ -5859,12 +5874,4 @@ button:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 11px 14px;
   }
-}
-
-@keyframes qProfileIdShake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-4px); }
-  40% { transform: translateX(4px); }
-  60% { transform: translateX(-3px); }
-  80% { transform: translateX(3px); }
 }

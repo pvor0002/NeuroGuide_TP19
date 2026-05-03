@@ -15,6 +15,7 @@ import { isCloudSessionApiAvailable } from "../services/sessionApi.js";
 import {
   isCloudSessionUnreachableError,
   loginWithPassKeyAndApply,
+  readCredentials,
   registerCloudAccountFromLocalState,
   shouldSyncToCloud,
   syncFullCloudFromLocalState,
@@ -445,31 +446,59 @@ function buildPayloadForSync(answers) {
   return payload;
 }
 
+/** Hide generic browser network errors under the Profile ID / pass key controls. */
+function profileSyncErrorMessage(err) {
+  const m = String(err?.message ?? err ?? "").trim();
+  if (!m) return "";
+  const low = m.toLowerCase();
+  if (low.includes("failed to fetch")) return "";
+  if (low.includes("load failed")) return "";
+  if (low.includes("networkerror when attempting to fetch")) return "";
+  return m;
+}
+
 function mergeLoadedAnswers(base, incoming) {
   const safeArray = (value) => (Array.isArray(value) ? value.filter((v) => typeof v === "string" && v) : []);
   const safeRecord = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
   const safeString = (value) => (typeof value === "string" ? value : "");
+  /** If the server blob omits a field, keep ``base`` so we do not wipe arrays with ``[]``. */
+  const str = (key) => (incoming[key] !== undefined ? safeString(incoming[key]) : base[key]);
+  const rec = (key) => (incoming[key] !== undefined ? safeRecord(incoming[key]) : base[key]);
+  const arr = (key, max) =>
+    incoming[key] !== undefined ? safeArray(incoming[key]).slice(0, max) : base[key];
+  const energy = () =>
+    incoming.energyPatterns !== undefined
+      ? safeArray(incoming.energyPatterns)
+          .map(normalizeEnergyPatternStoredValue)
+          .slice(0, MAX_ENERGY_PATTERNS)
+      : base.energyPatterns;
   return {
     ...base,
     ...incoming,
-    adhdAwareness: safeString(incoming.adhdAwareness),
-    adhdProfileType: safeString(incoming.adhdProfileType),
-    quizAnswers: safeRecord(incoming.quizAnswers),
-    quizInferredType: safeString(incoming.quizInferredType),
-    workStyles: safeArray(incoming.workStyles).slice(0, MAX_PICK_ALL_APPLY),
-    supportNeeds: safeArray(incoming.supportNeeds).slice(0, MAX_PICK_ALL_APPLY),
-    selectedRoles: safeArray(incoming.selectedRoles).slice(0, MAX_SELECTED_ROLES),
+    adhdAwareness: str("adhdAwareness"),
+    adhdProfileType: str("adhdProfileType"),
+    quizAnswers: rec("quizAnswers"),
+    quizInferredType: str("quizInferredType"),
+    workStyles: arr("workStyles", MAX_PICK_ALL_APPLY),
+    supportNeeds: arr("supportNeeds", MAX_PICK_ALL_APPLY),
+    selectedRoles: arr("selectedRoles", MAX_SELECTED_ROLES),
     roleSearchQuery: "",
-    roleDuration: safeRecord(incoming.roleDuration),
-    roleExperience: safeRecord(incoming.roleExperience),
-    selectedSkills: safeArray(incoming.selectedSkills),
-    autoSelectedSkills: safeArray(incoming.autoSelectedSkills),
-    removedAutoSkills: safeArray(incoming.removedAutoSkills),
+    roleDuration: rec("roleDuration"),
+    roleExperience: rec("roleExperience"),
+    selectedSkills: arr("selectedSkills", Infinity),
+    autoSelectedSkills: arr("autoSelectedSkills", Infinity),
+    removedAutoSkills: arr("removedAutoSkills", Infinity),
     skillSearchQuery: "",
-    energyPatterns: safeArray(incoming.energyPatterns)
-      .map(normalizeEnergyPatternStoredValue)
-      .slice(0, MAX_ENERGY_PATTERNS),
+    energyPatterns: energy(),
   };
+}
+
+/** Display 8-char pass key as ``abcd-efgh`` (matches product copy style). */
+function formatPassKeyDisplay(passKey) {
+  const s = String(passKey || "").replace(/\s+/g, "");
+  if (s.length < 4) return s;
+  if (s.length <= 4) return s;
+  return `${s.slice(0, 4)}-${s.slice(4)}`;
 }
 
 function loadPersistedState() {
@@ -682,6 +711,8 @@ export default function ProfileWizardPage() {
   const [roleTags, setRoleTags] = useState([]);
   const [skillTags, setSkillTags] = useState([]);
   const [state, setState] = useState(loadPersistedState);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState("error");
   const [phase, setPhase] = useState("in"); // "in" | "out-forward" | "out-back"
@@ -748,6 +779,14 @@ export default function ProfileWizardPage() {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    const onCloudApplied = () => {
+      setState(loadPersistedState());
+    };
+    window.addEventListener("ng-cloud-session-applied", onCloudApplied);
+    return () => window.removeEventListener("ng-cloud-session-applied", onCloudApplied);
+  }, []);
 
   useEffect(() => () => {
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
@@ -1091,7 +1130,10 @@ export default function ProfileWizardPage() {
     }));
     setMessage("Progress saved.");
     setMessageTone("info");
-    void syncProfileToServer();
+    /* Defer sync until after React commits so localStorage + stateRef match latest answers. */
+    window.setTimeout(() => {
+      void syncProfileToServer();
+    }, 0);
   };
 
   const resetAll = () => {
@@ -1114,6 +1156,11 @@ export default function ProfileWizardPage() {
    * Returns the issued id on success, or null on failure.
    */
   const syncProfileToServer = async () => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
+    } catch {
+      /* ignore */
+    }
     let usedCloudSessionFallback = false;
     if (shouldSyncToCloud()) {
       setSyncStatus("saving");
@@ -1125,8 +1172,14 @@ export default function ProfileWizardPage() {
         return "cloud";
       } catch (err) {
         if (!isCloudSessionUnreachableError(err)) {
-          setSyncStatus("error");
-          setSyncMessage(err?.message || "Could not save to the server.");
+          const detail = profileSyncErrorMessage(err);
+          if (detail) {
+            setSyncStatus("error");
+            setSyncMessage(detail);
+          } else {
+            setSyncStatus("idle");
+            setSyncMessage("");
+          }
           return null;
         }
         usedCloudSessionFallback = true;
@@ -1171,13 +1224,25 @@ export default function ProfileWizardPage() {
           setSyncMessage("Profile ID refreshed (old one was missing on the server).");
           return result.id;
         } catch (err2) {
-          setSyncStatus("error");
-          setSyncMessage(err2.message || "Could not save your profile right now.");
+          const d2 = profileSyncErrorMessage(err2);
+          if (d2) {
+            setSyncStatus("error");
+            setSyncMessage(d2);
+          } else {
+            setSyncStatus("idle");
+            setSyncMessage("");
+          }
           return null;
         }
       }
-      setSyncStatus("error");
-      setSyncMessage(err.message || "Could not save your profile right now.");
+      const d = profileSyncErrorMessage(err);
+      if (d) {
+        setSyncStatus("error");
+        setSyncMessage(d);
+      } else {
+        setSyncStatus("idle");
+        setSyncMessage("");
+      }
       return null;
     }
   };
@@ -1250,6 +1315,18 @@ export default function ProfileWizardPage() {
     if (!state.profileId) return;
     try {
       await navigator.clipboard.writeText(state.profileId);
+      setCopyFeedback("Copied!");
+    } catch {
+      setCopyFeedback("Press Ctrl+C to copy.");
+    }
+    setTimeout(() => setCopyFeedback(""), 1800);
+  };
+
+  const handleCopyCloudPassKey = async () => {
+    const pk = readCredentials()?.passKey;
+    if (!pk) return;
+    try {
+      await navigator.clipboard.writeText(String(pk));
       setCopyFeedback("Copied!");
     } catch {
       setCopyFeedback("Press Ctrl+C to copy.");
@@ -1606,6 +1683,9 @@ export default function ProfileWizardPage() {
 
       case "profile-ready":
         {
+          const credForHero = readCredentials();
+          const sessionPassKey =
+            credForHero?.passKey && credForHero?.userId ? String(credForHero.passKey) : null;
           const requiredBlocks = BLOCKS.filter((b) => b.id !== "profile");
           const completionByBlock = requiredBlocks.map((b) => {
             const inBlock = steps.filter((s) => s.block === b.id);
@@ -1734,7 +1814,21 @@ export default function ProfileWizardPage() {
                   </div>
                 </div>
                 <div className="q-profile-hero-right">
-                  {state.profileId ? (
+                  {sessionPassKey ? (
+                    <div className="q-profile-id-inline q-profile-id-inline--hero" aria-live="polite">
+                      <span className="q-profile-id-inline-label">Your pass key</span>
+                      <code className="q-profile-id-code-compact">
+                        {formatPassKeyDisplay(sessionPassKey)}
+                      </code>
+                      <button
+                        type="button"
+                        className="button secondary q-profile-id-copy--compact"
+                        onClick={() => void handleCopyCloudPassKey()}
+                      >
+                        {copyFeedback || "Copy"}
+                      </button>
+                    </div>
+                  ) : state.profileId ? (
                     <div className="q-profile-id-inline q-profile-id-inline--hero" aria-live="polite">
                       <span className="q-profile-id-inline-label">Your code</span>
                       <code className="q-profile-id-code-compact">{state.profileId}</code>
@@ -1750,7 +1844,7 @@ export default function ProfileWizardPage() {
                     <>
                       <button
                         type="button"
-                        className="button secondary q-profile-id-create is-attention"
+                        className="button secondary q-profile-id-create"
                         onClick={() => {
                           void syncProfileToServer();
                         }}
