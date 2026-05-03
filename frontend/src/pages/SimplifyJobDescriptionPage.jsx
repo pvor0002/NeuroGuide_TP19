@@ -1361,9 +1361,9 @@ export default function SimplifyJobDescriptionPage() {
 
                   const userQuestionnaire = {
                     adhd_profile_type: answers.adhdProfileType || "inattentive",
-                    work_preferences: (answers.workStyles ?? answers.workPreferences ?? []).slice(0, 2),
-                    support_needs: (answers.supportNeeds ?? []).slice(0, 2),
-                    energy_patterns: (answers.energyPatterns ?? []).slice(0, 2),
+                    work_preferences: answers.workStyles ?? answers.workPreferences ?? [],
+                    support_needs: answers.supportNeeds ?? [],
+                    energy_patterns: answers.energyPatterns ?? [],
                     primary_role: answers.selectedRoles?.[0] || answers.primaryRole || "",
                     role_duration: roleDuration,
                     skills: answers.selectedSkills ?? answers.autoSelectedSkills ?? [],
@@ -1385,11 +1385,14 @@ export default function SimplifyJobDescriptionPage() {
                     const occupationName = occResult.occupation_name;
 
                     // 3. Calculate job match score
+                    const fitFeatures = simplifiedResult?.job_fit_features ?? null;
+
                     const scoreResult = await predictJobScore(
                       userQuestionnaire,
                       occupationId,
                       extractedSkills.length > 0 ? extractedSkills : null,
-                      null
+                      null,
+                      fitFeatures && typeof fitFeatures === "object" ? fitFeatures : null
                     );
 
                     setJobScoreOccupationName(occupationName);

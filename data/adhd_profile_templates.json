@@ -1,0 +1,38 @@
+{
+  "0": {
+    "Anxiety_Depression_Levels": -0.40924565330132373,
+    "Daily_Activity_Hours": -0.01697585733307913,
+    "Difficulty_Organizing_Tasks": -0.9312395310560939,
+    "Focus_Score_Video": 0.5165414423795377,
+    "Sleep_Hours": -0.005575756047764277,
+    "hyperactivity_score": -1.1880498204495242,
+    "inattention_score": -1.1864112659417954
+  },
+  "1": {
+    "Anxiety_Depression_Levels": 0.09408633669915344,
+    "Daily_Activity_Hours": -0.011571148018017388,
+    "Difficulty_Organizing_Tasks": -0.8919822507890052,
+    "Focus_Score_Video": 0.512713128776609,
+    "Sleep_Hours": 0.0029819437434224247,
+    "hyperactivity_score": 0.8194239715927204,
+    "inattention_score": -1.1922151056308896
+  },
+  "2": {
+    "Anxiety_Depression_Levels": 0.14728517211990588,
+    "Daily_Activity_Hours": 0.017113358005334665,
+    "Difficulty_Organizing_Tasks": 0.6302765228618714,
+    "Focus_Score_Video": -0.34931651883962844,
+    "Sleep_Hours": -0.009211587684465119,
+    "hyperactivity_score": -1.1880167336762966,
+    "inattention_score": 0.8178369850927062
+  },
+  "3": {
+    "Anxiety_Depression_Levels": 0.14334034322218056,
+    "Daily_Activity_Hours": 0.007622161159372589,
+    "Difficulty_Organizing_Tasks": 0.6302765228618714,
+    "Focus_Score_Video": -0.35644026722896094,
+    "Sleep_Hours": 0.005522262790898998,
+    "hyperactivity_score": 0.8171078974667837,
+    "inattention_score": 0.8183410900257018
+  }
+}

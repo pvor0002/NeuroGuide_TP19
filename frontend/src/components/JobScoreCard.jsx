@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 function shortLine(text, max = 90) {
@@ -20,20 +21,50 @@ function compactPrefs(lines = [], max = 3) {
   });
 }
 
+/** Mirrors backend SKILL_EQUIVALENCE for fairer chip grouping (subset). */
+function canonicalSkillKey(normalized) {
+  const n = normalized;
+  const rows = [
+    ["javascript", ["js", "ecmascript", "es6", "nodejs", "node"]],
+    ["typescript", ["ts"]],
+    ["apiintegration", ["apis", "restapi", "openapi", "grpc"]],
+    ["testing", ["qa", "tdd", "jest", "cypress"]],
+    ["sql", ["mysql", "postgres", "postgresql", "sqlite", "database"]],
+    ["python", ["django", "flask", "fastapi", "pandas"]],
+    ["react", ["redux", "nextjs", "next"]],
+    ["golang", ["go"]],
+    ["kubernetes", ["k8s", "kubectl", "helm"]],
+    ["machinelearning", ["ml", "tensorflow", "pytorch"]],
+  ];
+  for (const [canon, alts] of rows) {
+    if (n === canon) return canon;
+    for (const a of alts) {
+      if (n === a || (n.length > 2 && (n.includes(a) || a.includes(n)))) return canon;
+    }
+  }
+  return n;
+}
+
 function categoriseSkills(userSkills = [], jobSkills = []) {
   const normalize = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const matched = [];
   const partial = [];
   const missing = [];
+  const userCanon = new Set(userSkills.map((u) => canonicalSkillKey(normalize(u))));
   jobSkills.forEach((jobSkill) => {
     const jn = normalize(jobSkill);
-    if (userSkills.some((u) => normalize(u) === jn)) {
+    const jc = canonicalSkillKey(jn);
+    if (userCanon.has(jc) || userSkills.some((u) => normalize(u) === jn)) {
       matched.push(jobSkill);
       return;
     }
     const partialHit = userSkills.some((u) => {
       const un = normalize(u);
-      return (jn.length > 3 && un.includes(jn)) || (un.length > 3 && jn.includes(un));
+      const uc = canonicalSkillKey(un);
+      return (
+        (jn.length > 3 && (un.includes(jn) || jn.includes(un))) ||
+        (jc.length > 2 && (uc.includes(jc) || jc.includes(uc)))
+      );
     });
     if (partialHit) partial.push(jobSkill);
     else missing.push(jobSkill);
@@ -71,6 +102,8 @@ function capitalizeFirst(text) {
 }
 
 export default function JobScoreCard({ result, occupationName, onOpenHistory }) {
+  const [helpfulVote, setHelpfulVote] = useState(null);
+
   if (!result) return null;
 
   const score = Number(result.score || 0);
@@ -81,12 +114,10 @@ export default function JobScoreCard({ result, occupationName, onOpenHistory }) 
 
   const skillsFactor = result.factor_breakdown?.skills || {};
   const split = categoriseSkills(skillsFactor.user_skills || [], skillsFactor.job_skills || []);
-  const curatedStrengths = [
-    "Best with Quiter Settings",
-    "Low Interruptions",
-    "Needs detail-orientation",
-    "Needs hyperfocus",
-  ];
+  const strengthsFromModel = (result.key_strengths || [])
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+    .slice(0, 8);
   const challenges = compactReasons(result.key_challenges, 2);
   const prefs = compactPrefs(result.preference_alignment, 3);
 
@@ -126,11 +157,23 @@ export default function JobScoreCard({ result, occupationName, onOpenHistory }) 
           </div>
           <div className="jsc-helpful-box" aria-label="Was it helpful?">
             <span className="jsc-helpful-label">Was it helpful?</span>
-            <div className="jsc-helpful-actions">
-              <button type="button" className="jsc-helpful-btn" aria-label="Helpful">
+            <div className="jsc-helpful-actions" role="group" aria-label="Feedback">
+              <button
+                type="button"
+                className={`jsc-helpful-btn jsc-helpful-btn--up${helpfulVote === "up" ? " jsc-helpful-btn--selected" : ""}`}
+                aria-label="Helpful"
+                aria-pressed={helpfulVote === "up"}
+                onClick={() => setHelpfulVote("up")}
+              >
                 <span className="jsc-helpful-emoji" aria-hidden="true">👍</span>
               </button>
-              <button type="button" className="jsc-helpful-btn" aria-label="Not helpful">
+              <button
+                type="button"
+                className={`jsc-helpful-btn jsc-helpful-btn--down${helpfulVote === "down" ? " jsc-helpful-btn--selected" : ""}`}
+                aria-label="Not helpful"
+                aria-pressed={helpfulVote === "down"}
+                onClick={() => setHelpfulVote("down")}
+              >
                 <span className="jsc-helpful-emoji" aria-hidden="true">👎</span>
               </button>
             </div>
@@ -158,9 +201,17 @@ export default function JobScoreCard({ result, occupationName, onOpenHistory }) 
             <h3 className="jsc-assess-col-title">ADHD Profile Compatibility</h3>
             <div className="jsc-assess-box jsc-assess-box--good">
               <p className="jsc-assess-box-head">Why is it good for you?</p>
-              <ul className="jsc-simple-list jsc-simple-list--ticks">
-                {curatedStrengths.map((s, i) => <li key={i}>{s}</li>)}
-              </ul>
+              {strengthsFromModel.length > 0 ? (
+                <ul className="jsc-simple-list jsc-simple-list--ticks">
+                  {strengthsFromModel.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="jsc-muted-line">
+                  No profile strengths returned for this score — complete your profile or try another role.
+                </p>
+              )}
             </div>
             {prefs.length > 0 ? (
               <div className="jsc-assess-box jsc-assess-box--neutral">

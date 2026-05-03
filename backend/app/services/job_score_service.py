@@ -10,7 +10,7 @@ import os
 from typing import Dict, Optional
 import psycopg2
 import psycopg2.extras
-from app.services.job_score_model_v2 import JobScoreModelV2
+from app.services.corrected_job_score_model_v2 import JobScoreModelV2
 from app.core.config import get_settings
 from app.services.occupation_match import build_ilike_terms, normalize_job_title
 
@@ -197,7 +197,7 @@ def save_recommendation(session_id: str, occupation_id: int, result: Dict) -> No
             result['key_strengths'],
             result['key_challenges'],
             result['suggested_accommodations'],
-            'v2'
+            'v3-hybrid'
         ))
         conn.commit()
         cursor.close()
@@ -215,7 +215,8 @@ def calculate_job_score(
     user_questionnaire: Dict,
     occupation_id: int,
     session_id: Optional[str] = None,
-    job_skills_from_gemini: Optional[list] = None
+    job_skills_from_gemini: Optional[list] = None,
+    job_fit_features_from_gemini: Optional[Dict] = None,
 ) -> Dict:
     """
     Main function: fetch occupation, run model, save result, return response.
@@ -234,9 +235,13 @@ def calculate_job_score(
         logger.info(f"[JobScore] Using Gemini-extracted skills: {job_skills_from_gemini}")
         occupation['implied_skills'] = job_skills_from_gemini
 
+    if job_fit_features_from_gemini:
+        logger.info(f"[JobScore] Using Gemini job fit features: {job_fit_features_from_gemini}")
+        occupation['gemini_job_fit'] = job_fit_features_from_gemini
+
     # 3. Run the scoring model
     model = JobScoreModelV2()
-    result = model.score_job_match(user_questionnaire, occupation)
+    result = model.score_job_match(user_questionnaire, occupation, job_fit_features=job_fit_features_from_gemini)
 
     # 4. Save to RDS (optional — don't fail if this errors)
     if session_id:

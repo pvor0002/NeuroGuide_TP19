@@ -7,6 +7,8 @@ Pydantic models for request and response validation.
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
+from app.schemas.job_fit_features import GeminiJobFitFeatures
+
 
 class UserQuestionnaire(BaseModel):
     adhd_profile_type: str = Field(
@@ -58,6 +60,12 @@ class JobScoreRequest(BaseModel):
         description="Skills extracted by Gemini from the job description. Overrides implied_skills from DB.",
         examples=[["Python", "JavaScript", "Testing", "Git", "Problem-solving"]]
     )
+    job_fit_features_from_gemini: Optional[GeminiJobFitFeatures] = Field(
+        default=None,
+        description=(
+            "Structured job signals from Gemini (task structure, environment, cognitive load, etc.)"
+        ),
+    )
     session_id: Optional[str] = Field(
         default=None,
         description="Anonymous session ID for saving results"
@@ -92,3 +100,7 @@ class JobScoreResponse(BaseModel):
     key_challenges: List[str] = Field(..., description="Challenges to manage")
     suggested_accommodations: List[str] = Field(..., description="Recommended supports")
     occupation: Optional[OccupationInfo] = None
+    ml_layer: Optional[Dict] = Field(
+        default=None,
+        description="Hybrid ML + rule blend metadata (job_success_probability, rule_score_0_100, etc.)",
+    )

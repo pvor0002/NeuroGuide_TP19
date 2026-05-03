@@ -5136,9 +5136,39 @@ a.btn.btn-primary:hover {
   gap: 0.25rem;
   justify-content: center;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.jsc-helpful-btn:hover { background: #f7f2e9; }
+/* Mouse clicks leave :focus without :focus-visible on some browsers — avoid a “stuck pressed” look */
+.jsc-helpful-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .jsc-helpful-btn:hover:not(.jsc-helpful-btn--selected) {
+    background: #f7f2e9;
+  }
+
+  .jsc-helpful-btn--selected.jsc-helpful-btn--up:hover {
+    background: #d8edd9;
+  }
+
+  .jsc-helpful-btn--selected.jsc-helpful-btn--down:hover {
+    background: #f5ddd9;
+  }
+}
+
+.jsc-helpful-btn--selected.jsc-helpful-btn--up {
+  background: #e3f2e4;
+  border-color: rgba(46, 125, 50, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(46, 125, 50, 0.12);
+}
+
+.jsc-helpful-btn--selected.jsc-helpful-btn--down {
+  background: #fce8e6;
+  border-color: rgba(183, 28, 28, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(183, 28, 28, 0.1);
+}
 
 .jsc-helpful-emoji {
   font-size: 1.15rem;

@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.schemas.job_fit_features import GeminiJobFitFeatures
+
 
 class SimplifyRequest(BaseModel):
     """Body for POST /job-description/simplify: raw posting text."""
@@ -66,6 +68,13 @@ class SimplifyResponse(BaseModel):
     # Job scoring fields: extracted by Gemini for use with the scoring model
     job_title: str = Field(default="", description="Extracted job title (e.g. 'Software Developer')")
     extracted_skills: list[str] = Field(default_factory=list, description="Key skills extracted from the posting")
+
+    job_fit_features: GeminiJobFitFeatures = Field(
+        default_factory=GeminiJobFitFeatures,
+        description=(
+            "Structured job environment (task shape, pace, load) for ADHD preference matching"
+        ),
+    )
 
     # Per-profile structured data
     profile_inattentive: InattentiveProfile

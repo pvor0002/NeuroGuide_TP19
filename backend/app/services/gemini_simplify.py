@@ -19,6 +19,7 @@ from app.schemas.job_description import (
     InattentiveProfile,
     SimplifyResponse,
 )
+from app.schemas.job_fit_features import GeminiJobFitFeatures
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ You must respond with a single JSON object only (no markdown fences), using this
   "rejection_reason": string or null,
   "job_title": string or null,
   "extracted_skills": array of strings or null,
+  "job_fit_features": object or null,
   "summary": string or null,
   "basic_info": string or null,
   "responsibilities": string or null,
@@ -40,6 +42,25 @@ You must respond with a single JSON object only (no markdown fences), using this
   "profile_hyperactive": object or null,
   "profile_combined": object or null
 }
+
+job_fit_features shape (when is_job_description is true, REQUIRED — infer from the posting text):
+{
+  "task_structure": "structured" | "unstructured" | "mixed",
+  "work_environment": "quiet" | "collaborative" | "fast-paced" | "mixed",
+  "cognitive_load": "low" | "medium" | "high",
+  "attention_switching": "low" | "high",
+  "deadline_pressure": "low" | "high",
+  "autonomy": "low" | "medium" | "high",
+  "work_style": "deep_focus" | "context_switching" | "mixed",
+  "collaboration": "low" | "medium" | "high",
+  "interruptions": "low" | "medium" | "high"
+}
+Infer from duties, meeting load, ambiguity, pace, team interaction, on-call, deadlines.
+work_style: sustained deep work vs frequent context switching vs blended.
+collaboration: how often the role requires synchronous teamwork/meetings.
+interruptions: how often focus is broken (Slack, tickets, floor walk-ups).
+Use ONLY these allowed tokens as values. Pick "mixed" when the role blends styles.
+If the posting implies semi-structured work, set task_structure to "mixed".
 
 Profile object shapes (required when is_job_description is true):
 
@@ -77,6 +98,9 @@ Rules:
     If not clearly stated, infer a concise title from the role description (under 5 words).
 2b. extracted_skills: Extract 5-10 concrete skills required by the job (e.g. ["Python", "Communication", "Excel", "Project management"]).
     Use plain short labels, no bullet prefixes, no jargon expansion.
+2c. job_fit_features: Fill every field when is_job_description is true — ADHD-specific interpretation of how work is structured,
+    socially paced, cognitively demanding, interrupt-driven, deadline-heavy, autonomy-granting, deep vs switching work style,
+    collaboration intensity, and interruption frequency.
 3. If is_job_description is true, fill ALL content fields including all three profiles:
 
    summary: A gentle, plain-language overview (short paragraphs, bullets OK). Optimize for clarity and
@@ -372,12 +396,24 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
     job_title = (data.get("job_title") or "").strip()
     extracted_skills = _to_str_list(data.get("extracted_skills"), min_len=0)
 
+    raw_fit = data.get("job_fit_features")
+    try:
+        job_fit_features = GeminiJobFitFeatures.model_validate(raw_fit or {})
+    except Exception:
+        logger.warning("[Gemini] job_fit_features invalid — using empty defaults")
+        job_fit_features = GeminiJobFitFeatures()
+
     summary = (data.get("summary") or "").strip()
     basic_info = (data.get("basic_info") or "").strip()
     responsibilities = (data.get("responsibilities") or "").strip()
     skills = (data.get("skills_qualifications") or "").strip()
 
-    logger.info("[Gemini] job_title=%s, extracted_skills=%s", job_title, extracted_skills)
+    logger.info(
+        "[Gemini] job_title=%s, extracted_skills=%s, job_fit_features=%s",
+        job_title,
+        extracted_skills,
+        job_fit_features.model_dump(exclude_none=True),
+    )
 
     logger.info(
         "[Gemini] Field lengths — summary=%d, basic_info=%d, responsibilities=%d, skills=%d",
@@ -412,6 +448,7 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
         quick_snapshot=snapshot,
         job_title=job_title,
         extracted_skills=extracted_skills,
+        job_fit_features=job_fit_features,
         profile_inattentive=_parse_inattentive(data.get("profile_inattentive")),
         profile_hyperactive=_parse_hyperactive(data.get("profile_hyperactive")),
         profile_combined=_parse_combined(data.get("profile_combined")),
