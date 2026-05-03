@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import DataConsentModal from "../components/DataConsentModal.jsx";
+import { isCloudSessionApiAvailable } from "../services/sessionApi.js";
+import {
+  clearAllCloudUserData,
+  clearCloudProfileAnswers,
+  registerCloudAccountFromLocalState,
+  revokeConsentOnServer,
+  syncConsentToServer,
+} from "../utils/cloudSync.js";
 
 const CONSENT_STORAGE_KEY = "ng_data_consent_v1";
 const USER_CREDENTIALS_STORAGE_KEY = "ng_local_user_credentials_v1";
@@ -130,6 +139,7 @@ export default function SettingsPage() {
   const [revealPassKey, setRevealPassKey] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
   const [actionMessage, setActionMessage] = useState("");
+  const [showConsentSetupModal, setShowConsentSetupModal] = useState(false);
 
   const refreshState = useCallback(() => {
     setConsent(readJSON(CONSENT_STORAGE_KEY));
@@ -177,18 +187,34 @@ export default function SettingsPage() {
   }, [consentStatus]);
 
   const revokeConsent = () => {
-    try { window.localStorage.removeItem(CONSENT_STORAGE_KEY); } catch { /* noop */ }
-    setActionMessage("Consent withdrawn. You'll be asked again next time you open a tool.");
+    try {
+      window.localStorage.setItem(
+        CONSENT_STORAGE_KEY,
+        JSON.stringify({ status: "declined", acknowledgedAt: new Date().toISOString() }),
+      );
+    } catch { /* noop */ }
+    void revokeConsentOnServer().catch(() => {
+      /* server optional */
+    });
+    setActionMessage(
+      "Consent withdrawn. We won't sync new data to the server until you accept again (your account stays).",
+    );
     refreshState();
   };
 
   const acceptConsent = () => {
+    const cred = readJSON(USER_CREDENTIALS_STORAGE_KEY);
+    if (!cred?.userId) {
+      setShowConsentSetupModal(true);
+      return;
+    }
     try {
       window.localStorage.setItem(
         CONSENT_STORAGE_KEY,
-        JSON.stringify({ status: "accepted", acknowledgedAt: new Date().toISOString() })
+        JSON.stringify({ status: "accepted", acknowledgedAt: new Date().toISOString() }),
       );
     } catch { /* noop */ }
+    void syncConsentToServer().catch(() => {});
     setActionMessage("Consent recorded as accepted.");
     refreshState();
   };
@@ -205,21 +231,33 @@ export default function SettingsPage() {
     }
   };
 
-  const clearProfileOnly = () => {
+  const clearProfileOnly = async () => {
     const ok = window.confirm(
       "Clear your saved Career Profile answers on this device? Your User ID and pass key will be kept."
     );
     if (!ok) return;
+    try {
+      await clearCloudProfileAnswers();
+    } catch (e) {
+      setActionMessage(e?.message || "Could not clear your profile on the server.");
+      return;
+    }
     try { window.localStorage.removeItem(PROFILE_STORAGE_KEY); } catch { /* noop */ }
-    setActionMessage("Career Profile answers cleared.");
+    setActionMessage("Career Profile answers cleared (this device and server copy).");
     refreshState();
   };
 
-  const clearEverything = () => {
+  const clearEverything = async () => {
     const ok = window.confirm(
-      "This deletes ALL NeuroGuide data in this browser: profile answers, User ID, pass key, consent, and session flags. Continue?"
+      "This deletes ALL NeuroGuide data in this browser: profile answers, User ID, pass key, consent, and session flags. If you use cloud storage, your server rows are removed too. Continue?"
     );
     if (!ok) return;
+    let serverNote = "";
+    try {
+      await clearAllCloudUserData();
+    } catch (e) {
+      serverNote = e?.message || "Cloud delete could not be confirmed.";
+    }
     try {
       [
         PROFILE_STORAGE_KEY,
@@ -229,7 +267,11 @@ export default function SettingsPage() {
       ].forEach((k) => window.localStorage.removeItem(k));
       window.sessionStorage.removeItem(LOGIN_GATE_SESSION_KEY);
     } catch { /* noop */ }
-    setActionMessage("All NeuroGuide data in this browser has been cleared.");
+    setActionMessage(
+      serverNote
+        ? `This device is cleared. ${serverNote}`
+        : "All NeuroGuide data in this browser (and cloud account, if any) has been cleared.",
+    );
     refreshState();
   };
 
@@ -244,6 +286,25 @@ export default function SettingsPage() {
 
   return (
     <div className="settings-page settings-page--menu">
+      <DataConsentModal
+        open={showConsentSetupModal}
+        autoShow={false}
+        onClose={() => setShowConsentSetupModal(false)}
+        onBeforeContinue={
+          isCloudSessionApiAvailable()
+            ? async () => {
+                await registerCloudAccountFromLocalState();
+              }
+            : undefined
+        }
+        onComplete={(status) => {
+          setShowConsentSetupModal(false);
+          if (status === "accepted") {
+            refreshState();
+            setActionMessage("Consent saved and your data is linked to secure storage.");
+          }
+        }}
+      />
       {!activeSection ? (
         <>
           <section className="settings-hero" aria-labelledby="settings-title">
