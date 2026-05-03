@@ -341,13 +341,13 @@ function parseBasicInfoLooseLines(text) {
 function splitBasicInfoFieldsLoose(joined) {
   const s = stripMdBold(String(joined ?? "").replace(/\r\n/g, " ").trim());
   if (!s) return [];
-  const boundary = /\s+(?=[A-Za-z][A-Za-z0-9 ,&'()/\-]{0,44}:)/;
+  const boundary = /\s+(?=[A-Za-z][A-Za-z0-9 ,&'()/-]{0,44}:)/;
   if (!boundary.test(s)) {
     const idx = s.indexOf(":");
     if (idx < 1) return [];
     return [{ label: stripMdBold(s.slice(0, idx).trim()), value: stripMdBold(s.slice(idx + 1).trim()) }];
   }
-  const parts = s.split(/\s+(?=[A-Za-z][A-Za-z0-9 ,&'()/\-]{0,44}:)/);
+  const parts = s.split(/\s+(?=[A-Za-z][A-Za-z0-9 ,&'()/-]{0,44}:)/);
   const rows = [];
   for (const part of parts) {
     const p = part.trim();
@@ -1196,9 +1196,11 @@ function JobHistoryDetailModal({ open, item, fallbackProfileKey, liveSimplifiedR
       text,
       fileExtractedText,
     );
-    if (hasSnap) setDetailTab("simplified");
-    else if (hasOriginal) setDetailTab("original");
-    else setDetailTab("simplified");
+    const nextTab = hasSnap ? "simplified" : hasOriginal ? "original" : "simplified";
+    const t = window.setTimeout(() => {
+      setDetailTab(nextTab);
+    }, 0);
+    return () => clearTimeout(t);
   }, [open, item, liveSimplifiedResult, inputMode, text, fileExtractedText]);
 
   useEffect(() => {

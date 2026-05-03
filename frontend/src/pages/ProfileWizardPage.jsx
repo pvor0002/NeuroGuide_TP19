@@ -799,7 +799,6 @@ export default function ProfileWizardPage() {
   }, [steps, state.answers]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (canCheckJobSuitability) setShowSuitabilityGate(false);
   }, [canCheckJobSuitability]);
 
@@ -817,7 +816,6 @@ export default function ProfileWizardPage() {
       state.answers.quizInferredType ||
       scoreAdhdQuiz(state.answers.quizAnswers).type;
     if (!inferred) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => ({
       ...prev,
       answers: { ...prev.answers, adhdProfileType: inferred },
