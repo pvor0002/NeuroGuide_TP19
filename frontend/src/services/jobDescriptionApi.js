@@ -1,5 +1,6 @@
-const DEFAULT_API_BASE = "http://127.0.0.1:8000/api/v1";
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE).replace(/\/+$/, "");
+import { getApiBase } from "../utils/apiBase.js";
+
+const API_BASE = getApiBase();
 
 /**
  * Set VITE_SIMPLIFY_API=0 to hide simplify actions when no backend is available.

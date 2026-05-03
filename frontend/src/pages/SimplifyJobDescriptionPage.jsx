@@ -23,6 +23,8 @@ import {
   readPersistedJobScore,
   writePersistedJobScore,
 } from "../utils/jobScorePersistence.js";
+import { registerCloudAccountFromLocalState } from "../utils/cloudSync.js";
+import { isCloudSessionApiAvailable } from "../services/sessionApi.js";
 
 // ─── Profile definitions ────────────────────────────────────────────────────
 const PROFILE_META = {
@@ -1051,7 +1053,15 @@ export default function SimplifyJobDescriptionPage() {
 
   return (
     <div className="simplify-page">
-      <DataConsentModal />
+      <DataConsentModal
+        onBeforeContinue={
+          isCloudSessionApiAvailable()
+            ? async () => {
+                await registerCloudAccountFromLocalState();
+              }
+            : undefined
+        }
+      />
       <div className="simplify-page-noise" aria-hidden="true" />
 
       <header className="simplify-hero" aria-labelledby="simplify-title">

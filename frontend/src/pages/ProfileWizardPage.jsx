@@ -11,6 +11,14 @@ import {
   normalizeProfileId,
   updateProfile,
 } from "../services/profileApi.js";
+import { isCloudSessionApiAvailable } from "../services/sessionApi.js";
+import {
+  isCloudSessionUnreachableError,
+  loginWithPassKeyAndApply,
+  registerCloudAccountFromLocalState,
+  shouldSyncToCloud,
+  syncFullCloudFromLocalState,
+} from "../utils/cloudSync.js";
 
 /** Resolved asset URL so the Profile Ready portrait always maps to repo `data/images/dev.png`. */
 import devPortraitUrl from "../../../data/images/dev.png";
@@ -732,6 +740,11 @@ export default function ProfileWizardPage() {
     } catch {
       /* sessionStorage unavailable - still show the gate */
     }
+    try {
+      if (shouldSyncToCloud()) return false;
+    } catch {
+      /* ignore */
+    }
     return true;
   });
 
@@ -1136,6 +1149,26 @@ export default function ProfileWizardPage() {
    * Returns the issued id on success, or null on failure.
    */
   const syncProfileToServer = async () => {
+    let usedCloudSessionFallback = false;
+    if (shouldSyncToCloud()) {
+      setSyncStatus("saving");
+      setSyncMessage("");
+      try {
+        await syncFullCloudFromLocalState();
+        setSyncStatus("saved");
+        setSyncMessage("Saved to your account.");
+        return "cloud";
+      } catch (err) {
+        if (!isCloudSessionUnreachableError(err)) {
+          setSyncStatus("error");
+          setSyncMessage(err?.message || "Could not save to the server.");
+          return null;
+        }
+        usedCloudSessionFallback = true;
+        /* /pg/session not on this backend yet — use anonymous Profile ID sync instead */
+      }
+    }
+
     const payload = buildPayloadForSync(state.answers);
     setSyncStatus("saving");
     setSyncMessage("");
@@ -1149,7 +1182,15 @@ export default function ProfileWizardPage() {
         syncedAt: result.updated_at || result.created_at || new Date().toISOString(),
       }));
       setSyncStatus("saved");
-      setSyncMessage(state.profileId ? "Saved." : "Profile ID created. Copy it to reuse on another browser.");
+      if (usedCloudSessionFallback) {
+        setSyncMessage(
+          state.profileId
+            ? "Saved to your Profile ID. Deploy /pg/session on the API to enable full account backup."
+            : "Profile ID created (anonymous sync). Your pass key is for a future cloud update when the server supports it.",
+        );
+      } else {
+        setSyncMessage(state.profileId ? "Saved." : "Profile ID created. Copy it to reuse on another browser.");
+      }
       return result.id;
     } catch (err) {
       // If we have a cached id but the server no longer has it, fall back to create.
@@ -1182,9 +1223,32 @@ export default function ProfileWizardPage() {
    * message in their own UI; resolves silently on success.
    */
   const loadProfileById = async (rawOrFormattedId) => {
+    const trimmed = String(rawOrFormattedId || "").trim();
+    if (!trimmed) {
+      throw new Error("Enter your pass key or Profile ID to continue.");
+    }
+
+    if (isCloudSessionApiAvailable()) {
+      try {
+        await loginWithPassKeyAndApply(trimmed);
+        const next = loadPersistedState();
+        setState(next);
+        setSyncStatus("saved");
+        setSyncMessage("Welcome back — your saved data is loaded.");
+        setMessage("");
+        dismissLoginGate();
+        return { id: "cloud" };
+      } catch (cloudErr) {
+        const msg = String(cloudErr?.message || "").toLowerCase();
+        const notFound = msg.includes("not recognised") || msg.includes("404") || /\bnot found\b/.test(msg);
+        if (!notFound) throw cloudErr;
+        /* fall through to anonymous Profile ID lookup */
+      }
+    }
+
     const normalized = normalizeProfileId(rawOrFormattedId);
     if (normalized.length !== 8) {
-      throw new Error("User IDs are 8 letters/numbers - try again.");
+      throw new Error("Enter an 8-character pass key or Profile ID.");
     }
     const result = await fetchProfile(normalized);
     setState((prev) => {
@@ -1206,6 +1270,16 @@ export default function ProfileWizardPage() {
     dismissLoginGate();
     return result;
   };
+
+  // Profile complete (Profile Ready) — keep cloud / anonymous sync up to date when this step is shown.
+  useEffect(() => {
+    if (currentStep?.kind !== "profile-ready") return;
+    const id = setTimeout(() => {
+      void syncProfileToServer();
+    }, 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync helper closes over latest wizard state
+  }, [safeStepIndex, currentStep?.kind, currentStep?.id]);
 
   const handleCopyProfileId = async () => {
     if (!state.profileId) return;
@@ -2035,6 +2109,13 @@ export default function ProfileWizardPage() {
         open={showConsentModal}
         autoShow={false}
         onClose={() => setShowConsentModal(false)}
+        onBeforeContinue={
+          isCloudSessionApiAvailable()
+            ? async () => {
+                await registerCloudAccountFromLocalState();
+              }
+            : undefined
+        }
         onComplete={() => {
           setShowConsentModal(false);
           dismissLoginGate();
@@ -2042,22 +2123,22 @@ export default function ProfileWizardPage() {
       />
       <SiteAppHeader />
 
-      {showLoginGate && !state.profileId ? (
+      {showLoginGate && !state.profileId && !shouldSyncToCloud() ? (
         <main className="login-gate" aria-labelledby="login-gate-title">
           <section className="login-gate-card" role="region">
             <p className="login-gate-eyebrow">Welcome back</p>
-            <h1 id="login-gate-title" className="login-gate-title">Already have a User ID?</h1>
+            <h1 id="login-gate-title" className="login-gate-title">Already have your pass key?</h1>
             <p className="login-gate-sub">
-              Enter the 8-character code we gave you last time to load your saved
-              Career Profile. No account, no password - just your code.
+              Enter the 8-character pass key we gave you when you accepted data storage, or your
+              legacy Profile ID (same length). We&apos;ll load your saved answers and tool state.
             </p>
 
             <UserIdEntryBox
               onSubmit={loadProfileById}
               defaultOpen
               showToggle={false}
-              title="Your User ID"
-              description="For example: K7X2-M4QR"
+              title="Pass key or Profile ID"
+              description="8 letters or numbers — capitals don&apos;t matter for legacy IDs."
             />
 
             <div className="login-gate-divider" role="separator" aria-label="or">
