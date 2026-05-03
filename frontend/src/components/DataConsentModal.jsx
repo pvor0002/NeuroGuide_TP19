@@ -55,10 +55,12 @@ export default function DataConsentModal({
   const show = controlled ? open : internalShow;
 
   useEffect(() => {
-    if (show) {
+    if (!show) return;
+    const t = window.setTimeout(() => {
       setPending(false);
       setRemoteError("");
-    }
+    }, 0);
+    return () => clearTimeout(t);
   }, [show]);
 
   if (!show) return null;

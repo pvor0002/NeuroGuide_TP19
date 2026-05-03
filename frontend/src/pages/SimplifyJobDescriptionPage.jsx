@@ -265,6 +265,14 @@ function renderImportantLines(text) {
   return blocks;
 }
 
+/** Strip common markdown bold markers for display. */
+function stripMdBold(s) {
+  return String(s ?? "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .trim();
+}
+
 /**
  * Basic info often arrives as one line: "Job Title: X | Company: Y | ...".
  */
@@ -296,40 +304,155 @@ function parseBasicInfoPipeFields(text) {
   return rows;
 }
 
-function renderBasicInfoBulletRows(text) {
-  const rows = parseBasicInfoPipeFields(text);
+/**
+ * When basic_info is not pipe-separated, split lines into label/value or single-line rows
+ * so we can show the same pill list as other flip cards.
+ */
+function parseBasicInfoLooseLines(text) {
+  const raw = String(text ?? "").replace(/\r\n/g, "\n").trim();
+  if (!raw) return [];
+
+  const lines = raw
+    .split("\n")
+    .map((ln) => stripMdBold(ln))
+    .map((ln) => ln.replace(/^[-*•]\s+/, "").trim())
+    .filter(Boolean);
+
+  const rows = [];
+  for (const line of lines) {
+    const m = line.match(/^(.{1,48}?):\s*(.+)$/);
+    if (m) {
+      const lbl = m[1].trim().replace(/:\s*$/, "");
+      const val = m[2].trim();
+      if (lbl && val) {
+        rows.push({ label: lbl, value: val });
+        continue;
+      }
+    }
+    if (line.length >= 4) rows.push({ label: "", value: line });
+  }
+  return rows;
+}
+
+/**
+ * One-line (or few-line) blob: "Job Title: … Employer: … Location: …"
+ * Split on whitespace before the next "Word…:" field start.
+ */
+function splitBasicInfoFieldsLoose(joined) {
+  const s = stripMdBold(String(joined ?? "").replace(/\r\n/g, " ").trim());
+  if (!s) return [];
+  const boundary = /\s+(?=[A-Za-z][A-Za-z0-9 ,&'()/-]{0,44}:)/;
+  if (!boundary.test(s)) {
+    const idx = s.indexOf(":");
+    if (idx < 1) return [];
+    return [{ label: stripMdBold(s.slice(0, idx).trim()), value: stripMdBold(s.slice(idx + 1).trim()) }];
+  }
+  const parts = s.split(/\s+(?=[A-Za-z][A-Za-z0-9 ,&'()/-]{0,44}:)/);
+  const rows = [];
+  for (const part of parts) {
+    const p = part.trim();
+    const idx = p.indexOf(":");
+    if (idx < 1) continue;
+    const label = stripMdBold(p.slice(0, idx).trim());
+    const value = stripMdBold(p.slice(idx + 1).trim());
+    if (label && value) rows.push({ label, value });
+  }
+  return rows;
+}
+
+function resolveBasicInfoRows(text) {
+  const raw = String(text ?? "").trim();
+  if (!raw) return [];
+  const normalized = raw.replace(/\r\n/g, " ");
+  const joined = stripMdBold(normalized);
+  const piped = parseBasicInfoPipeFields(text);
+  const splitLoose = splitBasicInfoFieldsLoose(joined);
+
+  if (piped.length > 1) return piped;
+  if (splitLoose.length > 1) return splitLoose;
+
+  if (piped.length === 1) {
+    const fromValue = splitBasicInfoFieldsLoose(stripMdBold(piped[0].value));
+    if (fromValue.length > 1) return fromValue;
+    return piped;
+  }
+
+  const loose = parseBasicInfoLooseLines(text);
+  if (loose.length > 1) return loose;
+  if (splitLoose.length === 1) return splitLoose;
+  if (loose.length === 1) {
+    const sub = splitBasicInfoFieldsLoose(stripMdBold(loose[0].value));
+    if (sub.length > 1) return sub;
+    return loose;
+  }
+  return [];
+}
+
+/** One rounded row per field — same structure as responsibilities / skills flip rows. */
+function renderBasicInfoFocusRows(text) {
+  const rows = resolveBasicInfoRows(text);
   if (rows.length === 0) return null;
 
   return (
-    <ul className="simplify-dash-bullets">
-      {rows.map(({ label, value }, i) => (
-        <li key={`${label}-${i}`} className="simplify-dash-bullets__item">
-          <div className="simplify-dash-bullets__pill">
-            <span className="simplify-dash-bullets__dot" aria-hidden="true" />
-            <span className="simplify-dash-bullets__text">
-              <strong className="simplify-dash-bullets__label">{label}:</strong>
-              <span className="simplify-dash-bullets__value">{value}</span>
+    <ul className="simplify-flip-card__focus-list">
+      {rows.map(({ label, value }, i) => {
+        const lbl = stripMdBold(label);
+        const val = stripMdBold(value);
+        return (
+          <li key={`${lbl}-${i}-${val.slice(0, 12)}`} className="simplify-flip-card__focus-item">
+            <span className="simplify-flip-card__focus-dot" aria-hidden="true">
+              {i + 1}
             </span>
-          </div>
-        </li>
-      ))}
+            <span className="simplify-flip-card__focus-item-text">
+              {lbl ? (
+                <>
+                  <strong className="simplify-flip-card__focus-label">{lbl}:</strong>{" "}
+                  <span className="simplify-flip-card__focus-value">{val}</span>
+                </>
+              ) : (
+                val
+              )}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
 /** ~18rem baseline; JS syncs to taller face so lists stay visible without inner scroll. */
 const FLIP_CARD_MIN_PX = 288;
+const FLIP_CARD_MIN_PX_MODAL = 168;
+/** Safety ceiling so modal flip cards never exceed the viewport (content scrolls inside the card body). */
+function getFlipCardModalInnerMaxPx() {
+  if (typeof window === "undefined") return 1200;
+  return Math.round(window.innerHeight * 0.9);
+}
+
+/** Natural height of a flip face (front or back). Uses child scrollHeights so we are not fooled by `height:100%` + overflow clipping on the face. */
+function estimateFlipFaceColumnHeight(faceEl) {
+  if (!faceEl) return 0;
+  const cs = getComputedStyle(faceEl);
+  const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  const gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 0;
+  const kids = [...faceEl.children];
+  let h = padY;
+  for (let i = 0; i < kids.length; i += 1) {
+    h += kids[i].scrollHeight;
+    if (i < kids.length - 1) h += gap;
+  }
+  return Math.ceil(h);
+}
 
 /** Front shows title only; click flips to content (ADHD-friendly: one focus at a time). */
-function SimplifyFlipCard({ cardKey, label, icon, body }) {
+function SimplifyFlipCard({ cardKey, label, icon, body, compact }) {
   const [flipped, setFlipped] = useState(false);
   const innerRef = useRef(null);
   const frontFaceRef = useRef(null);
   const backFaceRef = useRef(null);
   const { text, points } = getCardViewModel(cardKey, body);
   const hasPoints = points.length > 0;
-  const basicBulletRows =
-    cardKey === "basic_info" ? renderBasicInfoBulletRows(text) : null;
+  const basicInfoRows = cardKey === "basic_info" ? renderBasicInfoFocusRows(text) : null;
   const focusHint = "Quick view";
   const toggle = () => setFlipped((v) => !v);
   const onKeyDown = (e) => {
@@ -340,6 +463,7 @@ function SimplifyFlipCard({ cardKey, label, icon, body }) {
   };
 
   useLayoutEffect(() => {
+    if (compact) return;
     const inner = innerRef.current;
     const front = frontFaceRef.current;
     const back = backFaceRef.current;
@@ -358,10 +482,10 @@ function SimplifyFlipCard({ cardKey, label, icon, body }) {
     const bodyEl = back.querySelector(".simplify-flip-card__body");
     if (bodyEl) ro.observe(bodyEl);
     return () => ro.disconnect();
-  }, [body, cardKey]);
+  }, [body, cardKey, compact]);
 
   return (
-    <div className={`simplify-flip-card simplify-flip-card--${cardKey}`}>
+    <div className={`simplify-flip-card simplify-flip-card--${cardKey}${compact ? " simplify-flip-card--compact-modal" : ""}`}>
       <div
         className={`simplify-flip-card__hitbox ${flipped ? "simplify-flip-card__hitbox--flipped" : ""}`}
         role="button"
@@ -378,10 +502,7 @@ function SimplifyFlipCard({ cardKey, label, icon, body }) {
         }
       >
         <div className="simplify-flip-card__inner" ref={innerRef}>
-          <div
-            ref={frontFaceRef}
-            className="simplify-flip-card__face simplify-flip-card__face--front"
-          >
+          <div ref={frontFaceRef} className="simplify-flip-card__face simplify-flip-card__face--front">
             <span className="simplify-flip-card__icon-tile" aria-hidden="true">
               <SimplifyLineIcon name={icon} />
             </span>
@@ -407,7 +528,7 @@ function SimplifyFlipCard({ cardKey, label, icon, body }) {
               <span className="simplify-flip-card__back-title">{label}</span>
             </div>
             <div className="simplify-flip-card__body">
-              {basicBulletRows ??
+              {basicInfoRows ??
                 (hasPoints ? (
                 <ul className="simplify-flip-card__focus-list">
                   {points.map((point, idx) => (
@@ -415,10 +536,12 @@ function SimplifyFlipCard({ cardKey, label, icon, body }) {
                       <span className="simplify-flip-card__focus-dot" aria-hidden="true">
                         {idx + 1}
                       </span>
-                      <span>{point}</span>
+                      <span className="simplify-flip-card__focus-item-text">{point}</span>
                     </li>
                   ))}
                 </ul>
+              ) : compact && cardKey === "basic_info" ? (
+                <p className="simplify-flip-card__empty-basic">No basic details to show.</p>
               ) : (
                 renderImportantLines(text)
               ))}
@@ -434,12 +557,66 @@ function SimplifyFlipCard({ cardKey, label, icon, body }) {
   );
 }
 
-function FlipCardRow({ result }) {
+function FlipCardRow({ result, compact }) {
+  const gridRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!result || !compact) return;
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const syncRowHeights = () => {
+      const inners = [...grid.querySelectorAll(".simplify-flip-card__inner")];
+      if (inners.length === 0) return;
+      const floor = compact ? FLIP_CARD_MIN_PX_MODAL : FLIP_CARD_MIN_PX;
+      let maxH = floor;
+      for (const inner of inners) {
+        const card = inner.closest(".simplify-flip-card");
+        if (!card) continue;
+        const front = card.querySelector(".simplify-flip-card__face--front");
+        const back = card.querySelector(".simplify-flip-card__face--back");
+        if (!front || !back) continue;
+        maxH = Math.max(maxH, estimateFlipFaceColumnHeight(front), estimateFlipFaceColumnHeight(back));
+      }
+      if (compact) {
+        maxH = Math.min(maxH, getFlipCardModalInnerMaxPx());
+      }
+      maxH = Math.max(maxH, floor);
+      inners.forEach((el) => {
+        el.style.minHeight = `${maxH}px`;
+      });
+    };
+
+    syncRowHeights();
+    const ro = new ResizeObserver(syncRowHeights);
+    [...grid.querySelectorAll(".simplify-flip-card")].forEach((card) => {
+      const front = card.querySelector(".simplify-flip-card__face--front");
+      const back = card.querySelector(".simplify-flip-card__face--back");
+      const body = back?.querySelector(".simplify-flip-card__body");
+      [front, back, body].forEach((node) => {
+        if (node) ro.observe(node);
+      });
+    });
+    if (compact) {
+      window.addEventListener("resize", syncRowHeights);
+    }
+    return () => {
+      ro.disconnect();
+      if (compact) {
+        window.removeEventListener("resize", syncRowHeights);
+      }
+    };
+  }, [result, compact]);
+
   if (!result) return null;
+
   return (
-    <div className="simplify-flip-row" aria-label="Quick-view cards">
+    <div
+      className={`simplify-flip-row${compact ? " simplify-flip-row--modal-compact" : ""}`}
+      aria-label="Quick-view cards"
+    >
       <p className="simplify-flip-row__label">Flip for details</p>
-      <div className="simplify-flip-row__grid">
+      <div className="simplify-flip-row__grid" ref={gridRef}>
         {CARD_SECTIONS.map(({ key, label, icon }) => {
           const body = result[key];
           if (!body || String(body).trim() === "-") return null;
@@ -450,6 +627,7 @@ function FlipCardRow({ result }) {
               label={label}
               icon={icon}
               body={body}
+              compact={compact}
             />
           );
         })}
@@ -649,14 +827,18 @@ function resolveSnapshotChips(result) {
 /** Icons for the three Quick snapshot requirement chips (ordered: location, commitment, eligibility). */
 const SNAPSHOT_CHIP_ICONS = ["mapPin", "briefcase", "bookmark"];
 
-function QuickSnapshotBar({ result, profileKey }) {
+function QuickSnapshotBar({ result, profileKey, compact }) {
   const chips = resolveSnapshotChips(result);
   if (chips.length === 0) return null;
   const profileMod = profileKey === "hyperactive" ? " simplify-snapshot-bar--hyperactive"
     : profileKey === "combined" ? " simplify-snapshot-bar--combined"
     : " simplify-snapshot-bar--inattentive";
+  const compactMod = compact ? " simplify-snapshot-bar--compact-modal" : "";
   return (
-    <div className={`simplify-snapshot-bar${profileMod}`} aria-label="Quick snapshot: must-have requirements">
+    <div
+      className={`simplify-snapshot-bar${profileMod}${compactMod}`}
+      aria-label="Quick snapshot: must-have requirements"
+    >
       <div className="simplify-snapshot-header">
         <span className="simplify-snapshot-icon" aria-hidden="true">
           <SimplifyLineIcon name="bolt" />
@@ -942,6 +1124,233 @@ function ActiveProfile({ activeKey, result }) {
   return <ProfileCombined data={result?.profile_combined} />;
 }
 
+function cloneSimplifiedSnapshotForHistory(result) {
+  if (!result || typeof result !== "object") return null;
+  try {
+    return JSON.parse(JSON.stringify(result));
+  } catch {
+    return null;
+  }
+}
+
+const MAX_HISTORY_ORIGINAL_CHARS = 120_000;
+
+/** @returns {{ text: string, truncated: boolean, source: "paste"|"file" } | null} */
+function buildOriginalPostingForHistory(inputMode, text, fileExtractedText) {
+  const raw = String(inputMode === "file" ? fileExtractedText ?? "" : text ?? "").trim();
+  if (!raw) return null;
+  const source = inputMode === "file" ? "file" : "paste";
+  if (raw.length <= MAX_HISTORY_ORIGINAL_CHARS) return { text: raw, truncated: false, source };
+  return { text: raw.slice(0, MAX_HISTORY_ORIGINAL_CHARS), truncated: true, source };
+}
+
+function readHistoryOriginalPosting(item) {
+  const o = item?.originalPosting;
+  if (o && typeof o.text === "string" && o.text.trim()) return o;
+  return null;
+}
+
+/** True when this history row is the same simplify run as what is loaded on the page now. */
+function historyItemMatchesLiveSimplification(item, live) {
+  if (!item || !live || typeof live !== "object") return false;
+  if (!hasRenderableSimplifiedOutput(live)) return false;
+  if (normalizeJobTitleKey(live.job_title || "") !== item.jobTitleNorm) return false;
+  const liveStamp = live._ng_simp_ver ?? null;
+  const itemStamp = item.simplifiedVerStamp ?? null;
+  return liveStamp === itemStamp;
+}
+
+function resolveHistoryModalModel(item, liveSimplifiedResult, inputMode, text, fileExtractedText) {
+  const liveMatch = historyItemMatchesLiveSimplification(item, liveSimplifiedResult);
+  const snapFromStorage =
+    item?.simplifiedSnapshot &&
+    typeof item.simplifiedSnapshot === "object" &&
+    hasRenderableSimplifiedOutput(item.simplifiedSnapshot)
+      ? item.simplifiedSnapshot
+      : null;
+  const snapFromLive =
+    liveMatch && liveSimplifiedResult && hasRenderableSimplifiedOutput(liveSimplifiedResult)
+      ? liveSimplifiedResult
+      : null;
+  const snap = snapFromStorage ?? snapFromLive;
+  const hasSnap = Boolean(snap && hasRenderableSimplifiedOutput(snap));
+  const storedOrig = item ? readHistoryOriginalPosting(item) : null;
+  const liveOrig = liveMatch ? buildOriginalPostingForHistory(inputMode, text, fileExtractedText) : null;
+  const orig = storedOrig ?? (liveOrig?.text ? liveOrig : null);
+  const hasOriginal = Boolean(orig?.text?.trim());
+  const showingLiveHydration = Boolean(liveMatch && (!snapFromStorage || !storedOrig));
+  return { snap, orig, hasSnap, hasOriginal, liveMatch, showingLiveHydration, snapFromStorage, storedOrig };
+}
+
+/** Full simplified breakdown + match score for a past history row (modal). */
+function JobHistoryDetailModal({ open, item, fallbackProfileKey, liveSimplifiedResult, inputMode, text, fileExtractedText, onClose }) {
+  const closeBtnRef = useRef(null);
+  const [detailTab, setDetailTab] = useState("simplified");
+
+  useEffect(() => {
+    if (!open || !item) return;
+    const { hasSnap, hasOriginal } = resolveHistoryModalModel(
+      item,
+      liveSimplifiedResult,
+      inputMode,
+      text,
+      fileExtractedText,
+    );
+    const nextTab = hasSnap ? "simplified" : hasOriginal ? "original" : "simplified";
+    const t = window.setTimeout(() => {
+      setDetailTab(nextTab);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [open, item, liveSimplifiedResult, inputMode, text, fileExtractedText]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const id = window.requestAnimationFrame(() => closeBtnRef.current?.focus());
+    return () => window.cancelAnimationFrame(id);
+  }, [open]);
+
+  if (!open || !item) return null;
+
+  const { snap, orig, hasSnap, hasOriginal, showingLiveHydration, storedOrig } = resolveHistoryModalModel(
+    item,
+    liveSimplifiedResult,
+    inputMode,
+    text,
+    fileExtractedText,
+  );
+  const showPairTabs = hasSnap && hasOriginal;
+  const showSimplifiedPanel = hasSnap && (!showPairTabs || detailTab === "simplified");
+  const showOriginalPanel = hasOriginal && (!showPairTabs || detailTab === "original");
+  const showLegacyMissing = !hasSnap && !hasOriginal;
+  const showSnapMissingNote = !hasSnap && hasOriginal && !showPairTabs;
+  const detailProfileKey = item.activeProfileKey || fallbackProfileKey || "inattentive";
+  const title = item.occupationName || item.jobTitleNorm || "Past comparison";
+
+  return (
+    <>
+      <button
+        type="button"
+        className="jsc-history-detail-overlay"
+        aria-label="Close full detail"
+        onClick={onClose}
+      />
+      <div
+        className="jsc-history-detail-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="jsc-history-detail-title"
+      >
+        <div className="jsc-history-detail-head">
+          <h3 id="jsc-history-detail-title" className="jsc-history-detail-title">
+            {title}
+          </h3>
+          <button ref={closeBtnRef} type="button" className="jsc-history-detail-close" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        <div className="jsc-history-detail-body">
+          {showingLiveHydration ? (
+            <p className="jsc-history-detail-live-hint" role="status">
+              Filling in from this page: this score matches your current simplified result
+              {storedOrig ? "" : " and posting box"}, but the history entry was saved before we stored the full text.
+            </p>
+          ) : null}
+
+          {showPairTabs ? (
+            <div className="jsc-history-detail-tabs" role="tablist" aria-label="Posting view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={detailTab === "simplified"}
+                className={`jsc-history-detail-tab ${detailTab === "simplified" ? "jsc-history-detail-tab--active" : ""}`}
+                onClick={() => setDetailTab("simplified")}
+              >
+                Simplified
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={detailTab === "original"}
+                className={`jsc-history-detail-tab ${detailTab === "original" ? "jsc-history-detail-tab--active" : ""}`}
+                onClick={() => setDetailTab("original")}
+              >
+                Original posting
+              </button>
+            </div>
+          ) : null}
+
+          {showSimplifiedPanel ? (
+            <section className="jsc-history-detail-section" aria-label="Simplified job description">
+              <div className="jsc-history-detail-subhead">
+                <h4 className="jsc-history-detail-subtitle">Simplified breakdown</h4>
+                <ProfileLabel profileKey={detailProfileKey} />
+              </div>
+              <QuickSnapshotBar result={snap} profileKey={detailProfileKey} compact />
+              <ActiveProfile activeKey={detailProfileKey} result={snap} />
+              <FlipCardRow result={snap} compact />
+              {!storedOrig ? (
+                <p className="jsc-history-detail-footnote">
+                  {hasOriginal
+                    ? "Original text is read from your current posting box; this older save didn&apos;t store it."
+                    : "Original text wasn&apos;t stored for this score, and the posting box is empty now, so the raw posting isn&apos;t available. New runs save both simplified and original text."}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+
+          {showSnapMissingNote ? (
+            <p className="jsc-history-detail-missing">
+              This saved comparison doesn&apos;t include the simplified breakdown. Your original posting is below.
+            </p>
+          ) : null}
+
+          {showLegacyMissing ? (
+            <p className="jsc-history-detail-missing">
+              No job description is stored for this history row, and it doesn&apos;t match the simplified result on this
+              page right now (different posting or you simplified again). Run &quot;See Job match score&quot; again after
+              simplifying to save the full breakdown and posting with each comparison.
+            </p>
+          ) : null}
+
+          {showOriginalPanel ? (
+            <section className="jsc-history-detail-section" aria-label="Original job posting">
+              {!showPairTabs ? <h4 className="jsc-history-detail-subtitle">Original posting</h4> : null}
+              <p className="jsc-history-detail-original-meta">
+                {orig.source === "file" ? "Text extracted from your uploaded file" : "Text you pasted in the composer"}
+              </p>
+              {orig.truncated ? (
+                <p className="jsc-history-detail-trunc-note">
+                  Very long postings are truncated in saved history ({MAX_HISTORY_ORIGINAL_CHARS.toLocaleString()} characters
+                  max).
+                </p>
+              ) : null}
+              <pre className="jsc-history-detail-original-pre">{orig.text}</pre>
+            </section>
+          ) : null}
+
+          <section className="jsc-history-detail-section" aria-label="Job match score">
+            <h4 className="jsc-history-detail-subtitle jsc-history-detail-subtitle--score">Job suitability</h4>
+            <JobScoreCard
+              result={item.result}
+              occupationName={item.occupationName}
+              ariaHeadingId="jsc-history-modal-score-heading"
+            />
+          </section>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function SimplifyJobDescriptionPage() {
   // Derive directly from stored career profile; no manual switching.
   const savedProfileKey = getProfileTabFromCareerProfile();
@@ -951,6 +1360,7 @@ export default function SimplifyJobDescriptionPage() {
     setInputMode,
     text,
     setText,
+    fileExtractedText,
     simplifiedResult,
     attachment,
     removeAttachment,
@@ -982,6 +1392,7 @@ export default function SimplifyJobDescriptionPage() {
   const [jobScoreBusy, setJobScoreBusy] = useState(false);
   const [jobScoreError, setJobScoreError] = useState("");
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [historyDetailItem, setHistoryDetailItem] = useState(null);
   const [jobScoreHistory, setJobScoreHistory] = useState([]);
 
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
@@ -1393,6 +1804,9 @@ export default function SimplifyJobDescriptionPage() {
                       occupationName,
                       result: scoreResult,
                       createdAt: Date.now(),
+                      simplifiedSnapshot: cloneSimplifiedSnapshotForHistory(simplifiedResult),
+                      activeProfileKey: savedProfileKey ?? activeProfile,
+                      originalPosting: buildOriginalPostingForHistory(inputMode, text, fileExtractedText),
                     });
                   } catch (err) {
                     setJobScoreError(err?.message || "Could not calculate job match score. Please try again.");
@@ -1466,7 +1880,22 @@ export default function SimplifyJobDescriptionPage() {
                         <span className={`jsc-history-score jsc-history-score--${toneClass}`}>{Math.round(score)}/100</span>
                       </div>
                       <p className="jsc-history-line">{shortText(item?.result?.recommendation || "", 96)}</p>
-                      {when ? <p className="jsc-history-time">{when}</p> : null}
+                      <div className="jsc-history-card-actions">
+                        {when ? (
+                          <time className="jsc-history-time jsc-history-time--row" dateTime={item?.createdAt ? new Date(item.createdAt).toISOString() : undefined}>
+                            {when}
+                          </time>
+                        ) : (
+                          <span className="jsc-history-time-spacer" />
+                        )}
+                        <button
+                          type="button"
+                          className="jsc-history-detail-open"
+                          onClick={() => setHistoryDetailItem(item)}
+                        >
+                          View full detail
+                        </button>
+                      </div>
                     </article>
                   );
                 });
@@ -1475,6 +1904,17 @@ export default function SimplifyJobDescriptionPage() {
           </aside>
         </>
       ) : null}
+
+      <JobHistoryDetailModal
+        open={Boolean(historyDetailItem)}
+        item={historyDetailItem}
+        fallbackProfileKey={savedProfileKey ?? activeProfile}
+        liveSimplifiedResult={simplifiedResult}
+        inputMode={inputMode}
+        text={text}
+        fileExtractedText={fileExtractedText}
+        onClose={() => setHistoryDetailItem(null)}
+      />
     </div>
   );
 }

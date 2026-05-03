@@ -70,7 +70,7 @@ function capitalizeFirst(text) {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
-export default function JobScoreCard({ result, occupationName, onOpenHistory }) {
+export default function JobScoreCard({ result, occupationName, onOpenHistory, ariaHeadingId = "jsc-inline-heading" }) {
   if (!result) return null;
 
   const score = Number(result.score || 0);
@@ -91,12 +91,12 @@ export default function JobScoreCard({ result, occupationName, onOpenHistory }) 
   const prefs = compactPrefs(result.preference_alignment, 3);
 
   return (
-    <div className="jsc-inline jsc-inline--fullbleed" role="region" aria-labelledby="jsc-inline-heading">
+    <div className="jsc-inline jsc-inline--fullbleed" role="region" aria-labelledby={ariaHeadingId}>
       <div className="jsc-panel jsc-panel--inline jsc-panel--assessment">
         <div className="jsc-assess-topbar">
           <div className="jsc-assess-brand">
             <p className="jsc-assess-brand-title">Career Compatibility Score</p>
-            <p id="jsc-inline-heading" className="jsc-assess-role">
+            <p id={ariaHeadingId} className="jsc-assess-role">
               Assessment for: <strong>{occupationName || "this role"}</strong>
             </p>
           </div>

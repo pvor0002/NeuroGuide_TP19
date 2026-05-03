@@ -5,9 +5,11 @@ import { isCloudSessionApiAvailable } from "../services/sessionApi.js";
 import {
   clearAllCloudUserData,
   clearCloudProfileAnswers,
+  hasCloudSessionCredentials,
   registerCloudAccountFromLocalState,
   revokeConsentOnServer,
   syncConsentToServer,
+  syncFullCloudFromLocalState,
 } from "../utils/cloudSync.js";
 
 const CONSENT_STORAGE_KEY = "ng_data_consent_v1";
@@ -202,7 +204,7 @@ export default function SettingsPage() {
     refreshState();
   };
 
-  const acceptConsent = () => {
+  const acceptConsent = async () => {
     const cred = readJSON(USER_CREDENTIALS_STORAGE_KEY);
     if (!cred?.userId) {
       setShowConsentSetupModal(true);
@@ -214,8 +216,19 @@ export default function SettingsPage() {
         JSON.stringify({ status: "accepted", acknowledgedAt: new Date().toISOString() }),
       );
     } catch { /* noop */ }
-    void syncConsentToServer().catch(() => {});
-    setActionMessage("Consent recorded as accepted.");
+    try {
+      await syncConsentToServer();
+    } catch {
+      /* optional — still try full sync so a first-time server row can be created */
+    }
+    try {
+      await syncFullCloudFromLocalState();
+    } catch (e) {
+      setActionMessage(e?.message || "Consent saved locally, but cloud sync failed. Try again in a moment.");
+      refreshState();
+      return;
+    }
+    setActionMessage("Consent accepted — your local data is synced to secure storage.");
     refreshState();
   };
 
@@ -236,13 +249,18 @@ export default function SettingsPage() {
       "Clear your saved Career Profile answers on this device? Your User ID and pass key will be kept."
     );
     if (!ok) return;
-    try {
-      await clearCloudProfileAnswers();
-    } catch (e) {
-      setActionMessage(e?.message || "Could not clear your profile on the server.");
-      return;
+    if (hasCloudSessionCredentials()) {
+      try {
+        await clearCloudProfileAnswers();
+      } catch (e) {
+        setActionMessage(e?.message || "Could not clear your profile on the server.");
+        return;
+      }
+    } else {
+      try {
+        window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+      } catch { /* noop */ }
     }
-    try { window.localStorage.removeItem(PROFILE_STORAGE_KEY); } catch { /* noop */ }
     setActionMessage("Career Profile answers cleared (this device and server copy).");
     refreshState();
   };
