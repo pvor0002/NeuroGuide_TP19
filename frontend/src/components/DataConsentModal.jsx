@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const CONSENT_STORAGE_KEY = "ng_data_consent_v1";
 const USER_CREDENTIALS_STORAGE_KEY = "ng_local_user_credentials_v1";
@@ -32,14 +32,34 @@ function hasExistingConsent() {
   }
 }
 
-export default function DataConsentModal({ open, autoShow = true, onClose, onComplete }) {
+/**
+ * @param {object} props
+ * @param {() => Promise<void>} [props.onBeforeContinue]
+ *        Runs after the user saves the pass key locally and clicks continue — e.g. register with RDS.
+ */
+export default function DataConsentModal({
+  open,
+  autoShow = true,
+  onClose,
+  onComplete,
+  onBeforeContinue,
+}) {
   const controlled = typeof open === "boolean";
   const [internalShow, setInternalShow] = useState(() => (autoShow ? !hasExistingConsent() : false));
   const [understood, setUnderstood] = useState(false);
   const [warning, setWarning] = useState("");
   const [generated, setGenerated] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [remoteError, setRemoteError] = useState("");
   const show = controlled ? open : internalShow;
+
+  useEffect(() => {
+    if (show) {
+      setPending(false);
+      setRemoteError("");
+    }
+  }, [show]);
 
   if (!show) return null;
 
@@ -49,6 +69,22 @@ export default function DataConsentModal({ open, autoShow = true, onClose, onCom
     }
     if (typeof onClose === "function") onClose();
     if (status && typeof onComplete === "function") onComplete(status);
+  };
+
+  const finishAccepted = async () => {
+    setRemoteError("");
+    if (typeof onBeforeContinue === "function") {
+      setPending(true);
+      try {
+        await onBeforeContinue();
+      } catch (e) {
+        setRemoteError(e?.message || "Could not save to the server. Check your connection and try again.");
+        setPending(false);
+        return;
+      }
+      setPending(false);
+    }
+    closeModal("accepted");
   };
 
   const saveConsent = (status) => {
@@ -152,9 +188,33 @@ export default function DataConsentModal({ open, autoShow = true, onClose, onCom
             <p className="ng-consent-warning">
               <strong>Write this pass key down</strong> or memorize it before you continue.
             </p>
+            {remoteError ? (
+              <>
+                <p className="ng-consent-warning" role="alert">
+                  {remoteError}
+                </p>
+                <div className="ng-consent-actions">
+                  <button
+                    type="button"
+                    className="ng-consent-btn ng-consent-btn--ghost"
+                    onClick={() => {
+                      setRemoteError("");
+                      closeModal("accepted");
+                    }}
+                  >
+                    Continue without cloud backup
+                  </button>
+                </div>
+              </>
+            ) : null}
             <div className="ng-consent-actions">
-              <button type="button" className="ng-consent-btn ng-consent-btn--primary" onClick={() => closeModal("accepted")}>
-                I saved it, continue
+              <button
+                type="button"
+                className="ng-consent-btn ng-consent-btn--primary"
+                onClick={() => void finishAccepted()}
+                disabled={pending}
+              >
+                {pending ? "Saving…" : "I saved it, continue"}
               </button>
             </div>
           </>

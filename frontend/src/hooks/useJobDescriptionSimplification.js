@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { shouldSyncToCloud, syncFullCloudFromLocalState } from "../utils/cloudSync.js";
 import { assertAllowedFile, MAX_UPLOAD_BYTES, validateJobDescription } from "../utils/validation.js";
 import {
   extractUploadedJobDescription,
@@ -236,6 +237,11 @@ export function useJobDescriptionSimplification() {
           : null;
       setSimplifiedResult(stamped);
       setInfoMessage("Simplified version is below.");
+      if (shouldSyncToCloud()) {
+        void syncFullCloudFromLocalState().catch(() => {
+          /* optional sync — ignore failures */
+        });
+      }
     } catch (err) {
       const msg =
         err instanceof Error

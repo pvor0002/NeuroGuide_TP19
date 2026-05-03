@@ -6,8 +6,9 @@
  * No personal info is sent or stored - only the wizard's JSON payload.
  */
 
-const DEFAULT_API_BASE = "http://127.0.0.1:8000/api/v1";
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE).replace(/\/+$/, "");
+import { getApiBase } from "../utils/apiBase.js";
+
+const API_BASE = getApiBase();
 
 async function readJsonOrText(res) {
   const ct = res.headers.get("content-type") || "";

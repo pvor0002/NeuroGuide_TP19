@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # PostgreSQL — injected by Lambda environment
     database_url: Optional[str] = None
 
+    # HMAC secret for storing pass keys (set in production; required for /pg/session/*)
+    pass_key_pepper: Optional[str] = None
+
     # S3
     s3_bucket_name: Optional[str] = None
     aws_region: str = "ap-southeast-2"

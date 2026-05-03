@@ -6,25 +6,14 @@ Handles database connection, occupation lookup, model scoring, and saving result
 
 import json
 import logging
-import os
 from typing import Dict, Optional
 import psycopg2
 import psycopg2.extras
 from app.services.job_score_model_v2 import JobScoreModelV2
-from app.core.config import get_settings
+from app.db.postgres import get_db_connection
 from app.services.occupation_match import build_ilike_terms, normalize_job_title
 
 logger = logging.getLogger(__name__)
-
-# ============================================================================
-# RDS CONNECTION
-# ============================================================================
-def get_db_connection():
-    """Create and return a PostgreSQL connection using DATABASE_URL from settings."""
-    settings = get_settings()
-    if not settings.database_url:
-        raise RuntimeError("DATABASE_URL is not set. Add it to your .env file.")
-    return psycopg2.connect(str(settings.database_url))
 
 
 # ============================================================================
