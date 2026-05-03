@@ -2,13 +2,15 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class GeminiJobFitFeatures(BaseModel):
     """
     Normalized labels (Gemini should output these tokens; backend tolerates variants).
     """
+
+    model_config = ConfigDict(extra="ignore")
 
     task_structure: Optional[str] = Field(
         default=None,

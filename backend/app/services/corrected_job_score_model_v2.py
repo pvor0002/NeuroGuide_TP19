@@ -505,7 +505,12 @@ class JobScoreModelV2:
             ml_layer["note"] = "ML layer unavailable (train artifacts or templates missing); rules only."
 
         ml_layer["pre_spread_blended"] = round(blended, 2)
-        final_score = self._spread_score_distribution(blended)
+        spread_raw = self._spread_score_distribution(blended)
+        ml_layer["post_spread_pre_cap"] = round(spread_raw, 2)
+        final_score = max(10.0, min(90.0, spread_raw))
+        ml_layer["score_display_cap"] = [10, 90]
+        if spread_raw != final_score:
+            ml_layer["score_was_clamped"] = True
         
         # Generate recommendations
         recommendation, strengths, challenges, accommodations = \

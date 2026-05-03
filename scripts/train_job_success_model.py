@@ -19,6 +19,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
 from sklearn.model_selection import train_test_split
@@ -108,7 +109,9 @@ def main() -> None:
     if imbalanced:
         clf_kw["class_weight"] = "balanced"
 
-    model = RandomForestClassifier(**clf_kw)
+    base_clf = RandomForestClassifier(**clf_kw)
+    model = CalibratedClassifierCV(estimator=base_clf, method="isotonic", cv=3)
+    print("CalibratedClassifierCV(method=isotonic, cv=3) wrapping RandomForestClassifier")
     model.fit(X_train, y_train)
 
     preds = model.predict(X_test)
@@ -133,6 +136,9 @@ def main() -> None:
         json.dump(feature_names, f, indent=2)
 
     train_meta = {
+        "calibration": "isotonic",
+        "calibration_cv": 3,
+        "base_estimator": "RandomForestClassifier",
         "accuracy_holdout": acc,
         "roc_auc_holdout": roc,
         "classification_report": _json_safe(

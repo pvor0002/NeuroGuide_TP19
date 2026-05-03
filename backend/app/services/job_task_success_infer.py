@@ -15,8 +15,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import joblib
+import numpy as np
 import pandas as pd
+from pydantic import ValidationError
 
+from app.schemas.job_fit_features import GeminiJobFitFeatures
 from app.services.gemini_job_fit_scoring import normalize_gemini_job_fit
 from app.services.task_feature_pipeline import TASK_NUM_COLS, load_profile_templates
 
@@ -98,6 +101,23 @@ def _complexity_str_to_ord(complexity: str) -> int:
     return 2
 
 
+def validated_gemini_job_fit_payload(raw: Any) -> Optional[Dict[str, Any]]:
+    """
+    Strict validation before ML feature tweaks — avoids silent drift when Gemini output is malformed.
+    Returns None → inference uses occupation baselines only for Gemini-derived signals.
+    """
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        logger.warning("[TaskSuccessML] gemini_job_fit ignored for ML features (not an object)")
+        return None
+    try:
+        return GeminiJobFitFeatures.model_validate(raw).model_dump(exclude_none=True)
+    except ValidationError as e:
+        logger.warning("[TaskSuccessML] gemini_job_fit failed schema validation; ML Gemini tweaks skipped: %s", e)
+        return None
+
+
 def _infer_task_type_flags(job_name: str) -> Tuple[bool, bool, bool]:
     """Approximate task_type_* dummies (admin dropped): creative, deep, routine."""
     n = (job_name or "").lower()
@@ -134,7 +154,7 @@ def build_inference_feature_row(
     interruptions = float(max(0.0, min(8.0, 6.0 - friend / 25.0)))
     energy_level = float(max(1.0, min(6.0, 3.0 + friend / 80.0)))
 
-    gf = occupation.get("gemini_job_fit")
+    gf = validated_gemini_job_fit_payload(occupation.get("gemini_job_fit"))
     if isinstance(gf, dict) and gf:
         jf = normalize_gemini_job_fit(gf)
         att = jf.get("attention_switching")
@@ -219,6 +239,28 @@ def predict_task_success_probability(
     except Exception as e:
         logger.exception("[TaskSuccessML] scaler transform failed: %s", e)
         return None, {"error": "scaler_transform_failed"}
+
+    X_scaled = X_scaled.astype(np.float64)
+    if not np.isfinite(X_scaled.values).all():
+        logger.warning("[TaskSuccessML] non-finite values after scaling — coerced to 0")
+        X_scaled = X_scaled.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    # Feature dimension drift vs training artifact
+    try:
+        expected_n = int(getattr(model, "n_features_in_", 0) or 0)
+    except Exception:
+        expected_n = 0
+    if expected_n and X_scaled.shape[1] != expected_n:
+        logger.error(
+            "[TaskSuccessML] feature count mismatch: got %s columns, model expects %s — fallback",
+            X_scaled.shape[1],
+            expected_n,
+        )
+        return None, {
+            "error": "feature_column_mismatch",
+            "n_columns": X_scaled.shape[1],
+            "expected": expected_n,
+        }
 
     probs = model.predict_proba(X_scaled)[0]
     pos_idx = 1 if len(probs) > 1 else 0

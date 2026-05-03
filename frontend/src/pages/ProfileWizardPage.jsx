@@ -14,7 +14,6 @@ import {
 
 /** Resolved asset URL so the Profile Ready portrait always maps to repo `data/images/dev.png`. */
 import devPortraitUrl from "../../../data/images/dev.png";
-import goodPngUrl from "../../../data/images/good.png";
 
 const STORAGE_KEY = "neuroguide.careerProfile.react.v2";
 const MAX_VISIBLE_SKILL_RESULTS = 20;
@@ -583,14 +582,29 @@ function isStepAnswered(step, answers) {
 }
 
 /** Profile Ready summary: comma-joined or multi-select data as sub-bullets. */
-function renderSummaryValue(row) {
+function renderSummaryValue(row, onRemoveValue) {
   const { value, values } = row;
   const summarizeItem = row.key === "Work style" ? energyPatternChoiceLabel : (x) => x;
   if (Array.isArray(values) && values.length > 0) {
     return (
-      <ul className="summary-value-list">
+      <ul className="summary-tag-list">
         {values.map((v, i) => (
-          <li key={`${i}-${String(v).slice(0, 64)}`}>{summarizeItem(v)}</li>
+          <li
+            key={`${i}-${String(v).slice(0, 64)}`}
+            className={`summary-tag${typeof onRemoveValue === "function" ? " summary-tag--removable" : ""}`}
+          >
+            <span className="summary-tag-label">{summarizeItem(v)}</span>
+            {typeof onRemoveValue === "function" ? (
+              <button
+                type="button"
+                className="summary-tag-remove"
+                onClick={() => onRemoveValue(row, v)}
+                aria-label={`Remove ${summarizeItem(v)}`}
+              >
+                ×
+              </button>
+            ) : null}
+          </li>
         ))}
       </ul>
     );
@@ -602,9 +616,24 @@ function renderSummaryValue(row) {
       .filter(Boolean);
     if (parts.length > 1) {
       return (
-        <ul className="summary-value-list">
+        <ul className="summary-tag-list">
           {parts.map((p, i) => (
-            <li key={`${i}-${p.slice(0, 64)}`}>{p}</li>
+            <li
+              key={`${i}-${p.slice(0, 64)}`}
+              className={`summary-tag${typeof onRemoveValue === "function" ? " summary-tag--removable" : ""}`}
+            >
+              <span className="summary-tag-label">{p}</span>
+              {typeof onRemoveValue === "function" ? (
+                <button
+                  type="button"
+                  className="summary-tag-remove"
+                  onClick={() => onRemoveValue(row, p)}
+                  aria-label={`Remove ${p}`}
+                >
+                  ×
+                </button>
+              ) : null}
+            </li>
           ))}
         </ul>
       );
@@ -973,6 +1002,12 @@ export default function ProfileWizardPage() {
           : [...prev.answers.removedAutoSkills, skill],
       },
     }));
+  };
+
+  const handleProfileReadySkillRemove = (_row, rawValue) => {
+    const skill = String(rawValue || "").trim();
+    if (!skill) return;
+    removeSkill(skill);
   };
 
   const setQuizAnswer = (questionId, value) => {
@@ -1564,7 +1599,7 @@ export default function ProfileWizardPage() {
               iconId: "skills",
               firstStepId: "skills",
               meaning:
-                "Every listed skill is a proof point for fit scores and CV bullets tied to real work.",
+                "Every listed skill is a proof point for fit scores tied to real work.",
               rows: [{ key: "Skills", values: state.answers.selectedSkills }],
             },
             {
@@ -1843,7 +1878,9 @@ export default function ProfileWizardPage() {
                             {profileSupportSection.rows.map((row) => (
                               <div key={row.key} className="summary-support-two-col-cell">
                                 <span className="summary-key">{row.key}</span>
-                                <div className="summary-support-two-col-value">{renderSummaryValue(row)}</div>
+                                <div className="summary-support-two-col-value">
+                                  {renderSummaryValue(row)}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1881,9 +1918,25 @@ export default function ProfileWizardPage() {
                         <p className="summary-block-meaning">{profileSkillsSection.meaning}</p>
                         <ul className="summary-list">
                           {profileSkillsSection.rows.map((row) => (
-                            <li key={row.key} className="summary-item">
+                            <li key={row.key} className="summary-item summary-item--skills-ready">
                               <span className="summary-key">{row.key}</span>
-                              {renderSummaryValue(row)}
+                              <div className="summary-skills-ready">
+                                <div className="summary-skills-tags">
+                                  {renderSummaryValue(row, handleProfileReadySkillRemove)}
+                                </div>
+                                <div className="summary-skills-add-wrap">
+                                  <button
+                                    type="button"
+                                    className="summary-add-skills-btn"
+                                    onClick={() => jumpToStepById("skills")}
+                                  >
+                                    <span className="summary-add-skills-plus" aria-hidden="true">
+                                      +
+                                    </span>
+                                    <span>Add skills</span>
+                                  </button>
+                                </div>
+                              </div>
                             </li>
                           ))}
                         </ul>
@@ -1976,10 +2029,6 @@ export default function ProfileWizardPage() {
     progressTotalBlocks === 0 ? 0 : Math.min(doneBlocksCount, progressTotalBlocks);
   const progressRingComplete =
     progressTotalBlocks > 0 && doneBlocksCount >= progressTotalBlocks;
-  /* good.png beside milestone: only on Profile Ready screen once all prior journey blocks are answered. */
-  const showProfileReadyGoodBadge =
-    progressRingComplete && currentStep?.kind === "profile-ready";
-
   return (
     <div className="profile-app profile-app--fullscreen">
       <DataConsentModal
@@ -2157,11 +2206,6 @@ export default function ProfileWizardPage() {
                                 stepNumber
                               )}
                             </span>
-                            {isProfile && showProfileReadyGoodBadge ? (
-                              <span className="q-steps-milestone-good-badge" aria-hidden="true">
-                                <img src={goodPngUrl} alt="" decoding="async" />
-                              </span>
-                            ) : null}
                           </span>
                           <span className="q-steps-caption">
                             {b.id === "profile" ? (

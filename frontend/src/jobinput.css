@@ -644,7 +644,7 @@ a.btn.btn-primary:hover {
 }
 
 .home-hero-scroll {
-  margin: 0 auto;
+  margin: clamp(2rem, 6.5vh, 3.75rem) auto 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
