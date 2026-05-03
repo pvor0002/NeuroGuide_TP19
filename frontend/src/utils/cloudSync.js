@@ -60,6 +60,37 @@ export function shouldSyncToCloud() {
   return Boolean(c?.status === "accepted" && cred?.userId && cred?.passKey);
 }
 
+/** Pass key + user id exist (e.g. delete profile on server even if consent is withdrawn). */
+export function hasCloudSessionCredentials() {
+  if (!isCloudSessionApiAvailable()) return false;
+  const cred = readCredentials();
+  return Boolean(cred?.userId && cred?.passKey);
+}
+
+function notifySessionStorageApplied() {
+  try {
+    window.dispatchEvent(new CustomEvent("ng-cloud-session-applied"));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Pull latest snapshot from RDS without sending new career/job payloads (PUT body all null).
+ * Use after server-side deletes or to resync localStorage from the database.
+ */
+export async function pullCloudSessionSnapshot() {
+  const cred = readCredentials();
+  if (!cred?.userId || !cred?.passKey || !isCloudSessionApiAvailable()) return null;
+  const snap = await fullSyncSession(cred, {
+    consent: null,
+    career_wizard: null,
+    job_workbench: null,
+  });
+  applySessionSnapshotToStorage(snap, { passKey: cred.passKey });
+  return snap;
+}
+
 /**
  * When ``PUT /pg/session/sync`` fails with 404 (API not deployed or wrong URL), the app can
  * fall back to the older anonymous ``/profiles`` flow so the wizard still saves.
@@ -136,15 +167,43 @@ export function applySessionSnapshotToStorage(snap, meta = {}) {
 
   if (snap.consent && typeof snap.consent === "object") {
     writeJSON(CONSENT_STORAGE_KEY, snap.consent);
+  } else if (snap.consent_granted === false) {
+    writeJSON(CONSENT_STORAGE_KEY, {
+      status: "declined",
+      acknowledgedAt: new Date().toISOString(),
+    });
   }
 
-  if (snap.career_profile && typeof snap.career_profile === "object") {
-    writeJSON(PROFILE_STORAGE_KEY, snap.career_profile);
+  if (Object.prototype.hasOwnProperty.call(snap, "career_profile")) {
+    if (snap.career_profile && typeof snap.career_profile === "object") {
+      writeJSON(PROFILE_STORAGE_KEY, snap.career_profile);
+    } else {
+      try {
+        window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
-  if (snap.job_workbench && typeof snap.job_workbench === "object") {
-    applyJobWorkbenchBlob(snap.job_workbench);
+  if (Object.prototype.hasOwnProperty.call(snap, "job_workbench")) {
+    if (snap.job_workbench && typeof snap.job_workbench === "object") {
+      applyJobWorkbenchBlob(snap.job_workbench);
+    } else {
+      try {
+        window.localStorage.removeItem(JOB_RESULT_KEY);
+        window.localStorage.removeItem(JOB_SCORE_KEY);
+        window.localStorage.removeItem(JOB_SCORE_HISTORY_KEY);
+        window.localStorage.removeItem(`${JOB_INPUT_PREFIX}.mode`);
+        window.localStorage.removeItem(`${JOB_INPUT_PREFIX}.text`);
+        window.localStorage.removeItem(`${JOB_INPUT_PREFIX}.fileText`);
+      } catch {
+        /* ignore */
+      }
+    }
   }
+
+  notifySessionStorageApplied();
 }
 
 function applyJobWorkbenchBlob(blob) {
@@ -242,6 +301,7 @@ export async function clearCloudProfileAnswers() {
   const cred = readCredentials();
   if (!cred?.userId || !cred?.passKey || !isCloudSessionApiAvailable()) return;
   await deleteCloudProfileOnly(cred);
+  await pullCloudSessionSnapshot();
 }
 
 export async function clearAllCloudUserData() {

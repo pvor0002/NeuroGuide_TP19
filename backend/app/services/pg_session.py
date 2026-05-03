@@ -75,6 +75,87 @@ def _normalize_json(value: Any) -> Optional[dict[str, Any]]:
     return None
 
 
+def _career_profiles_has_column(cur: Any, column_name: str) -> bool:
+    cur.execute(
+        """
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'career_profiles'
+          AND column_name = %s
+        """,
+        (column_name,),
+    )
+    return cur.fetchone() is not None
+
+
+def _insert_career_profile_row(cur: Any, user_id: str, blob: dict[str, Any]) -> None:
+    """Support RDS tables that use ``profile`` only, ``state`` only, or both (legacy NOT NULL ``state``)."""
+    j = Json(blob)
+    has_profile = _career_profiles_has_column(cur, "profile")
+    has_state = _career_profiles_has_column(cur, "state")
+    if has_profile and has_state:
+        cur.execute(
+            "INSERT INTO career_profiles (user_id, profile, state) VALUES (%s, %s, %s)",
+            (user_id, j, j),
+        )
+    elif has_profile:
+        cur.execute(
+            "INSERT INTO career_profiles (user_id, profile) VALUES (%s, %s)",
+            (user_id, j),
+        )
+    elif has_state:
+        cur.execute(
+            "INSERT INTO career_profiles (user_id, state) VALUES (%s, %s)",
+            (user_id, j),
+        )
+    else:
+        raise RuntimeError("career_profiles table has neither profile nor state column.")
+
+
+def _select_latest_career_blob(cur: Any, user_id: str) -> Any:
+    has_profile = _career_profiles_has_column(cur, "profile")
+    has_state = _career_profiles_has_column(cur, "state")
+    if has_profile and has_state:
+        cur.execute(
+            """
+            SELECT COALESCE(profile, state) AS c
+            FROM career_profiles
+            WHERE user_id = %s
+            ORDER BY updated_at DESC NULLS LAST
+            LIMIT 1
+            """,
+            (user_id,),
+        )
+    elif has_profile:
+        cur.execute(
+            """
+            SELECT profile AS c
+            FROM career_profiles
+            WHERE user_id = %s
+            ORDER BY updated_at DESC NULLS LAST
+            LIMIT 1
+            """,
+            (user_id,),
+        )
+    elif has_state:
+        cur.execute(
+            """
+            SELECT state AS c
+            FROM career_profiles
+            WHERE user_id = %s
+            ORDER BY updated_at DESC NULLS LAST
+            LIMIT 1
+            """,
+            (user_id,),
+        )
+    else:
+        return None
+    row = cur.fetchone()
+    if not row:
+        return None
+    return row["c"] if isinstance(row, dict) else row[0]
+
+
 def register_account(
     user_id: UUID,
     pass_key: str,
@@ -102,10 +183,7 @@ def register_account(
             (str(user_id), granted, Json(consent)),
         )
         if career_wizard is not None:
-            cur.execute(
-                "INSERT INTO career_profiles (user_id, profile) VALUES (%s, %s)",
-                (str(user_id), Json(career_wizard)),
-            )
+            _insert_career_profile_row(cur, str(user_id), career_wizard)
         if job_workbench is not None:
             cur.execute(
                 "INSERT INTO job_workbench_state (user_id, state) VALUES (%s, %s)",
@@ -142,17 +220,8 @@ def fetch_snapshot(user_id: UUID) -> dict[str, Any]:
         raw_cj = crow["consent_json"] if crow else None
         consent_json = _normalize_json(raw_cj) if raw_cj is not None else None
 
-        cur.execute(
-            """
-            SELECT profile FROM career_profiles
-            WHERE user_id = %s
-            ORDER BY updated_at DESC NULLS LAST
-            LIMIT 1
-            """,
-            (str(user_id),),
-        )
-        prow = cur.fetchone()
-        career_profile = _normalize_json(prow["profile"]) if prow else None
+        raw_career = _select_latest_career_blob(cur, str(user_id))
+        career_profile = _normalize_json(raw_career) if raw_career is not None else None
 
         cur.execute(
             "SELECT state FROM job_workbench_state WHERE user_id = %s",
@@ -183,6 +252,7 @@ def full_sync(
     conn = get_db_connection()
     try:
         cur = conn.cursor()
+        allow_data_writes = False
         if consent is not None:
             granted = bool(consent.get("status") == "accepted")
             cur.execute("DELETE FROM consent_records WHERE user_id = %s", (str(user_id),))
@@ -193,13 +263,20 @@ def full_sync(
                 """,
                 (str(user_id), granted, Json(consent)),
             )
-        if career_wizard is not None:
-            cur.execute("DELETE FROM career_profiles WHERE user_id = %s", (str(user_id),))
+            allow_data_writes = granted
+        else:
             cur.execute(
-                "INSERT INTO career_profiles (user_id, profile) VALUES (%s, %s)",
-                (str(user_id), Json(career_wizard)),
+                "SELECT consent_granted FROM consent_records WHERE user_id = %s",
+                (str(user_id),),
             )
-        if job_workbench is not None:
+            crow = cur.fetchone()
+            allow_data_writes = bool(crow[0]) if crow else False
+
+        # Declined consent: keep account rows but do not accept new career / workbench payloads.
+        if career_wizard is not None and allow_data_writes:
+            cur.execute("DELETE FROM career_profiles WHERE user_id = %s", (str(user_id),))
+            _insert_career_profile_row(cur, str(user_id), career_wizard)
+        if job_workbench is not None and allow_data_writes:
             cur.execute("DELETE FROM job_workbench_state WHERE user_id = %s", (str(user_id),))
             cur.execute(
                 "INSERT INTO job_workbench_state (user_id, state) VALUES (%s, %s)",

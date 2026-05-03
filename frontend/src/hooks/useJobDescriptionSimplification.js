@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { shouldSyncToCloud, syncFullCloudFromLocalState } from "../utils/cloudSync.js";
 import { assertAllowedFile, MAX_UPLOAD_BYTES, validateJobDescription } from "../utils/validation.js";
 import {
@@ -74,6 +74,17 @@ export function useJobDescriptionSimplification() {
   const setSimplifiedResult = useCallback((value) => {
     setSimplifiedResultRaw(value);
     writeStorage(RESULT_STORAGE_KEY, value);
+  }, []);
+
+  useEffect(() => {
+    const onCloud = () => {
+      setSimplifiedResultRaw(readStorage(RESULT_STORAGE_KEY));
+      setInputModeRaw(readStorage(INPUT_STORAGE_KEY + ".mode") ?? "text");
+      setTextRaw(readStorage(INPUT_STORAGE_KEY + ".text") ?? "");
+      setFileExtractedTextRaw(readStorage(INPUT_STORAGE_KEY + ".fileText") ?? "");
+    };
+    window.addEventListener("ng-cloud-session-applied", onCloud);
+    return () => window.removeEventListener("ng-cloud-session-applied", onCloud);
   }, []);
 
   // ── Ephemeral state (UI feedback, not worth persisting) ──────────────────
