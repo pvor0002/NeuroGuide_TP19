@@ -328,6 +328,7 @@ class JobScoreModelV2:
         user_questionnaire: Dict,
         occupation: Dict,
         job_fit_features: Optional[Dict] = None,
+        user_soft_skills_overrides: Optional[Dict[str, str]] = None,
         verbose: bool = False
     ) -> Dict:
         """
@@ -480,6 +481,14 @@ class JobScoreModelV2:
             print(f"[Energy Patterns] {energy_adj:+.0f} points: {energy_reasoning}")
         
         user_soft_inferred = self._infer_user_soft_skills(work_prefs, support_needs, energy_patterns)
+        overrides: Dict[str, str] = {}
+        if isinstance(user_soft_skills_overrides, dict):
+            for k in _SOFT_SKILL_KEYS:
+                v = _normalize_soft_demand_level(user_soft_skills_overrides.get(k))
+                if v:
+                    overrides[k] = v
+        if overrides:
+            user_soft_inferred = {**user_soft_inferred, **overrides}
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # 5. ROLE EXPERIENCE & CONFIDENCE (±10 points)
@@ -564,6 +573,7 @@ class JobScoreModelV2:
             "reasoning": soft_reasoning,
             "max_points": 8,
             "user_inferred": user_soft_inferred if use_gemini_fit else {},
+            "user_soft_skills_overrides": overrides,
         }
         
         if verbose:
@@ -613,6 +623,7 @@ class JobScoreModelV2:
             parsed_soft_model=parsed_soft_model,
             user_soft_inferred=user_soft_inferred,
         )
+        soft_skills_debug["user_soft_skills_overrides"] = overrides if overrides else None
         soft_score_raw = soft_skills_debug.get("soft_skills_score")
         if soft_score_raw is not None and isinstance(soft_score_raw, (int, float)):
             soft_skills_score_pct = float(soft_score_raw)

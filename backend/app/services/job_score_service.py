@@ -206,6 +206,7 @@ def calculate_job_score(
     session_id: Optional[str] = None,
     job_skills_from_gemini: Optional[list] = None,
     job_fit_features_from_gemini: Optional[Dict] = None,
+    user_soft_skills_overrides: Optional[Dict[str, str]] = None,
 ) -> Dict:
     """
     Main function: fetch occupation, run model, save result, return response.
@@ -230,7 +231,12 @@ def calculate_job_score(
 
     # 3. Run the scoring model (corrected_job_score_model_v2: hybrid task-success classifier + rules)
     model = JobScoreModelV2()
-    result = model.score_job_match(user_questionnaire, occupation, job_fit_features=job_fit_features_from_gemini)
+    result = model.score_job_match(
+        user_questionnaire,
+        occupation,
+        job_fit_features=job_fit_features_from_gemini,
+        user_soft_skills_overrides=user_soft_skills_overrides,
+    )
     ml = result.get("ml_layer") or {}
     dbg = dict(ml.get("ml_debug") or {})
     if ml.get("note"):

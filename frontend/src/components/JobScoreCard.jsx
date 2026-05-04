@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+
+const ASSESSMENT_CONFIDENCE_TOOLTIP =
+  "Confidence is based on:\n- % of skills matched\n- Completeness of user profile\n- Gemini feature completeness";
 
 function capitalizeFirst(text) {
   const t = String(text || "").trim();
@@ -266,6 +269,22 @@ function softScoreFromBuckets(softBuckets) {
 
   if (!scored.length) return null;
   return Math.round(scored.reduce((a, b) => a + b, 0) / scored.length);
+}
+
+function parseSoftDimKeyFromLabel(label) {
+  const head = String(label || "").split("|")[0].trim().toLowerCase();
+  const byHead = {
+    communication: "communication",
+    "time management": "time_management",
+    "problem-solving": "problem_solving",
+    "problem solving": "problem_solving",
+    leadership: "leadership",
+    teamwork: "teamwork",
+    adaptability: "adaptability",
+    "self-motivation": "self_motivation",
+    "self motivation": "self_motivation",
+  };
+  return byHead[head] || null;
 }
 
 /** Map symmetric factor adjustment to 0–100 (best at +maxPoints). */
@@ -738,7 +757,7 @@ function WorkStyleMatchCard({
           <span className="jsc-ws-grid__h" role="columnheader">
             Your preference
           </span>
-        </div>
+          </div>
         {rows.map((row) => (
           <div
             key={row.key}
@@ -782,7 +801,7 @@ function WorkStyleMatchCard({
               <span className="jsc-ws-footer__badge">Profile fit</span>
               <p className="jsc-ws-footer__text">{neutralizeScoringCopy(profileFitReason)}</p>
             </div>
-          ) : null}
+            ) : null}
           {strengths.length > 0 ? (
             <div className="jsc-ws-footer__block jsc-ws-footer__block--strengths">
               <span className="jsc-ws-footer__badge jsc-ws-footer__badge--on-dark">Strengths</span>
@@ -791,7 +810,7 @@ function WorkStyleMatchCard({
                   <li key={i}>{capitalizeFirst(s)}</li>
                 ))}
               </ul>
-            </div>
+          </div>
           ) : null}
           {challenges.length > 0 ? (
             <div className="jsc-ws-footer__block jsc-ws-footer__block--watch">
@@ -801,7 +820,7 @@ function WorkStyleMatchCard({
                   <li key={i}>{capitalizeFirst(c)}</li>
                 ))}
               </ul>
-            </div>
+        </div>
           ) : null}
         </div>
       ) : null}
@@ -1025,7 +1044,7 @@ function SkillDropBucket({
               draggable={allowDrag}
             />
           ))}
-        </div>
+          </div>
       )}
     </div>
   );
@@ -1044,6 +1063,8 @@ export default function JobScoreCard({
 }) {
   const [helpfulVote, setHelpfulVote] = useState(null);
   const [bdOpen, setBdOpen] = useState({ adhd: false, technical: true, soft: false });
+  const assessmentConfidenceTipId = useId();
+  const [showAssessmentConfidenceTip, setShowAssessmentConfidenceTip] = useState(false);
 
   const skillsFactor = result?.factor_breakdown?.skills || {};
   const factors = result?.factor_breakdown || {};
@@ -1155,6 +1176,8 @@ export default function JobScoreCard({
     if (!canDnD || jobScoreBusy) return;
     const softZone = String(fromZone || "").startsWith("soft_") && String(toZone || "").startsWith("soft_");
     if (softZone && softBucketsFromDebug) {
+      const softOverrideKey = parseSoftDimKeyFromLabel(skill);
+      const softOverrideLevel = toZone === "soft_matched" ? "high" : "low";
       setSoftDnDState((prev) => {
         const base = prev || {
           matched: [...(softDebugSplit?.matched || [])],
@@ -1171,6 +1194,14 @@ export default function JobScoreCard({
         else if (toZone === "soft_missing") next.missing.push(skill);
         else next.partial.push(skill);
         return next;
+      });
+      onSkillProfileChange({
+        skill,
+        action,
+        fromZone,
+        toZone,
+        softOverrideKey,
+        softOverrideLevel,
       });
       return;
     }
@@ -1235,9 +1266,9 @@ export default function JobScoreCard({
                 <span className="jsc-helpful-emoji" aria-hidden="true">👎</span>
               </button>
             </div>
+            </div>
           </div>
         </div>
-            </div>
 
         <h2 className="jsc-jobmatch-title">Job Match Overview</h2>
 
@@ -1302,18 +1333,46 @@ export default function JobScoreCard({
                   </span>
                 </li>
               </ul>
-              {hasResult ? (
-                <p className="jsc-jobmatch-confidence">
-                  <span>Model confidence {confidencePct}%</span>
-                  <span className="jsc-jobmatch-confidence-info" title="How strongly the model factors agree for this score">
-                    i
-                  </span>
-                </p>
-              ) : (
-                <p className="jsc-jobmatch-confidence jsc-jobmatch-confidence--pending">Computing confidence…</p>
-              )}
+              <div
+                className={`jsc-jobmatch-confidence-anchor${showAssessmentConfidenceTip ? " jsc-jobmatch-confidence-anchor--open" : ""}`}
+                role="group"
+                aria-label="Assessment confidence"
+                onMouseEnter={() => setShowAssessmentConfidenceTip(true)}
+                onMouseLeave={() => setShowAssessmentConfidenceTip(false)}
+                onFocus={() => setShowAssessmentConfidenceTip(true)}
+                onBlur={() => setShowAssessmentConfidenceTip(false)}
+                tabIndex={0}
+              >
+                {showAssessmentConfidenceTip ? (
+                  <div
+                    id={assessmentConfidenceTipId}
+                    className="jsc-jobmatch-confidence-tooltip"
+                    role="tooltip"
+                  >
+                    {ASSESSMENT_CONFIDENCE_TOOLTIP}
+                  </div>
+                ) : null}
+                {hasResult ? (
+                  <p
+                    className="jsc-jobmatch-confidence"
+                    aria-describedby={showAssessmentConfidenceTip ? assessmentConfidenceTipId : undefined}
+                  >
+                    <span>Assessment Confidence {confidencePct}%</span>
+                    <span className="jsc-jobmatch-confidence-info" aria-hidden="true">
+                      i
+                    </span>
+                  </p>
+                ) : (
+                  <p
+                    className="jsc-jobmatch-confidence jsc-jobmatch-confidence--pending"
+                    aria-describedby={showAssessmentConfidenceTip ? assessmentConfidenceTipId : undefined}
+                  >
+                    Computing assessment confidence…
+                  </p>
+                )}
+              </div>
             </div>
-                    </div>
+            </div>
 
           <div className="jsc-jobmatch-divider" aria-hidden="true" />
 
@@ -1324,7 +1383,7 @@ export default function JobScoreCard({
               <button type="button" className="jsc-jobmatch-collapse-all" onClick={collapseBreakdown}>
                 Collapse All
               </button>
-                </div>
+            </div>
 
             <ScoreBreakdownRow
               rowId="adhd"
@@ -1387,7 +1446,7 @@ export default function JobScoreCard({
                   allowDrop={canDnD}
                   onDropSkill={handleDrop}
                 />
-              </div>
+                    </div>
             </ScoreBreakdownRow>
 
             <ScoreBreakdownRow
@@ -1432,9 +1491,9 @@ export default function JobScoreCard({
                   allowDrag
                   onDropSkill={handleDrop}
                 />
-              </div>
+                </div>
             </ScoreBreakdownRow>
-          </div>
+              </div>
           ) : (
             <div className="jsc-jobmatch-breakdown-col jsc-jobmatch-breakdown-col--loading" aria-busy="true" aria-live="polite">
               <p className="jsc-jobmatch-loading-factors">Calculating compatibility factors…</p>

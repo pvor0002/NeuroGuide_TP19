@@ -66,6 +66,14 @@ class JobScoreRequest(BaseModel):
             "Structured job signals from Gemini (task structure, environment, cognitive load, etc.)"
         ),
     )
+    user_soft_skills_overrides: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Optional user overrides for soft-skill levels captured via drag/drop UI. "
+            "Keys: communication,time_management,problem_solving,leadership,teamwork,adaptability,self_motivation. "
+            "Values: low|medium|high."
+        ),
+    )
     session_id: Optional[str] = Field(
         default=None,
         description="Anonymous session ID for saving results"
