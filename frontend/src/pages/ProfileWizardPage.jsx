@@ -776,6 +776,8 @@ export default function ProfileWizardPage() {
     loadTaxonomy();
   }, []);
 
+  /* Every answer change is persisted in this browser immediately. Server / cloud sync is deferred to
+   * Profile Ready (on mount), Save and exit, or Create my Profile ID — see syncProfileToServer. */
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
@@ -1071,7 +1073,7 @@ export default function ProfileWizardPage() {
     }
     if (currentStep?.kind === "skills") {
       runTransition("forward", (prev) => ({ ...prev, stepIndex: safeStepIndex + 1, completed: true, view: "wizard" }));
-      setTimeout(() => { void syncProfileToServer(); }, TRANSITION_MS + 50);
+      /* DB sync runs when the Profile Ready step mounts (useEffect) and on Save and exit — not here. */
       return;
     }
     if (safeStepIndex >= totalSteps - 1) {
@@ -1154,8 +1156,9 @@ export default function ProfileWizardPage() {
    * Returns the issued id on success, or null on failure.
    */
   const syncProfileToServer = async () => {
+    const snap = stateRef.current;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
     } catch {
       /* ignore */
     }
@@ -1185,12 +1188,13 @@ export default function ProfileWizardPage() {
       }
     }
 
-    const payload = buildPayloadForSync(state.answers);
+    const payload = buildPayloadForSync(snap.answers);
+    const profileIdBefore = snap.profileId;
     setSyncStatus("saving");
     setSyncMessage("");
     try {
-      const result = state.profileId
-        ? await updateProfile(state.profileId, payload)
+      const result = profileIdBefore
+        ? await updateProfile(profileIdBefore, payload)
         : await createProfile(payload);
       setState((prev) => ({
         ...prev,
@@ -1200,17 +1204,17 @@ export default function ProfileWizardPage() {
       setSyncStatus("saved");
       if (usedCloudSessionFallback) {
         setSyncMessage(
-          state.profileId
+          profileIdBefore
             ? "Saved to your Profile ID. Deploy /pg/session on the API to enable full account backup."
             : "Profile ID created (anonymous sync). Your pass key is for a future cloud update when the server supports it.",
         );
       } else {
-        setSyncMessage(state.profileId ? "Saved." : "Profile ID created. Copy it to reuse on another browser.");
+        setSyncMessage(profileIdBefore ? "Saved." : "Profile ID created. Copy it to reuse on another browser.");
       }
       return result.id;
     } catch (err) {
       // If we have a cached id but the server no longer has it, fall back to create.
-      if (state.profileId && String(err?.message || "").toLowerCase().includes("not found")) {
+      if (profileIdBefore && String(err?.message || "").toLowerCase().includes("not found")) {
         try {
           const result = await createProfile(payload);
           setState((prev) => ({
@@ -1299,14 +1303,15 @@ export default function ProfileWizardPage() {
     return result;
   };
 
-  // Profile complete (Profile Ready) — keep cloud / anonymous sync up to date when this step is shown.
+  /* When the user lands on Profile Ready (first time or after editing earlier steps), push localStorage
+   * to the server. syncProfileToServer reads stateRef at call time so the payload always matches local data. */
   useEffect(() => {
     if (currentStep?.kind !== "profile-ready") return;
     const id = setTimeout(() => {
       void syncProfileToServer();
     }, 0);
     return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync helper closes over latest wizard state
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only when navigating to this step, not on every answer keystroke
   }, [safeStepIndex, currentStep?.kind, currentStep?.id]);
 
   const handleCopyProfileId = async () => {
