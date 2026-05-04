@@ -4,7 +4,7 @@ JOB SCORE SCHEMAS
 Pydantic models for request and response validation.
 """
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from app.schemas.job_fit_features import GeminiJobFitFeatures
@@ -111,4 +111,11 @@ class JobScoreResponse(BaseModel):
     ml_inference_debug: Optional[Dict] = Field(
         default=None,
         description="Classifier diagnostics (paths, feature shape, fallback_reason when applicable)",
+    )
+    soft_skills_debug: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Soft-skill posting extraction vs profile: soft_skills_score (0-100 when demands parsed), "
+            "soft_skills_extracted, soft_skills_user_inferred, dimensions_scored, soft_skills_ui_hint."
+        ),
     )

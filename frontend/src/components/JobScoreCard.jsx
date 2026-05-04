@@ -187,6 +187,87 @@ function mergeSoftGaps(partialSoft, missingSoft) {
   return out;
 }
 
+/** Labels for structured soft_skill_requirements keys (aligned with backend _SOFT_SKILL_KEYS). */
+const SOFT_DIM_LABELS = {
+  communication: "Communication",
+  time_management: "Time management",
+  problem_solving: "Problem-solving",
+  leadership: "Leadership",
+  teamwork: "Teamwork",
+  adaptability: "Adaptability",
+  self_motivation: "Self-motivation",
+};
+
+function softDemandToNum(level) {
+  const s = String(level || "").toLowerCase();
+  if (s === "high") return 2;
+  if (s === "medium" || s === "moderate") return 1;
+  if (s === "low") return 0;
+  return -1;
+}
+
+/**
+ * Job score `factor_breakdown.skills.job_skills` is technical-only from Gemini; soft dimensions
+ * live in `soft_skills_debug.soft_skills_extracted`. When present, drive the soft buckets from that.
+ */
+function splitSoftSkillsFromDebug(softDebug) {
+  const ext = softDebug?.soft_skills_extracted;
+  if (!ext || typeof ext !== "object") return null;
+  const keys = Object.keys(ext).filter((k) => ext[k] != null && String(ext[k]).trim() !== "");
+  if (!keys.length) return null;
+
+  const user = softDebug?.soft_skills_user_inferred || {};
+  const matched = [];
+  const partial = [];
+  const missing = [];
+
+  for (const key of keys) {
+    const demandRaw = ext[key];
+    const dn = softDemandToNum(demandRaw);
+    if (dn < 0) continue;
+
+    const uRaw = user[key] ?? "medium";
+    let un = softDemandToNum(uRaw);
+    if (un < 0) un = 1;
+
+    const labelBase = SOFT_DIM_LABELS[key] || capitalizeFirst(String(key).replace(/_/g, " "));
+    const label = `${labelBase} | role: ${String(demandRaw).toLowerCase()} |`;
+
+    if (un >= dn) matched.push(label);
+    else if (un === dn - 1) partial.push(label);
+    else missing.push(label);
+  }
+
+  if (!matched.length && !partial.length && !missing.length) return null;
+  return { matched, partial, missing };
+}
+
+function parseRoleDemandFromSoftLabel(label) {
+  const s = String(label || "").toLowerCase();
+  const m = s.match(/\|\s*role:\s*(high|medium|low)\s*\|/);
+  return m ? m[1] : null;
+}
+
+function softScoreFromBuckets(softBuckets) {
+  if (!softBuckets) return null;
+  const scored = [];
+  const matched = softBuckets.matched || [];
+  const partial = softBuckets.partial || [];
+  const missing = softBuckets.missing || [];
+
+  matched.forEach(() => scored.push(100));
+  partial.forEach(() => scored.push(60));
+  missing.forEach((label) => {
+    const role = parseRoleDemandFromSoftLabel(label);
+    if (role === "high") scored.push(20);
+    else if (role === "medium") scored.push(40);
+    else scored.push(60);
+  });
+
+  if (!scored.length) return null;
+  return Math.round(scored.reduce((a, b) => a + b, 0) / scored.length);
+}
+
 /** Map symmetric factor adjustment to 0–100 (best at +maxPoints). */
 function factorToPct(adjustment, maxPoints) {
   const max = Number(maxPoints) || 0;
@@ -859,11 +940,12 @@ function parseDragPayload(e) {
   }
 }
 
-function DraggableChip({ skill, tone, zone, busy }) {
+function DraggableChip({ skill, tone, zone, busy, draggable: draggableProp }) {
+  const draggable = draggableProp !== undefined ? draggableProp && !busy : !busy;
   return (
     <span
       className={`jsc-mini-chip jsc-mini-chip--${tone} jsc-mini-chip--drag`}
-      draggable={!busy}
+      draggable={draggable}
       onDragStart={(e) => {
         const payload = JSON.stringify({ skill, fromZone: zone });
         e.dataTransfer.setData("application/json", payload);
@@ -886,6 +968,7 @@ function SkillDropBucket({
   busy,
   onDropSkill,
   allowDrop,
+  allowDrag = true,
 }) {
   const [over, setOver] = useState(false);
   const showEmpty = !items.length;
@@ -933,7 +1016,14 @@ function SkillDropBucket({
       ) : (
         <div className="jsc-chip-row">
           {items.map((it, idx) => (
-            <DraggableChip key={`${it}-${idx}`} skill={it} tone={tone} zone={zoneId} busy={busy} />
+            <DraggableChip
+              key={`${it}-${idx}`}
+              skill={it}
+              tone={tone}
+              zone={zoneId}
+              busy={busy}
+              draggable={allowDrag}
+            />
           ))}
         </div>
       )}
@@ -949,21 +1039,54 @@ export default function JobScoreCard({
   jobScoreBusy = false,
   jobFitFeatures = null,
   ariaHeadingId = "jsc-inline-heading",
+  /** When true, omit the inline “Start preparing for interview” link (e.g. modal provides its own CTA). */
+  hideInterviewPrepCta = false,
 }) {
   const [helpfulVote, setHelpfulVote] = useState(null);
   const [bdOpen, setBdOpen] = useState({ adhd: false, technical: true, soft: false });
 
   const skillsFactor = result?.factor_breakdown?.skills || {};
   const factors = result?.factor_breakdown || {};
+  const softDebug = result?.soft_skills_debug;
 
   const split = useMemo(
     () => categoriseSkills(skillsFactor.user_skills || [], skillsFactor.job_skills || []),
     [skillsFactor.user_skills, skillsFactor.job_skills],
   );
 
-  const matchedByType = useMemo(() => partitionByType(split.matched), [split.matched]);
-  const partialByType = useMemo(() => partitionByType(split.partial), [split.partial]);
-  const missingByType = useMemo(() => partitionByType(split.missing), [split.missing]);
+  const softDebugSplit = useMemo(() => splitSoftSkillsFromDebug(softDebug), [softDebug]);
+  const softBucketsFromDebug = softDebugSplit != null;
+  const [softDnDState, setSoftDnDState] = useState(null);
+
+  useEffect(() => {
+    if (!softDebugSplit) {
+      setSoftDnDState(null);
+      return;
+    }
+    setSoftDnDState({
+      matched: [...softDebugSplit.matched],
+      partial: [...softDebugSplit.partial],
+      missing: [...softDebugSplit.missing],
+    });
+  }, [softDebugSplit]);
+
+  const skillBuckets = useMemo(() => {
+    const pM = partitionByType(split.matched);
+    const pP = partitionByType(split.partial);
+    const pMi = partitionByType(split.missing);
+    const softSource = softDnDState || softDebugSplit;
+    if (softSource) {
+      return {
+        matched: { tool: pM.tool, soft: softSource.matched },
+        partial: { tool: pP.tool, soft: softSource.partial },
+        missing: { tool: pMi.tool, soft: softSource.missing },
+      };
+    }
+    return { matched: pM, partial: pP, missing: pMi };
+  }, [split.matched, split.partial, split.missing, softDebugSplit, softDnDState]);
+  const matchedByType = skillBuckets.matched;
+  const partialByType = skillBuckets.partial;
+  const missingByType = skillBuckets.missing;
   const softGaps = useMemo(
     () => mergeSoftGaps(partialByType.soft, missingByType.soft),
     [partialByType.soft, missingByType.soft],
@@ -978,6 +1101,24 @@ export default function JobScoreCard({
     () => bucketCoveragePct(matchedByType.soft, partialByType.soft, missingByType.soft),
     [matchedByType.soft, partialByType.soft, missingByType.soft],
   );
+
+  const softRowPct = useMemo(() => {
+    if (softBucketsFromDebug) {
+      return softScoreFromBuckets({
+        matched: matchedByType.soft,
+        partial: partialByType.soft,
+        missing: missingByType.soft,
+      });
+    }
+    const s = softDebug?.soft_skills_score;
+    if (s != null && Number.isFinite(Number(s))) return Math.round(Number(s));
+    return bucketCoveragePct(matchedByType.soft, partialByType.soft, missingByType.soft);
+  }, [softBucketsFromDebug, softDebug, matchedByType.soft, partialByType.soft, missingByType.soft]);
+
+  const softCollapsedHint =
+    softRowPct == null && softDebug?.soft_skills_ui_hint
+      ? neutralizeScoringCopy(softDebug.soft_skills_ui_hint)
+      : undefined;
 
   const canDnD = typeof onSkillProfileChange === "function";
 
@@ -1010,8 +1151,29 @@ export default function JobScoreCard({
     [normalizedJobFit, factors.work_preferences?.selected, factors.energy_patterns?.selected],
   );
 
-  const handleDrop = ({ skill, action }) => {
+  const handleDrop = ({ skill, action, fromZone, toZone }) => {
     if (!canDnD || jobScoreBusy) return;
+    const softZone = String(fromZone || "").startsWith("soft_") && String(toZone || "").startsWith("soft_");
+    if (softZone && softBucketsFromDebug) {
+      setSoftDnDState((prev) => {
+        const base = prev || {
+          matched: [...(softDebugSplit?.matched || [])],
+          partial: [...(softDebugSplit?.partial || [])],
+          missing: [...(softDebugSplit?.missing || [])],
+        };
+        const eq = (a, b) => String(a).toLowerCase().trim() === String(b).toLowerCase().trim();
+        const next = {
+          matched: base.matched.filter((x) => !eq(x, skill)),
+          partial: base.partial.filter((x) => !eq(x, skill)),
+          missing: base.missing.filter((x) => !eq(x, skill)),
+        };
+        if (toZone === "soft_matched") next.matched.push(skill);
+        else if (toZone === "soft_missing") next.missing.push(skill);
+        else next.partial.push(skill);
+        return next;
+      });
+      return;
+    }
     onSkillProfileChange({ skill, action });
   };
 
@@ -1022,7 +1184,7 @@ export default function JobScoreCard({
   const tone = scoreTone(score);
   const scorePct = Math.min(100, Math.max(0, score));
   const scoreBand = !hasResult ? null : scorePct >= 71 ? "high" : scorePct >= 41 ? "mid" : "low";
-  const showInterviewCta = hasResult && score >= 71;
+  const showInterviewCta = hasResult && score >= 71 && !hideInterviewPrepCta;
   const confidencePct = hasResult ? Math.round((result.match_confidence ?? 0) * 100) : 0;
   const donutLoading = Boolean(jobScoreBusy);
 
@@ -1051,31 +1213,31 @@ export default function JobScoreCard({
             </p>
           </div>
           <div className="jsc-assess-top-actions">
-            <div className="jsc-helpful-box" aria-label="Was it helpful?">
-              <span className="jsc-helpful-label">Was it helpful?</span>
-              <div className="jsc-helpful-actions" role="group" aria-label="Feedback">
-                <button
-                  type="button"
-                  className={`jsc-helpful-btn jsc-helpful-btn--up${helpfulVote === "up" ? " jsc-helpful-btn--selected" : ""}`}
-                  aria-label="Helpful"
-                  aria-pressed={helpfulVote === "up"}
-                  onClick={() => setHelpfulVote("up")}
-                >
-                  <span className="jsc-helpful-emoji" aria-hidden="true">👍</span>
-                </button>
-                <button
-                  type="button"
-                  className={`jsc-helpful-btn jsc-helpful-btn--down${helpfulVote === "down" ? " jsc-helpful-btn--selected" : ""}`}
-                  aria-label="Not helpful"
-                  aria-pressed={helpfulVote === "down"}
-                  onClick={() => setHelpfulVote("down")}
-                >
-                  <span className="jsc-helpful-emoji" aria-hidden="true">👎</span>
-                </button>
-              </div>
+          <div className="jsc-helpful-box" aria-label="Was it helpful?">
+            <span className="jsc-helpful-label">Was it helpful?</span>
+            <div className="jsc-helpful-actions" role="group" aria-label="Feedback">
+              <button
+                type="button"
+                className={`jsc-helpful-btn jsc-helpful-btn--up${helpfulVote === "up" ? " jsc-helpful-btn--selected" : ""}`}
+                aria-label="Helpful"
+                aria-pressed={helpfulVote === "up"}
+                onClick={() => setHelpfulVote("up")}
+              >
+                <span className="jsc-helpful-emoji" aria-hidden="true">👍</span>
+              </button>
+              <button
+                type="button"
+                className={`jsc-helpful-btn jsc-helpful-btn--down${helpfulVote === "down" ? " jsc-helpful-btn--selected" : ""}`}
+                aria-label="Not helpful"
+                aria-pressed={helpfulVote === "down"}
+                onClick={() => setHelpfulVote("down")}
+              >
+                <span className="jsc-helpful-emoji" aria-hidden="true">👎</span>
+              </button>
             </div>
           </div>
         </div>
+            </div>
 
         <h2 className="jsc-jobmatch-title">Job Match Overview</h2>
 
@@ -1085,7 +1247,7 @@ export default function JobScoreCard({
               {donutLoading ? (
                 <div className="jsc-jobmatch-donut-hit jsc-jobmatch-donut-hit--idle" aria-busy="true">
                   <JobMatchDonut loading />
-                </div>
+            </div>
               ) : (
                 <button
                   type="button"
@@ -1151,7 +1313,7 @@ export default function JobScoreCard({
                 <p className="jsc-jobmatch-confidence jsc-jobmatch-confidence--pending">Computing confidence…</p>
               )}
             </div>
-          </div>
+                    </div>
 
           <div className="jsc-jobmatch-divider" aria-hidden="true" />
 
@@ -1162,7 +1324,7 @@ export default function JobScoreCard({
               <button type="button" className="jsc-jobmatch-collapse-all" onClick={collapseBreakdown}>
                 Collapse All
               </button>
-            </div>
+                </div>
 
             <ScoreBreakdownRow
               rowId="adhd"
@@ -1232,13 +1394,21 @@ export default function JobScoreCard({
               rowId="soft"
               label="Soft Skills"
               variant="soft"
-              pct={softPct}
+              pct={softRowPct}
+              hint={softCollapsedHint}
               expanded={bdOpen.soft}
               onToggle={() => setBdOpen((o) => ({ ...o, soft: !o.soft }))}
             >
-              {canDnD ? (
-                <p className="jsc-dnd-hint">Drag chips between columns to update your profile — scores refresh after save.</p>
+              {softDebug?.soft_skills_ui_hint && softCollapsedHint == null ? (
+                <p className="jsc-breakdown-explainer" role="note">
+                  {neutralizeScoringCopy(softDebug.soft_skills_ui_hint)}
+                </p>
               ) : null}
+              {softBucketsFromDebug ? (
+                <p className="jsc-dnd-hint">Drag chips between columns to update your profile — scores refresh after save.</p>
+              ) : canDnD ? (
+                <p className="jsc-dnd-hint">Drag chips between columns to update your profile — scores refresh after save.</p>
+            ) : null}
               <div className="jsc-skill-buckets-row jsc-skill-buckets-row--2" role="group" aria-label="Soft skills: matching and missing">
                 <SkillDropBucket
                   zoneId="soft_matched"
@@ -1248,6 +1418,7 @@ export default function JobScoreCard({
                   tone="good"
                   busy={jobScoreBusy}
                   allowDrop={canDnD}
+                  allowDrag
                   onDropSkill={handleDrop}
                 />
                 <SkillDropBucket
@@ -1258,6 +1429,7 @@ export default function JobScoreCard({
                   tone="risk"
                   busy={jobScoreBusy}
                   allowDrop={canDnD}
+                  allowDrag
                   onDropSkill={handleDrop}
                 />
               </div>

@@ -88,3 +88,25 @@ export function appendJobScoreHistory(entry) {
     // ignore
   }
 }
+
+/** Same identity as used when de-duping history (title + simplify stamp + createdAt). */
+export function jobScoreHistoryEntriesEqual(a, b) {
+  if (!a || !b) return false;
+  return (
+    String(a.jobTitleNorm || "") === String(b.jobTitleNorm || "") &&
+    (a.simplifiedVerStamp ?? null) === (b.simplifiedVerStamp ?? null) &&
+    (a.createdAt ?? null) === (b.createdAt ?? null)
+  );
+}
+
+export function removeJobScoreHistoryEntry(entry) {
+  try {
+    if (!entry?.jobTitleNorm) return readJobScoreHistory();
+    const prev = readJobScoreHistory();
+    const next = prev.filter((it) => !jobScoreHistoryEntriesEqual(it, entry));
+    window.localStorage.setItem(JOB_SCORE_HISTORY_STORAGE_KEY, JSON.stringify(next));
+    return next;
+  } catch {
+    return readJobScoreHistory();
+  }
+}

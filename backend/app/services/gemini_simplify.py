@@ -73,16 +73,22 @@ If the posting implies semi-structured work, set task_structure to "mixed".
 
 soft_skill_requirements (REQUIRED when is_job_description is true):
 These are NON-TECHNICAL workplace capabilities (not languages, frameworks, or tools).
-Rate how strongly the ROLE requires each dimension: "low" | "medium" | "high".
-Guidance:
-- communication: stakeholder updates, writing specs, presenting, client-facing tone.
-- time_management: deadlines, juggling priorities, self-scheduling, calendar density.
-- problem_solving: ambiguous problems, root-cause analysis, tradeoff decisions.
-- leadership: owning initiatives, mentoring, delegating, driving alignment.
-- teamwork: pair work, shared code ownership, reviews, cross-functional sync.
-- adaptability: shifting priorities, reprioritization, context switching beyond tech stack.
-- self_motivation: ambiguous specs, async progress, minimal supervision, proactive updates.
-If the posting is silent on a dimension, choose "medium" as a neutral default (never null keys).
+You MUST output an object with ALL SEVEN keys (use snake_case JSON keys exactly as below).
+Each value MUST be exactly one token: "low" | "medium" | "high" (never null, never prose, never synonyms in the value).
+
+The seven dimensions (map phrases from the posting to these keys):
+1. communication — written/verbal updates, presenting, stakeholder tone, "tight-knit team" / cross-functional sync implies communication as well as teamwork.
+2. time_management — deadlines, prioritisation, scheduling, pace of deliverables.
+3. problem_solving — troubleshooting, ambiguity, root cause, tradeoffs, learning new tools/processes quickly.
+4. leadership — owning outcomes, mentoring others, driving alignment, "take ownership".
+5. teamwork — collaboration, pair work, shared goals, "work closely with", reviews, cohort/placement teams.
+6. adaptability — flexibility, shifting priorities, learning on the job, fast-changing environment, "wear multiple hats".
+7. self_motivation — self-directed progress, minimal supervision, proactive updates, async reliability.
+
+Examples for informal postings (e.g. gig/placement platforms): phrases like "collaboration", "learning",
+"teamwork", "flexibility", "supportive team", "tight-knit" → set teamwork and/or adaptability to at least "medium",
+often communication "medium" or "high" even when the word "communication" never appears.
+If the posting is silent on a dimension, still output that key with "medium" as the neutral default.
 
 Profile object shapes (required when is_job_description is true):
 
@@ -403,7 +409,11 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
         data = _parse_json_loose(raw)
         logger.info("[Gemini] JSON parsed OK, keys=%s", list(data.keys()))
     except json.JSONDecodeError as exc:
-        logger.error("[Gemini] JSON parse failed: %s | raw preview: %.200s", exc, raw)
+        logger.error(
+            "[Gemini] JSON parse failed: %s | raw_model_text_preview: %.4000s",
+            exc,
+            raw,
+        )
         raise HTTPException(
             status_code=502,
             detail="Could not parse model response as JSON.",
@@ -420,11 +430,32 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
     extracted_skills = _to_str_list(data.get("extracted_skills"), min_len=0)
 
     raw_fit = data.get("job_fit_features")
+    _ssr_raw = None
+    if isinstance(raw_fit, dict):
+        _ssr_raw = raw_fit.get("soft_skill_requirements")
+
     try:
         job_fit_features = GeminiJobFitFeatures.model_validate(raw_fit or {})
     except Exception:
-        logger.warning("[Gemini] job_fit_features invalid — using empty defaults")
+        logger.warning(
+            "[Gemini] job_fit_features invalid — using empty defaults | job_fit raw=%.3000s",
+            json.dumps(raw_fit, default=str) if raw_fit is not None else "null",
+        )
         job_fit_features = GeminiJobFitFeatures()
+
+    _ssr = job_fit_features.soft_skill_requirements
+    _ssr_any = False
+    if _ssr is not None:
+        _ssr_dump = _ssr.model_dump(exclude_none=True)
+        _ssr_any = bool(_ssr_dump)
+    if not _ssr_any:
+        logger.warning(
+            "[Gemini] soft_skill_requirements missing or all null after validation. "
+            "soft_skill_requirements(raw)=%r | job_fit_features(raw keys)=%s | model_text_preview=%.3500s",
+            _ssr_raw,
+            list(raw_fit.keys()) if isinstance(raw_fit, dict) else type(raw_fit).__name__,
+            raw,
+        )
 
     summary = (data.get("summary") or "").strip()
     basic_info = (data.get("basic_info") or "").strip()

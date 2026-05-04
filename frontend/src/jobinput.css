@@ -7416,6 +7416,15 @@ a.btn.btn-primary:hover {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.jsc-history-card-actions-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .jsc-history-time--row {
@@ -7447,6 +7456,23 @@ a.btn.btn-primary:hover {
 .jsc-history-detail-open:hover {
   background: #fbf5f0;
   border-color: rgba(82, 70, 55, 0.4);
+}
+
+.jsc-history-delete-open {
+  flex-shrink: 0;
+  border: 1px solid rgba(183, 28, 28, 0.35);
+  background: #fff5f4;
+  color: #8b1d15;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.28rem 0.55rem;
+  cursor: pointer;
+}
+
+.jsc-history-delete-open:hover {
+  background: #fce8e6;
+  border-color: rgba(183, 28, 28, 0.5);
 }
 
 .jsc-history-detail-overlay {
@@ -7511,6 +7537,46 @@ a.btn.btn-primary:hover {
 
 .jsc-history-detail-close:hover {
   background: #fbf5f0;
+}
+
+.jsc-history-detail-footer {
+  margin-top: 0.5rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(82, 70, 55, 0.12);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.jsc-history-detail-interview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-decoration: none;
+  border: 1px solid #d1d1d1;
+  background: #fff;
+  color: #444444;
+  border-radius: 22px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.62rem 1.5rem;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.jsc-history-detail-interview:hover {
+  background: #fafafa;
+  border-color: #c4c4c4;
+  color: #333333;
+}
+
+.jsc-history-detail-interview:focus-visible {
+  outline: 2px solid rgba(46, 106, 68, 0.45);
+  outline-offset: 3px;
 }
 
 .jsc-history-detail-body {
@@ -7660,6 +7726,70 @@ a.btn.btn-primary:hover {
   border: 1px solid rgba(82, 70, 55, 0.14);
   border-radius: 10px;
   color: #2f2720;
+}
+
+.jsc-history-detail-section--score {
+  min-width: 0;
+}
+
+.jsc-history-detail-score-shell {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(82, 70, 55, 0.1);
+  background: rgba(255, 255, 255, 0.55);
+  box-sizing: border-box;
+}
+
+/* Job match card: always stack in this modal so wide two-column layout cannot overflow the dialog */
+.jsc-history-detail-modal .jsc-jobmatch-card {
+  grid-template-columns: 1fr;
+}
+
+.jsc-history-detail-modal .jsc-jobmatch-divider {
+  width: 100%;
+  height: 1px;
+  min-height: 0;
+  margin: 0.35rem 0;
+  grid-column: 1 / -1;
+}
+
+.jsc-history-detail-modal .jsc-jobmatch-breakdown-col {
+  padding-left: 0;
+  grid-column: 1 / -1;
+}
+
+.jsc-history-detail-modal .jsc-jobmatch-donut-col {
+  grid-column: 1 / -1;
+  padding-right: 0;
+}
+
+.jsc-history-detail-modal .jsc-jobmatch-hero {
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.jsc-history-detail-modal .jsc-jobmatch-legend {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.jsc-history-detail-modal .jsc-bd-row--expanded {
+  overflow: hidden;
+}
+
+.jsc-history-detail-modal .jsc-bd-row__panel {
+  max-height: min(48vh, 420px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.jsc-history-detail-modal .jsc-skill-buckets-row--2,
+.jsc-history-detail-modal .jsc-skill-buckets-row--3 {
+  grid-template-columns: 1fr;
 }
 
 /* Tighter simplify + score layout inside history detail modal */
