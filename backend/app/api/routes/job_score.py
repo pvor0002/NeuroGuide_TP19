@@ -92,7 +92,7 @@ async def predict_job_score(request: JobScoreRequest):
     Flow:
     1. Validate incoming user questionnaire + occupation_id
     2. Fetch occupation data from RDS
-    3. Run JobScoreModelV2 to calculate 7-factor score
+    3. Run JobScoreModelV2 (hybrid RandomForest on ADHD dataset + 7 rule factors)
     4. Save result to job_recommendations table
     5. Return score, recommendation, factor breakdown
     """
@@ -114,12 +114,17 @@ async def predict_job_score(request: JobScoreRequest):
         # Convert questionnaire to dict for model
         user_questionnaire = request.user_questionnaire.model_dump()
 
+        fit_payload = None
+        if request.job_fit_features_from_gemini is not None:
+            fit_payload = request.job_fit_features_from_gemini.model_dump(exclude_none=True)
+
         # Calculate score
         result = calculate_job_score(
             user_questionnaire=user_questionnaire,
             occupation_id=request.occupation_id,
             session_id=request.session_id,
-            job_skills_from_gemini=request.job_skills_from_gemini
+            job_skills_from_gemini=request.job_skills_from_gemini,
+            job_fit_features_from_gemini=fit_payload,
         )
 
         logger.info(f"[JobScore] Score calculated: {result['score']}/100")

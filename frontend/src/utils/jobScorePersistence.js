@@ -75,7 +75,14 @@ export function appendJobScoreHistory(entry) {
     const deduped = prev.filter(
       (it) => !(it.jobTitleNorm === entry.jobTitleNorm && it.simplifiedVerStamp === entry.simplifiedVerStamp),
     );
-    const next = [{ ...entry, createdAt: entry.createdAt || Date.now() }, ...deduped].slice(0, MAX_HISTORY_ITEMS);
+    const next = [
+      {
+        ...entry,
+        jobTitleDisplay: entry.jobTitleDisplay != null ? String(entry.jobTitleDisplay) : "",
+        createdAt: entry.createdAt || Date.now(),
+      },
+      ...deduped,
+    ].slice(0, MAX_HISTORY_ITEMS);
     window.localStorage.setItem(JOB_SCORE_HISTORY_STORAGE_KEY, JSON.stringify(next));
   } catch {
     // ignore

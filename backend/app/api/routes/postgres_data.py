@@ -28,6 +28,7 @@ from uuid import UUID
 
 import psycopg2
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
 from app.db.postgres import get_db_connection
@@ -123,14 +124,20 @@ def get_user_route(_: DatabaseConfigured, user_id: UUID) -> UserResponse:
     return UserResponse.model_validate(row)
 
 
-@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete user by id")
-def delete_user_route(_: DatabaseConfigured, user_id: UUID) -> None:
+@router.delete(
+    "/users/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="Delete user by id",
+)
+def delete_user_route(_: DatabaseConfigured, user_id: UUID) -> Response:
     try:
         deleted = pg_users.delete_user(user_id)
     except psycopg2.Error as exc:
         raise _pg_http_error(exc) from exc
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
@@ -189,12 +196,14 @@ def update_career_profile_route(
 @router.delete(
     "/career-profiles/{profile_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
     summary="Delete career profile by id",
 )
-def delete_career_profile_route(_: DatabaseConfigured, profile_id: UUID) -> None:
+def delete_career_profile_route(_: DatabaseConfigured, profile_id: UUID) -> Response:
     try:
         deleted = pg_career_profiles.delete_career_profile(profile_id)
     except psycopg2.Error as exc:
         raise _pg_http_error(exc) from exc
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Career profile not found.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

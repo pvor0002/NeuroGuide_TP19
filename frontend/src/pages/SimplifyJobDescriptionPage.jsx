@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import { SimplifyLineIcon } from "../components/SimplifyLineIcons.jsx";
@@ -25,6 +25,7 @@ import {
 } from "../utils/jobScorePersistence.js";
 import { registerCloudAccountFromLocalState } from "../utils/cloudSync.js";
 import { isCloudSessionApiAvailable } from "../services/sessionApi.js";
+import jobMatchConversationUrl from "../../../data/images/job-match-conversation.png";
 
 // ─── Profile definitions ────────────────────────────────────────────────────
 const PROFILE_META = {
@@ -275,30 +276,53 @@ function stripMdBold(s) {
 
 /**
  * Basic info often arrives as one line: "Job Title: X | Company: Y | ...".
+ * It can also arrive as multiple lines, each "Label: value" (see flip-card back).
  */
 function parseBasicInfoPipeFields(text) {
-  const normalized = String(text ?? "").replace(/\r\n/g, " ").trim();
-  if (!normalized) return [];
+  const raw = String(text ?? "").replace(/\r\n/g, "\n").trim();
+  if (!raw) return [];
 
-  const segments = normalized
-    .split(/\s*\|\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const labelValueFromLine = (line) => {
+    const trimmed = String(line ?? "").trim();
+    if (!trimmed) return null;
+    const m = trimmed.match(/^([A-Za-z][A-Za-z0-9 &'/().-]{1,60}):\s*(.+)$/);
+    if (!m) return null;
+    const labelPart = m[1].trim();
+    const valuePart = m[2].trim();
+    if (!labelPart || !valuePart) return null;
+    return { label: labelPart, value: valuePart };
+  };
+
+  const segments = [];
+  raw.split("\n").forEach((ln) => {
+    const t = String(ln ?? "").trim();
+    if (!t) return;
+    t.split(/\s*\|\s*/).forEach((piece) => {
+      const p = String(piece ?? "").trim();
+      if (p) segments.push(p);
+    });
+  });
 
   const rows = [];
+  const seen = new Set();
+  const pushRow = (label, value) => {
+    const key = `${label.toLowerCase()}::${value.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push({ label, value });
+  };
+
   for (const chunk of segments) {
-    const m = chunk.match(/^(.+?):\s*(.+)$/);
-    if (m) {
-      const labelPart = m[1].trim();
-      const valuePart = m[2].trim();
-      if (labelPart && valuePart) rows.push({ label: labelPart, value: valuePart });
+    const fromLv = labelValueFromLine(chunk);
+    if (fromLv) {
+      pushRow(fromLv.label, fromLv.value);
       continue;
     }
     const idx = chunk.indexOf(":");
     if (idx > 0 && idx < chunk.length - 1) {
       const lbl = chunk.slice(0, idx).trim();
       const val = chunk.slice(idx + 1).trim();
-      if (lbl && val) rows.push({ label: lbl, value: val });
+      if (lbl && val) pushRow(lbl, val);
     }
   }
   return rows;
@@ -1124,6 +1148,16 @@ function ActiveProfile({ activeKey, result }) {
   return <ProfileCombined data={result?.profile_combined} />;
 }
 
+function readCareerProfileForJobScore() {
+  try {
+    const raw = window.localStorage.getItem(CAREER_PROFILE_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 function cloneSimplifiedSnapshotForHistory(result) {
   if (!result || typeof result !== "object") return null;
   try {
@@ -1131,6 +1165,35 @@ function cloneSimplifiedSnapshotForHistory(result) {
   } catch {
     return null;
   }
+}
+
+function buildJobScoreQuestionnaire(answers, skillsList) {
+  const roleDurationRaw = answers.roleDuration;
+  const roleDuration =
+    typeof roleDurationRaw === "string"
+      ? roleDurationRaw
+      : Object.values(roleDurationRaw || {}).find(Boolean) || "Internship";
+
+  return {
+    adhd_profile_type: answers.adhdProfileType || "inattentive",
+    work_preferences: answers.workStyles ?? answers.workPreferences ?? [],
+    support_needs: answers.supportNeeds ?? [],
+    energy_patterns: answers.energyPatterns ?? [],
+    primary_role: answers.selectedRoles?.[0] || answers.primaryRole || "",
+    role_duration: roleDuration,
+    skills: [...skillsList],
+  };
+}
+
+/** Wizard stores skills in selectedSkills and/or autoSelectedSkills — scoring must see both. */
+function mergeProfileSkillLists(answers) {
+  if (!answers) return [];
+  return [
+    ...new Set([
+      ...(answers.selectedSkills || []),
+      ...(answers.autoSelectedSkills || []),
+    ]),
+  ];
 }
 
 const MAX_HISTORY_ORIGINAL_CHARS = 120_000;
@@ -1397,15 +1460,118 @@ export default function SimplifyJobDescriptionPage() {
 
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
+  const simplifiedResultRef = useRef(simplifiedResult);
+  simplifiedResultRef.current = simplifiedResult;
+
+  const jobScoreCacheSyncKey = useMemo(() => {
+    if (!simplifiedResult?.job_title) return "";
+    return `${normalizeJobTitleKey(simplifiedResult.job_title)}|${String(simplifiedResult._ng_simp_ver ?? "")}`;
+  }, [simplifiedResult?.job_title, simplifiedResult?._ng_simp_ver]);
+
+  const runJobScoreForSkills = useCallback(
+    async (options) => {
+      setJobScoreError("");
+      const profile = readCareerProfileForJobScore();
+      if (!profile?.answers) {
+        setJobScoreError("Complete your profile first so we can calculate your match score.");
+        return;
+      }
+      const jobTitle = simplifiedResult?.job_title || "";
+      if (!jobTitle) {
+        setJobScoreError("No job title found. Try simplifying the job description again.");
+        return;
+      }
+      const mergedSkills = mergeProfileSkillLists(profile.answers);
+      const userQuestionnaire = buildJobScoreQuestionnaire(profile.answers, mergedSkills);
+      const extractedSkills = simplifiedResult?.extracted_skills ?? [];
+      const fitFeatures = simplifiedResult?.job_fit_features ?? null;
+
+      setJobScoreBusy(true);
+      try {
+        const occResult = await findOccupation(jobTitle);
+        const occupationId = occResult.occupation_id;
+        const occupationName = occResult.occupation_name;
+
+        const scoreResult = await predictJobScore(
+          userQuestionnaire,
+          occupationId,
+          extractedSkills.length > 0 ? extractedSkills : null,
+          null,
+          fitFeatures && typeof fitFeatures === "object" ? fitFeatures : null,
+        );
+
+        setJobScoreOccupationName(occupationName);
+        setJobScoreResult(scoreResult);
+        writePersistedJobScore(
+          normalizeJobTitleKey(jobTitle),
+          simplifiedResult?._ng_simp_ver ?? null,
+          occupationName,
+          scoreResult,
+        );
+        if (options?.appendHistory !== false) {
+          appendJobScoreHistory({
+            jobTitleNorm: normalizeJobTitleKey(jobTitle),
+            jobTitleDisplay: jobTitle,
+            simplifiedVerStamp: simplifiedResult?._ng_simp_ver ?? null,
+            occupationName,
+            result: scoreResult,
+            createdAt: Date.now(),
+            simplifiedSnapshot: cloneSimplifiedSnapshotForHistory(simplifiedResult),
+            activeProfileKey: savedProfileKey ?? activeProfile,
+            originalPosting: buildOriginalPostingForHistory(inputMode, text, fileExtractedText),
+          });
+        }
+      } catch (err) {
+        setJobScoreError(err?.message || "Could not calculate job match score. Please try again.");
+      } finally {
+        setJobScoreBusy(false);
+      }
+    },
+    [simplifiedResult, savedProfileKey, activeProfile, inputMode, text, fileExtractedText],
+  );
+
+  const handleSkillProfileChange = useCallback(
+    ({ skill, action }) => {
+      const label = String(skill || "").trim();
+      if (!label || (action !== "add" && action !== "remove")) return;
+      try {
+        const raw = window.localStorage.getItem(CAREER_PROFILE_STORAGE_KEY);
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        if (!p.answers) return;
+        const cmp = (x) => String(x).trim().toLowerCase();
+        const lc = cmp(label);
+        const sel = [...(p.answers.selectedSkills || [])];
+        const auto = [...(p.answers.autoSelectedSkills || [])];
+        if (action === "add") {
+          const nextSel = [...new Set([...sel, label])];
+          p.answers.selectedSkills = nextSel;
+          p.answers.autoSelectedSkills = auto.filter((s) => cmp(s) !== lc);
+        } else {
+          p.answers.selectedSkills = sel.filter((s) => cmp(s) !== lc);
+          p.answers.autoSelectedSkills = auto.filter((s) => cmp(s) !== lc);
+        }
+        window.localStorage.setItem(CAREER_PROFILE_STORAGE_KEY, JSON.stringify(p));
+      } catch {
+        return;
+      }
+      const profile = readCareerProfileForJobScore();
+      if (!profile?.answers) return;
+      void runJobScoreForSkills({ appendHistory: false });
+    },
+    [runJobScoreForSkills],
+  );
+
   useEffect(() => {
-    if (!simplifiedResult || !hasRenderableSimplifiedOutput(simplifiedResult)) return;
+    const sr = simplifiedResultRef.current;
+    if (!jobScoreCacheSyncKey || !sr || !hasRenderableSimplifiedOutput(sr)) return;
     const cached = readPersistedJobScore();
     if (!cached) {
       setJobScoreResult(null);
       setJobScoreOccupationName("");
       return;
     }
-    if (!isJobScoreCacheValid(cached, simplifiedResult)) {
+    if (!isJobScoreCacheValid(cached, sr)) {
       clearPersistedJobScore();
       setJobScoreResult(null);
       setJobScoreOccupationName("");
@@ -1414,7 +1580,21 @@ export default function SimplifyJobDescriptionPage() {
     setJobScoreResult(cached.result);
     setJobScoreOccupationName(cached.occupationName || "");
     setJobScoreError("");
-  }, [simplifiedResult]);
+  }, [jobScoreCacheSyncKey]);
+
+  useEffect(() => {
+    if (!jobScoreResult) return;
+    const dbg = jobScoreResult.ml_inference_debug || jobScoreResult.ml_layer?.ml_debug;
+    if (typeof console !== "undefined" && console.info) {
+      console.info(
+        "[JobScore]",
+        "ml_source=",
+        jobScoreResult.ml_source ?? jobScoreResult.ml_layer?.ml_source,
+        "ml_inference_debug=",
+        dbg,
+      );
+    }
+  }, [jobScoreResult]);
 
   useEffect(() => {
     if (!historyDrawerOpen) return;
@@ -1729,110 +1909,65 @@ export default function SimplifyJobDescriptionPage() {
             <FlipCardRow result={simplifiedResult} />
 
             <div className="simplify-next-step">
-              <button
-                type="button"
-                className="simplify-next-step-btn"
-                disabled={jobScoreBusy}
-                onClick={async () => {
-                  setJobScoreError("");
+              <div className="simplify-jobscore-feature" aria-labelledby="simplify-jobscore-teaser-heading">
+                <div className="simplify-jobscore-feature__inner">
+                  <div className="simplify-jobscore-mosaic">
+                    <div className="simplify-jobscore-visual">
+                      <img
+                        src={jobMatchConversationUrl}
+                        alt=""
+                        className="simplify-jobscore-illus"
+                        width={220}
+                        height={176}
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="simplify-jobscore-copy">
+                      <p className="simplify-jobscore-eyebrow">
+                        Check your Personalized job match Score !
+                      </p>
+                      <p id="simplify-jobscore-teaser-heading" className="simplify-jobscore-lede">
+                        Your profile already holds how you work best and what you bring. One tap lines that up
+                        with this posting - clear fit, skills, and angles to lean on, then you can drag skills and
+                        watch the readout update with you.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="simplify-jobscore-cta-blob">
+                    <div className="simplify-jobscore-cta-blob__wash" aria-hidden="true" />
+                    <div className="simplify-jobscore-cta-blob__bg" aria-hidden="true" />
+                    <button
+                      type="button"
+                      className="simplify-next-step-btn simplify-jobscore-cta-btn"
+                      disabled={jobScoreBusy}
+                      onClick={async () => {
+                        const profile = readCareerProfileForJobScore();
+                        if (!profile?.answers) {
+                          setJobScoreError("Complete your profile first so we can calculate your match score.");
+                          return;
+                        }
+                        await runJobScoreForSkills({ appendHistory: true });
+                      }}
+                    >
+                      {jobScoreBusy ? "Calculating…" : "See My Match Score"}
+                    </button>
+                  </div>
+                </div>
+                {jobScoreError ? (
+                  <p className="simplify-next-step-prompt simplify-jobscore-error" role="alert">
+                    {jobScoreError}
+                  </p>
+                ) : null}
+              </div>
 
-                  // 1. Read career profile from localStorage
-                  let profile = null;
-                  try {
-                    const raw = window.localStorage.getItem(CAREER_PROFILE_STORAGE_KEY);
-                    if (raw) profile = JSON.parse(raw);
-                  } catch { /* ignore */ }
-
-                  if (!profile?.answers) {
-                    setJobScoreError("Complete your profile first so we can calculate your match score.");
-                    return;
-                  }
-
-                  const answers = profile.answers;
-
-                  // roleDuration is stored as { roleName: "Internship" } — extract the first value
-                  const roleDurationRaw = answers.roleDuration;
-                  const roleDuration =
-                    typeof roleDurationRaw === "string"
-                      ? roleDurationRaw
-                      : Object.values(roleDurationRaw || {}).find(Boolean) || "Internship";
-
-                  const userQuestionnaire = {
-                    adhd_profile_type: answers.adhdProfileType || "inattentive",
-                    work_preferences: (answers.workStyles ?? answers.workPreferences ?? []).slice(0, 2),
-                    support_needs: (answers.supportNeeds ?? []).slice(0, 2),
-                    energy_patterns: (answers.energyPatterns ?? []).slice(0, 2),
-                    primary_role: answers.selectedRoles?.[0] || answers.primaryRole || "",
-                    role_duration: roleDuration,
-                    skills: answers.selectedSkills ?? answers.autoSelectedSkills ?? [],
-                  };
-
-                  const jobTitle = simplifiedResult?.job_title || "";
-                  const extractedSkills = simplifiedResult?.extracted_skills ?? [];
-
-                  if (!jobTitle) {
-                    setJobScoreError("No job title found. Try simplifying the job description again.");
-                    return;
-                  }
-
-                  setJobScoreBusy(true);
-                  try {
-                    // 2. Find occupation_id from job title
-                    const occResult = await findOccupation(jobTitle);
-                    const occupationId = occResult.occupation_id;
-                    const occupationName = occResult.occupation_name;
-
-                    // 3. Calculate job match score
-                    const scoreResult = await predictJobScore(
-                      userQuestionnaire,
-                      occupationId,
-                      extractedSkills.length > 0 ? extractedSkills : null,
-                      null
-                    );
-
-                    setJobScoreOccupationName(occupationName);
-                    setJobScoreResult(scoreResult);
-                    writePersistedJobScore(
-                      normalizeJobTitleKey(jobTitle),
-                      simplifiedResult?._ng_simp_ver ?? null,
-                      occupationName,
-                      scoreResult,
-                    );
-                    appendJobScoreHistory({
-                      jobTitleNorm: normalizeJobTitleKey(jobTitle),
-                      simplifiedVerStamp: simplifiedResult?._ng_simp_ver ?? null,
-                      occupationName,
-                      result: scoreResult,
-                      createdAt: Date.now(),
-                      simplifiedSnapshot: cloneSimplifiedSnapshotForHistory(simplifiedResult),
-                      activeProfileKey: savedProfileKey ?? activeProfile,
-                      originalPosting: buildOriginalPostingForHistory(inputMode, text, fileExtractedText),
-                    });
-                  } catch (err) {
-                    setJobScoreError(err?.message || "Could not calculate job match score. Please try again.");
-                  } finally {
-                    setJobScoreBusy(false);
-                  }
-                }}
-              >
-                {jobScoreBusy ? "Calculating…" : "See Job match score"}
-              </button>
-              {jobScoreError ? (
-                <p className="simplify-next-step-prompt" role="alert" style={{ color: "#7e2a25" }}>
-                  {jobScoreError}
-                </p>
-              ) : null}
-
-              {jobScoreResult ? (
+              {jobScoreResult || jobScoreBusy ? (
                 <JobScoreCard
                   result={jobScoreResult}
                   occupationName={jobScoreOccupationName}
                   onOpenHistory={() => setHistoryDrawerOpen(true)}
-                  onDismiss={() => {
-                    clearPersistedJobScore();
-                    setJobScoreResult(null);
-                    setJobScoreOccupationName("");
-                  }}
+                  onSkillProfileChange={handleSkillProfileChange}
+                  jobScoreBusy={jobScoreBusy}
+                  jobFitFeatures={simplifiedResult?.job_fit_features ?? null}
                 />
               ) : null}
             </div>
@@ -1871,13 +2006,14 @@ export default function SimplifyJobDescriptionPage() {
                 }
                 return prev3.map((item, idx) => {
                   const score = Number(item?.result?.score || 0);
+                  const scoreLabel = Number.isFinite(score) ? score.toFixed(1) : "0.0";
                   const toneClass = score >= 75 ? "good" : score >= 55 ? "warn" : "risk";
                   const when = item?.createdAt ? new Date(item.createdAt).toLocaleString() : "";
                   return (
                     <article key={`${item.jobTitleNorm}-${item.simplifiedVerStamp ?? "none"}-${idx}`} className="jsc-history-card">
                       <div className="jsc-history-card-top">
                         <p className="jsc-history-role">{item.occupationName || item.jobTitleNorm || "Role"}</p>
-                        <span className={`jsc-history-score jsc-history-score--${toneClass}`}>{Math.round(score)}/100</span>
+                        <span className={`jsc-history-score jsc-history-score--${toneClass}`}>{scoreLabel}/100</span>
                       </div>
                       <p className="jsc-history-line">{shortText(item?.result?.recommendation || "", 96)}</p>
                       <div className="jsc-history-card-actions">

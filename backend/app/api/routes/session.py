@@ -44,6 +44,7 @@ from uuid import UUID
 import psycopg2
 import psycopg2.errors as pg_errors
 from fastapi import APIRouter, Depends, Header, HTTPException, status
+from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
 from app.schemas.session_sync import (
@@ -165,28 +166,43 @@ def full_sync_route(user: SessionUser, body: FullSyncBody) -> SessionSnapshot:
         raise _pg_err(exc) from exc
 
 
-@router.patch("/consent", status_code=status.HTTP_204_NO_CONTENT)
-def patch_consent(user: SessionUser, body: ConsentPatchBody) -> None:
+@router.patch(
+    "/consent",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def patch_consent(user: SessionUser, body: ConsentPatchBody) -> Response:
     try:
         pg_session.patch_consent_only(user, body.consent_granted, body.consent)
     except psycopg2.Error as exc:
         raise _pg_err(exc) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.delete("/data/profile", status_code=status.HTTP_204_NO_CONTENT)
-def delete_profile_data(user: SessionUser) -> None:
+@router.delete(
+    "/data/profile",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_profile_data(user: SessionUser) -> Response:
     try:
         pg_session.delete_career_data_only(user)
     except psycopg2.Error as exc:
         raise _pg_err(exc) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.delete("/data/all", status_code=status.HTTP_204_NO_CONTENT)
-def delete_all_data(user: SessionUser) -> None:
+@router.delete(
+    "/data/all",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_all_data(user: SessionUser) -> Response:
     try:
         pg_session.delete_all_user_rows(user)
     except psycopg2.Error as exc:
         raise _pg_err(exc) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/health")

@@ -98,7 +98,13 @@ export async function findOccupation(jobTitle) {
   return readJsonOrText(res);
 }
 
-export async function predictJobScore(userQuestionnaire, occupationId, jobSkills, sessionId) {
+export async function predictJobScore(
+  userQuestionnaire,
+  occupationId,
+  jobSkills,
+  sessionId,
+  jobFitFeaturesFromGemini = null
+) {
   const res = await fetch(`${API_BASE}/predict-job-score`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -106,6 +112,7 @@ export async function predictJobScore(userQuestionnaire, occupationId, jobSkills
       user_questionnaire: userQuestionnaire,
       occupation_id: occupationId,
       job_skills_from_gemini: jobSkills,
+      job_fit_features_from_gemini: jobFitFeaturesFromGemini ?? null,
       session_id: sessionId ?? null,
     }),
   });
