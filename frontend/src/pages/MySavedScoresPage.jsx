@@ -8,7 +8,7 @@ export default function MySavedScoresPage() {
   return (
     <div className="saved-scores-page">
       <header className="saved-scores-page__head">
-        <h1 className="saved-scores-page__title">My saved scores</h1>
+        <h1 className="saved-scores-page__title">My Saved Scores</h1>
         <p className="saved-scores-page__sub">
           Simplified job titles and the career match score from when you last ran the match on each posting.
         </p>

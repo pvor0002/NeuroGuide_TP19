@@ -948,6 +948,7 @@ export default function JobScoreCard({
   onSkillProfileChange,
   jobScoreBusy = false,
   jobFitFeatures = null,
+  ariaHeadingId = "jsc-inline-heading",
 }) {
   const [helpfulVote, setHelpfulVote] = useState(null);
   const [bdOpen, setBdOpen] = useState({ adhd: false, technical: true, soft: false });
@@ -1040,12 +1041,12 @@ export default function JobScoreCard({
   const collapseBreakdown = () => setBdOpen({ adhd: false, technical: false, soft: false });
 
   return (
-    <div className="jsc-inline jsc-inline--fullbleed" role="region" aria-labelledby="jsc-inline-heading">
+    <div className="jsc-inline jsc-inline--fullbleed" role="region" aria-labelledby={ariaHeadingId}>
       <div className="jsc-panel jsc-panel--inline jsc-panel--assessment jsc-panel--jobmatch-shell">
         <div className="jsc-assess-topbar">
           <div className="jsc-assess-brand">
             <p className="jsc-assess-brand-title">Career Compatibility Score</p>
-            <p id="jsc-inline-heading" className="jsc-assess-role">
+            <p id={ariaHeadingId} className="jsc-assess-role">
               Assessment for: <strong>{occupationName || "this role"}</strong>
             </p>
           </div>
