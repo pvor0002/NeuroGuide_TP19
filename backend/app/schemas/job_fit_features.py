@@ -5,6 +5,44 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class SoftSkillRequirements(BaseModel):
+    """
+    Non-technical soft skills implied by the posting (NOT programming/tools).
+    Each value must be one of: low | medium | high (job requirement strength).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    communication: Optional[str] = Field(
+        default=None,
+        description="low | medium | high — written/verbal stakeholder communication",
+    )
+    time_management: Optional[str] = Field(
+        default=None,
+        description="low | medium | high — planning, deadlines, prioritization",
+    )
+    problem_solving: Optional[str] = Field(
+        default=None,
+        description="low | medium | high — ambiguity, diagnosis, solution design",
+    )
+    leadership: Optional[str] = Field(
+        default=None,
+        description="low | medium | high — owning outcomes, directing others",
+    )
+    teamwork: Optional[str] = Field(
+        default=None,
+        description="low | medium | high — collaboration, pair work, shared ownership",
+    )
+    adaptability: Optional[str] = Field(
+        default=None,
+        description="low | medium | high — shifting priorities, context changes",
+    )
+    self_motivation: Optional[str] = Field(
+        default=None,
+        description="low | medium | high — self-directed progress without heavy oversight",
+    )
+
+
 class GeminiJobFitFeatures(BaseModel):
     """
     Normalized labels (Gemini should output these tokens; backend tolerates variants).
@@ -47,4 +85,11 @@ class GeminiJobFitFeatures(BaseModel):
     interruptions: Optional[str] = Field(
         default=None,
         description="low | medium | high — how often work is interrupted or context-switched",
+    )
+    soft_skill_requirements: Optional[SoftSkillRequirements] = Field(
+        default=None,
+        description=(
+            "Separate from technical skills: rate how much the role requires each soft skill "
+            "(low | medium | high)."
+        ),
     )

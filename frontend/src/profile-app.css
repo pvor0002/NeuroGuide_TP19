@@ -1293,9 +1293,9 @@ textarea {
   gap: 0.32rem;
   padding: 0.32rem 0.72rem;
   border-radius: 999px;
-  border: 1px solid rgba(100, 130, 200, 0.22);
-  background: linear-gradient(180deg, #f3f6ff 0%, #e8eefc 100%);
-  color: #3a5a9e;
+  border: 1px solid var(--peach-400);
+  background: linear-gradient(180deg, var(--peach-50) 0%, var(--peach-200) 100%);
+  color: var(--ink);
   max-width: 100%;
   box-shadow: none;
 }
@@ -1307,7 +1307,7 @@ textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #3a5a9e;
+  color: var(--ink);
 }
 
 .summary-tag--removable {
@@ -1317,13 +1317,13 @@ textarea {
 .summary-tag-remove {
   width: 1.1rem;
   height: 1.1rem;
-  border: 1px solid rgba(74, 111, 168, 0.35);
+  border: 1px solid color-mix(in srgb, var(--peach-400) 82%, var(--ink) 18%);
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.65);
-  color: #4a6fa8;
+  background: rgba(255, 255, 255, 0.82);
+  color: #6b4a3d;
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1;
@@ -1332,8 +1332,9 @@ textarea {
 }
 
 .summary-tag-remove:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(74, 111, 168, 0.55);
+  background: #fff;
+  border-color: var(--btn-peach-hover);
+  color: var(--ink);
 }
 
 .summary-skills-ready {
@@ -1366,7 +1367,7 @@ textarea {
   gap: 0.28rem;
   font-size: 0.74rem;
   font-weight: 600;
-  color: #3a5a9e;
+  color: var(--ink-soft);
   white-space: nowrap;
 }
 
@@ -1377,25 +1378,25 @@ textarea {
   width: 1.1rem;
   height: 1.1rem;
   border-radius: 999px;
-  border: 1px solid rgba(100, 130, 200, 0.35);
-  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--peach-400);
+  background: rgba(255, 255, 255, 0.85);
   font-size: 0.85rem;
   font-weight: 600;
   line-height: 1;
-  color: #3a5a9e;
+  color: var(--ink);
 }
 
 .summary-add-skills-btn:hover {
-  color: #2d4a86;
+  color: var(--ink);
 }
 
 .summary-add-skills-btn:hover .summary-add-skills-plus {
-  border-color: rgba(74, 111, 168, 0.55);
-  background: #fff;
+  border-color: var(--btn-peach);
+  background: var(--peach-50);
 }
 
 .summary-add-skills-btn:focus-visible {
-  outline: 2px solid rgba(74, 111, 168, 0.55);
+  outline: 2px solid var(--btn-peach-hover);
   outline-offset: 3px;
   border-radius: 6px;
 }

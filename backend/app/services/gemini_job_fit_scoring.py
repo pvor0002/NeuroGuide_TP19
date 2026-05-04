@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Tuple
 # Normalization (Gemini synonym tolerance)
 # -----------------------------------------------------------------------------
 
+
 def _sniff(value: object, *keywords: str) -> bool:
     if value is None:
         return False
@@ -152,84 +153,103 @@ def job_fit_is_usable(fit: Dict[str, Optional[str]]) -> bool:
     return any(v is not None for v in fit.values())
 
 
+def _pref_alignment_score(p: str, fit: Dict[str, Optional[str]]) -> float:
+    """
+    Return 0..1 alignment for one selected work preference vs Gemini dimensions.
+    Only selected prefs are evaluated (no penalty for prefs the user did not pick).
+    """
+    ts = fit.get("task_structure")
+    we = fit.get("work_environment")
+    att = fit.get("attention_switching")
+    collab = fit.get("collaboration")
+    intr = fit.get("interrupt_frequency")
+    ws = fit.get("work_style")
+
+    if p == "Clear priorities":
+        if ts == "structured":
+            return 1.0
+        if ts == "mixed":
+            return 0.62
+        if ts == "unstructured":
+            return 0.22
+        return 0.42
+
+    if p == "Short tasks":
+        if att == "low":
+            return 1.0
+        if att == "high":
+            return 0.28
+        return 0.52
+
+    if p == "Visual workflow":
+        if ts in ("structured", "mixed") or ws == "deep_focus":
+            return 1.0
+        if ts == "unstructured":
+            return 0.28
+        return 0.55
+
+    if p == "Low interruptions":
+        if intr == "low":
+            return 1.0
+        if intr == "medium":
+            return 0.58
+        if intr == "high":
+            return 0.18
+        if we in ("quiet", "mixed") and att == "low":
+            return 0.78
+        if we == "fast-paced":
+            return 0.24
+        if ws == "deep_focus":
+            return 0.68
+        return 0.46
+
+    if p == "Collaborative team":
+        if collab in ("high", "medium") or we == "collaborative":
+            return 1.0
+        if collab == "low" and we == "quiet":
+            return 0.22
+        if collab == "low":
+            return 0.38
+        return 0.56
+
+    if p == "Quiet work blocks":
+        if intr == "low" and we in ("quiet", "mixed", "collaborative", "fast-paced"):
+            return 1.0 if we in ("quiet", "mixed") else 0.72
+        if intr == "medium" and we in ("quiet", "mixed"):
+            return 0.66
+        if intr == "high":
+            return 0.18
+        if we == "fast-paced":
+            return 0.24
+        if ws == "deep_focus":
+            return 0.72
+        return 0.46
+
+    return 0.45
+
+
 def _rate_prefs_work_gemini(
     prefs: List[str],
     fit: Dict[str, Optional[str]],
 ) -> Tuple[float, str]:
-    """Preference alignment using Gemini dimensions (+/-15 scale returned as adjustment)."""
+    """
+    Score only selected work preferences against Gemini job-fit dimensions.
+    Uses average alignment (0–1) → continuous adjustment in [-15, +15] so sparse
+    selections (e.g. 2/2 strong) are not bucket-penalized like 2/6 missing.
+    """
     if not prefs:
         return 0.0, "No preferences specified"
 
-    ts = fit.get("task_structure")
-    we = fit.get("work_environment")
-    att = fit.get("attention_switching")
+    scores = [_pref_alignment_score(p, fit) for p in prefs]
+    rate = sum(scores) / max(1.0, float(len(prefs)))
+    # Neutral point ~0.45 so compatible roles skew slightly positive
+    adj = (rate - 0.45) * 36.0
+    adj = max(-15.0, min(15.0, adj))
 
-    hits = 0
-    reasons: List[str] = []
-
-    for p in prefs:
-        ok = False
-        if p == "Clear priorities" and ts == "structured":
-            ok = True
-            reasons.append("structured work fits clear priorities")
-        elif p == "Short tasks" and att == "low":
-            ok = True
-            reasons.append("fewer context switches")
-        elif p == "Visual workflow" and (
-            ts in ("structured", "mixed") or fit.get("work_style") == "deep_focus"
-        ):
-            ok = True
-            reasons.append("structure/visual/deep-focus friendly flow")
-        elif p == "Low interruptions":
-            intr = fit.get("interrupt_frequency")
-            if intr == "high":
-                ok = False
-            elif intr == "low":
-                ok = True
-                reasons.append("posting indicates low interruptions")
-            else:
-                ok = (
-                    we in ("quiet", "mixed")
-                    or att == "low"
-                    or fit.get("work_style") == "deep_focus"
-                )
-                if ok:
-                    reasons.append("quieter or low-switch environment")
-        elif p == "Collaborative team" and (
-            we == "collaborative" or fit.get("collaboration") in ("medium", "high")
-        ):
-            ok = True
-            reasons.append("collaborative setting")
-        elif p == "Quiet work blocks":
-            intr = fit.get("interrupt_frequency")
-            if intr == "high":
-                ok = False
-            elif intr == "low" or we == "quiet" or fit.get("work_style") == "deep_focus":
-                ok = True
-                reasons.append("focus blocks / low interrupt load")
-            else:
-                ok = intr != "high" and att == "low" and we != "fast-paced"
-                if ok:
-                    reasons.append("moderate switching; possible focus windows")
-
-        if ok:
-            hits += 1
-        elif ts == "unstructured" and p in ("Clear priorities", "Visual workflow"):
-            reasons.append(f"'{p}' may need extra scaffolding (role appears fluid)")
-        elif we == "fast-paced" and p in ("Low interruptions", "Quiet work blocks"):
-            reasons.append(f"'{p}' vs fast-paced setting")
-
-    rate = hits / max(1, len(prefs))
-    if rate >= 0.8:
-        adj = 15.0
-    elif rate >= 0.5:
-        adj = 5.0
-    elif rate >= 0.2:
-        adj = -5.0
-    else:
-        adj = -15.0
-
-    detail = "; ".join(reasons[:3]) if reasons else "Gemini job-fit vs work preferences"
+    detail = (
+        f"{len(prefs)} selected preference(s); mean alignment ≈ {rate:.0%} vs posting "
+        f"(task_structure, interrupt_frequency, collaboration, work_environment, work_style)."
+    )
     return adj, detail
 
 
@@ -272,12 +292,12 @@ def _rate_support_gemini(
         adj = 10.0
     elif rate >= 0.5:
         adj = 5.0
-    elif rate == 0:
+    elif rate >= 0.2:
         adj = -5.0
     else:
-        adj = 0.0
+        adj = -10.0
 
-    return adj, "Gemini-derived environment vs your support needs"
+    return adj, f"{hits}/{len(needs)} support signals align with posting structure/pace"
 
 
 def _rate_energy_gemini(
@@ -288,73 +308,74 @@ def _rate_energy_gemini(
         return 0.0, "No energy patterns specified"
 
     ts = fit.get("task_structure")
-    we = fit.get("work_environment")
     dp = fit.get("deadline_pressure")
-    att = fit.get("attention_switching")
+    we = fit.get("work_environment")
     auto = fit.get("autonomy")
-    cog = fit.get("cognitive_load")
+    intr = fit.get("interrupt_frequency")
 
     hits = 0
     for pat in patterns:
         ok = False
         if pat == "Best with routine" and ts == "structured":
             ok = True
-        elif pat == "Best with variety" and we in ("fast-paced", "collaborative"):
+        elif pat == "Best with variety" and ts in ("unstructured", "mixed"):
             ok = True
         elif pat == "Best with clear deadlines" and dp == "high":
             ok = True
-        elif pat == "Best with flexible pace" and auto == "high" and dp == "low":
+        elif pat == "Best with flexible pace" and auto in ("high", "medium"):
             ok = True
-        elif pat == "Best with short focus sprints" and att == "high":
+        elif pat == "Best with short focus sprints" and intr in ("high", "medium"):
             ok = True
-        elif pat == "Best with frequent breaks" and we == "fast-paced":
+        elif pat == "Best with frequent breaks" and dp == "high":
             ok = True
-        elif pat == "Best with visual task boards" and ts == "structured":
+        elif pat == "Best with visual task boards" and ts in ("structured", "mixed"):
             ok = True
-        elif pat == "Best with one task at a time" and att == "low":
+        elif pat == "Best with one task at a time" and intr == "low":
             ok = True
         elif pat == "Best in quieter settings" and we == "quiet":
             ok = True
         elif pat in ("Best with accountability", "Best with body-doubling/accountability") and we == "collaborative":
             ok = True
-        elif pat == "Best with morning deep work" and we in ("quiet", "mixed"):
+        elif pat == "Best with morning deep work" and intr == "low":
             ok = True
-        elif pat == "Best with afternoon deep work" and we in ("quiet", "mixed"):
+        elif pat == "Best with afternoon deep work" and intr == "low":
             ok = True
         if ok:
             hits += 1
 
-    if hits == len(patterns):
+    rate = hits / max(1, len(patterns))
+    if rate >= 0.8:
         adj = 10.0
-    elif hits >= len(patterns) * 0.5:
+    elif rate >= 0.5:
         adj = 5.0
+    elif rate >= 0.2:
+        adj = -5.0
     else:
         adj = -10.0
 
-    return adj, "Gemini environment vs your energy patterns"
+    return adj, f"{hits}/{len(patterns)} energy patterns align with posting pace/structure"
 
 
 def rate_complexity_gemini(adhd_type: str, fit: Dict[str, Optional[str]]) -> Tuple[float, str]:
-    cog = fit.get("cognitive_load")
-    auto = fit.get("autonomy")
-    if not cog:
-        return 0.0, "Cognitive load not inferred (from posting)"
+    cog = fit.get("cognitive_load", "medium")
+    intr = fit.get("interrupt_frequency", "medium")
 
     if adhd_type == "inattentive":
-        if cog == "high":
-            return -10.0, "High cognitive load may tax sustained attention"
-        return 5.0, "Cognitive load appears manageable for inattentive profile"
+        if cog == "high" or intr == "high":
+            return -10.0, "High cognitive load or interruptions — challenging for inattentive profile"
+        if cog == "low" and intr == "low":
+            return +10.0, "Posting suggests manageable load and fewer interruptions"
+        return 0.0, "Mixed complexity signals vs inattentive profile"
 
     if adhd_type == "hyperactive-impulsive":
-        if cog == "low" and auto == "low":
-            return -5.0, "Low stimulation environment may feel understimulating"
-        if cog in ("medium", "high"):
-            return 5.0, "Enough cognitive engagement for stimulation"
-        return 0.0, "Mixed cognitive fit for hyperactive-impulsive profile"
+        if cog == "low" and intr in ("high", "medium"):
+            return +8.0, "Active pace with lighter cognitive load may suit hyperactive-impulsive profile"
+        if cog == "high" and intr == "low":
+            return -6.0, "Heavy cognitive load with low stimulation may feel understimulating"
+        return 0.0, "Mixed complexity signals vs hyperactive-impulsive profile"
 
-    if adhd_type == "combined":
-        if cog == "medium":
-            return 5.0, "Moderate cognitive load often workable with combined presentation"
-        return 0.0, "Mixed cognitive demands—plan for adaptation strategies"
-
-    return 0.0, "Complexity fit (Gemini)"
+    if cog == "medium" and intr in ("medium", "low"):
+        return +6.0, "Balanced load and moderate interruptions — often workable for combined profile"
+    if cog == "high" and intr == "high":
+        return -8.0, "High load and interruptions — may overwhelm combined profile"
+    return 0.0, "Mixed posting complexity vs combined profile"

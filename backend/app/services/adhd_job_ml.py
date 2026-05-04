@@ -85,6 +85,14 @@ _model_lock = threading.Lock()
 _cached_bundle: Optional[Dict[str, Any]] = None
 
 
+def _rf_artifact_sig() -> Optional[tuple[float, float]]:
+    """Invalidate cache when job_success_rf.joblib / .meta.joblib are replaced."""
+    try:
+        return (_MODEL_PATH.stat().st_mtime, _META_PATH.stat().st_mtime)
+    except OSError:
+        return None
+
+
 def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-max(-60.0, min(60.0, x))))
 
@@ -238,6 +246,35 @@ def build_feature_vector(
     return np.asarray(vec, dtype=np.float64)
 
 
+def _inference_feature_names() -> List[str]:
+    """
+    Human-readable names in the same order as build_feature_vector (for importance logging).
+    """
+    names: List[str] = [
+        "profile_inattentive",
+        "profile_hyperactive_impulsive",
+        "profile_combined",
+    ]
+    names.extend(f"work_pref:{k}" for k in WORK_PREF_KEYS)
+    names.extend(f"support:{k}" for k in SUPPORT_KEYS)
+    names.extend(f"energy:{k}" for k in ENERGY_KEYS)
+    names.extend(["diag_class_0", "diag_class_1", "diag_class_2", "diag_class_3"])
+    names.extend(
+        [
+            "impairment_imputed",
+            "q1_mean_imputed",
+            "q2_mean_imputed",
+            "focus_norm_imputed",
+            "age_norm_imputed",
+            "adhd_friendliness_n",
+            "complexity_ord_scaled",
+            "hours_per_week_n",
+            "skill_match_ratio",
+        ]
+    )
+    return names
+
+
 def _load_csv_rows(path: Path) -> List[Dict[str, str]]:
     if not path.is_file():
         logger.warning("[ADHD ML] CSV not found at %s", path)
@@ -374,7 +411,8 @@ def _ensure_model_bundle() -> Dict[str, Any]:
     csv_path = Path(os.environ.get("ADHD_DATASET_CSV", str(_DEFAULT_CSV)))
 
     with _model_lock:
-        if _cached_bundle is not None:
+        sig = _rf_artifact_sig()
+        if _cached_bundle is not None and _cached_bundle.get("artifact_sig") == sig:
             return _cached_bundle
 
         _MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -383,8 +421,14 @@ def _ensure_model_bundle() -> Dict[str, Any]:
             try:
                 model = joblib.load(_MODEL_PATH)
                 meta = joblib.load(_META_PATH)
-                _cached_bundle = {"model": model, "class_means": meta["class_means"], "feature_len": meta["feature_len"]}
-                logger.info("[ADHD ML] Loaded trained model from %s", _MODEL_PATH)
+                sig = _rf_artifact_sig()
+                _cached_bundle = {
+                    "model": model,
+                    "class_means": meta["class_means"],
+                    "feature_len": meta["feature_len"],
+                    "artifact_sig": sig,
+                }
+                logger.info("[ADHD ML] Loaded trained model from %s (mtime sig refreshed)", _MODEL_PATH)
                 return _cached_bundle
             except Exception as e:
                 logger.warning("[ADHD ML] Failed to load cached model: %s — retraining.", e)
@@ -392,7 +436,12 @@ def _ensure_model_bundle() -> Dict[str, Any]:
         rows = _load_csv_rows(csv_path)
         if not rows:
             logger.warning("[ADHD ML] No CSV data — ML layer disabled.")
-            _cached_bundle = {"model": None, "class_means": {}, "feature_len": None}
+            _cached_bundle = {
+                "model": None,
+                "class_means": {},
+                "feature_len": None,
+                "artifact_sig": _rf_artifact_sig(),
+            }
             return _cached_bundle
 
         rng = np.random.default_rng(42)
@@ -404,7 +453,13 @@ def _ensure_model_bundle() -> Dict[str, Any]:
         except Exception:
             pass
         joblib.dump({"class_means": class_means, "feature_len": feat_dim}, _META_PATH)
-        _cached_bundle = {"model": model, "class_means": class_means, "feature_len": feat_dim}
+        sig = _rf_artifact_sig()
+        _cached_bundle = {
+            "model": model,
+            "class_means": class_means,
+            "feature_len": feat_dim,
+            "artifact_sig": sig,
+        }
         logger.info("[ADHD ML] Trained and saved RandomForestRegressor (%s rows)", len(rows))
         return _cached_bundle
 
@@ -438,10 +493,46 @@ def predict_ml_success_probability(
 
     raw = float(model.predict(x)[0])
     prob = max(0.0, min(1.0, raw))
-    return prob, {
+
+    debug_out: Dict[str, Any] = {
         "diagnosis_class_used": dc,
         "person_imputed": person_imputed,
+        "raw_prediction_pre_clamp": raw,
+        "raw_prediction": prob,
     }
+
+    fi = getattr(model, "feature_importances_", None)
+    names = _inference_feature_names()
+    if fi is not None and len(fi) == x.shape[1] and len(names) == len(fi):
+        top_indices = np.argsort(np.asarray(fi))[-5:][::-1]
+        top_features: List[Dict[str, Any]] = []
+        for idx in top_indices:
+            i = int(idx)
+            top_features.append(
+                {
+                    "feature_index": i,
+                    "importance": float(fi[i]),
+                    "feature_name": names[i] if i < len(names) else f"feature_{i}",
+                }
+            )
+        debug_out["top_features_by_importance"] = top_features
+        logger.info("[ML DEBUG] clinical_rf prediction raw=%.6f prob_clamped=%.6f", raw, prob)
+        logger.info("[ML DEBUG] Top 5 global feature importances (RandomForest):")
+        for tf in top_features:
+            logger.info(
+                "  %s (idx=%s) importance=%.6f",
+                tf.get("feature_name"),
+                tf.get("feature_index"),
+                tf.get("importance"),
+            )
+    elif fi is not None:
+        logger.warning(
+            "[ML DEBUG] feature_importances_ length %s vs vector %s — skipping named importance",
+            getattr(fi, "__len__", lambda: 0)(),
+            x.shape[1],
+        )
+
+    return prob, debug_out
 
 
 def ml_score_0_100(prob: float) -> float:

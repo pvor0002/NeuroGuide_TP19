@@ -228,9 +228,24 @@ def calculate_job_score(
         logger.info(f"[JobScore] Using Gemini job fit features: {job_fit_features_from_gemini}")
         occupation['gemini_job_fit'] = job_fit_features_from_gemini
 
-    # 3. Run the scoring model
+    # 3. Run the scoring model (corrected_job_score_model_v2: hybrid task-success classifier + rules)
     model = JobScoreModelV2()
     result = model.score_job_match(user_questionnaire, occupation, job_fit_features=job_fit_features_from_gemini)
+    ml = result.get("ml_layer") or {}
+    dbg = dict(ml.get("ml_debug") or {})
+    if ml.get("note"):
+        dbg["ml_layer_note"] = ml["note"]
+    result["ml_source"] = ml.get("ml_source")
+    result["ml_inference_debug"] = dbg if dbg else None
+    logger.info(
+        "[JobScore] score=%s ml_source=%s job_success_p=%s rule_0_100=%s blended_pre_spread=%s ml_debug_keys=%s",
+        result.get("score"),
+        ml.get("ml_source"),
+        ml.get("job_success_probability"),
+        ml.get("rule_score_0_100"),
+        ml.get("pre_spread_blended"),
+        list(dbg.keys()) if dbg else [],
+    )
 
     # 4. Save to RDS (optional — don't fail if this errors)
     if session_id:

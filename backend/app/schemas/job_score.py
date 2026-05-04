@@ -104,3 +104,11 @@ class JobScoreResponse(BaseModel):
         default=None,
         description="Hybrid ML + rule blend metadata (job_success_probability, rule_score_0_100, etc.)",
     )
+    ml_source: Optional[str] = Field(
+        default=None,
+        description="Active ML path: task_success_classifier | clinical_dataset_rf",
+    )
+    ml_inference_debug: Optional[Dict] = Field(
+        default=None,
+        description="Classifier diagnostics (paths, feature shape, fallback_reason when applicable)",
+    )

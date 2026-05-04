@@ -45,6 +45,18 @@ _lock = threading.Lock()
 _bundle: Optional[Dict[str, Any]] = None
 
 
+def _artifact_mtime_sig(model_p: Path, scaler_p: Path, feat_p: Path) -> Optional[tuple[float, float, float]]:
+    """Signature changes when any training artifact is replaced — invalidate in-memory cache."""
+    try:
+        return (
+            model_p.stat().st_mtime,
+            scaler_p.stat().st_mtime,
+            feat_p.stat().st_mtime,
+        )
+    except OSError:
+        return None
+
+
 def _load_training_medians() -> Tuple[float, float]:
     meta_path = Path(os.environ.get("JOB_SUCCESS_TRAIN_META", str(_DEFAULT_META)))
     if meta_path.is_file():
@@ -61,22 +73,26 @@ def _load_training_medians() -> Tuple[float, float]:
 
 def _ensure_bundle() -> Optional[Dict[str, Any]]:
     global _bundle
-    with _lock:
-        if _bundle is not None:
-            return _bundle
+    model_p = Path(os.environ.get("JOB_SUCCESS_MODEL_PATH", str(_DEFAULT_MODEL)))
+    scaler_p = Path(os.environ.get("JOB_SUCCESS_SCALER_PATH", str(_DEFAULT_SCALER)))
+    feat_p = Path(os.environ.get("JOB_SUCCESS_FEATURE_NAMES_PATH", str(_DEFAULT_FEATURES)))
+    sig = _artifact_mtime_sig(model_p, scaler_p, feat_p)
 
-        model_p = Path(os.environ.get("JOB_SUCCESS_MODEL_PATH", str(_DEFAULT_MODEL)))
-        scaler_p = Path(os.environ.get("JOB_SUCCESS_SCALER_PATH", str(_DEFAULT_SCALER)))
-        feat_p = Path(os.environ.get("JOB_SUCCESS_FEATURE_NAMES_PATH", str(_DEFAULT_FEATURES)))
+    with _lock:
+        if _bundle is not None and _bundle.get("artifact_sig") == sig:
+            return _bundle
 
         if not model_p.is_file() or not scaler_p.is_file() or not feat_p.is_file():
             logger.info(
-                "[TaskSuccessML] Missing artifacts (model=%s scaler=%s features=%s)",
+                "[TaskSuccessML] Missing artifacts (model=%s scaler=%s features=%s) paths=%s %s %s",
                 model_p.is_file(),
                 scaler_p.is_file(),
                 feat_p.is_file(),
+                model_p,
+                scaler_p,
+                feat_p,
             )
-            _bundle = {"ok": False}
+            _bundle = {"ok": False, "artifact_sig": sig}
             return _bundle
 
         with open(feat_p, encoding="utf-8") as f:
@@ -84,11 +100,16 @@ def _ensure_bundle() -> Optional[Dict[str, Any]]:
 
         _bundle = {
             "ok": True,
+            "artifact_sig": sig,
             "model": joblib.load(model_p),
             "scaler": joblib.load(scaler_p),
             "feature_names": feature_names,
         }
-        logger.info("[TaskSuccessML] Loaded classifier (%d features)", len(feature_names))
+        logger.info(
+            "[TaskSuccessML] Loaded classifier %d features from %s (mtime sig refreshed)",
+            len(feature_names),
+            model_p,
+        )
         return _bundle
 
 
@@ -217,13 +238,38 @@ def predict_task_success_probability(
     """
     Returns (positive_class_probability, debug_dict) or (None, ...) if artifacts missing.
     """
+    model_p = Path(os.environ.get("JOB_SUCCESS_MODEL_PATH", str(_DEFAULT_MODEL)))
+    scaler_p = Path(os.environ.get("JOB_SUCCESS_SCALER_PATH", str(_DEFAULT_SCALER)))
+    feat_p = Path(os.environ.get("JOB_SUCCESS_FEATURE_NAMES_PATH", str(_DEFAULT_FEATURES)))
+    base_dbg: Dict[str, Any] = {
+        "model_path_resolved": str(model_p),
+        "scaler_path_resolved": str(scaler_p),
+        "features_path_resolved": str(feat_p),
+        "ml_source": "task_success_classifier",
+    }
+
     bundle = _ensure_bundle()
     if not bundle or not bundle.get("ok"):
-        return None, {"error": "task_success_model_unavailable"}
+        parts = []
+        if not model_p.is_file():
+            parts.append(f"missing_model_file:{model_p}")
+        if not scaler_p.is_file():
+            parts.append(f"missing_scaler_file:{scaler_p}")
+        if not feat_p.is_file():
+            parts.append(f"missing_features_file:{feat_p}")
+        reason = "; ".join(parts) if parts else "bundle_unavailable_or_load_failed"
+        logger.error("[TaskSuccessML] FALLBACK — task classifier unavailable reason=%s", reason)
+        return None, {
+            "error": "task_success_model_unavailable",
+            "fallback_reason": reason,
+            **base_dbg,
+        }
 
     tpl_path = Path(os.environ.get("ADHD_PROFILE_TEMPLATES", str(_DEFAULT_TEMPLATES)))
     if not tpl_path.is_file():
-        return None, {"error": "adhd_profile_templates_missing"}
+        fr = f"adhd_profile_templates_missing:{tpl_path}"
+        logger.error("[TaskSuccessML] FALLBACK %s", fr)
+        return None, {"error": "adhd_profile_templates_missing", "fallback_reason": fr, **base_dbg}
 
     profiles = load_profile_templates(tpl_path)
     raw_row = build_inference_feature_row(user_questionnaire, occupation, profiles)
@@ -238,34 +284,58 @@ def predict_task_success_probability(
         X_scaled[TASK_NUM_COLS] = scaler.transform(X_scaled[TASK_NUM_COLS])
     except Exception as e:
         logger.exception("[TaskSuccessML] scaler transform failed: %s", e)
-        return None, {"error": "scaler_transform_failed"}
+        return None, {
+            "error": "scaler_transform_failed",
+            "fallback_reason": str(e),
+            **base_dbg,
+        }
 
     X_scaled = X_scaled.astype(np.float64)
     if not np.isfinite(X_scaled.values).all():
         logger.warning("[TaskSuccessML] non-finite values after scaling — coerced to 0")
         X_scaled = X_scaled.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-    # Feature dimension drift vs training artifact
     try:
         expected_n = int(getattr(model, "n_features_in_", 0) or 0)
     except Exception:
         expected_n = 0
     if expected_n and X_scaled.shape[1] != expected_n:
-        logger.error(
-            "[TaskSuccessML] feature count mismatch: got %s columns, model expects %s — fallback",
-            X_scaled.shape[1],
-            expected_n,
-        )
+        fr = f"feature_column_mismatch:got={X_scaled.shape[1]}:expected={expected_n}"
+        logger.error("[TaskSuccessML] FALLBACK %s", fr)
         return None, {
             "error": "feature_column_mismatch",
+            "fallback_reason": fr,
             "n_columns": X_scaled.shape[1],
             "expected": expected_n,
+            **base_dbg,
         }
+
+    logger.info(
+        "[TaskSuccessML] predict_proba input shape=%s n_cols=%s model=%s n_features_in_=%s",
+        tuple(X_scaled.shape),
+        X_scaled.shape[1],
+        type(model).__name__,
+        getattr(model, "n_features_in_", None),
+    )
 
     probs = model.predict_proba(X_scaled)[0]
     pos_idx = 1 if len(probs) > 1 else 0
     p = float(probs[pos_idx])
-    return p, {"source": "task_rf_classifier", "n_features": len(feature_names)}
+    out_dbg = {
+        **base_dbg,
+        "feature_matrix_shape": [int(X_scaled.shape[0]), int(X_scaled.shape[1])],
+        "n_feature_names": len(feature_names),
+        "model_n_features_in": expected_n or getattr(model, "n_features_in_", None),
+        "classifier_class": type(model).__name__,
+        "positive_class_probability": round(p, 6),
+        "source": "task_rf_classifier",
+    }
+    logger.info(
+        "[TaskSuccessML] OK ml_source=task_success_classifier proba_pos=%.6f shape=%s",
+        p,
+        out_dbg["feature_matrix_shape"],
+    )
+    return p, out_dbg
 
 
 def reset_task_success_cache_for_tests() -> None:
