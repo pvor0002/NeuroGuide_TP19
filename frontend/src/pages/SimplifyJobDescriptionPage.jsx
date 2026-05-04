@@ -21,6 +21,8 @@ import {
   normalizeJobTitleKey,
   readJobScoreHistory,
   readPersistedJobScore,
+  jobScoreHistoryEntriesEqual,
+  removeJobScoreHistoryEntry,
   writePersistedJobScore,
 } from "../utils/jobScorePersistence.js";
 import { registerCloudAccountFromLocalState } from "../utils/cloudSync.js";
@@ -1246,7 +1248,7 @@ function resolveHistoryModalModel(item, liveSimplifiedResult, inputMode, text, f
 }
 
 /** Full simplified breakdown + match score for a past history row (modal). */
-function JobHistoryDetailModal({ open, item, fallbackProfileKey, liveSimplifiedResult, inputMode, text, fileExtractedText, onClose }) {
+export function JobHistoryDetailModal({ open, item, fallbackProfileKey, liveSimplifiedResult, inputMode, text, fileExtractedText, onClose }) {
   const closeBtnRef = useRef(null);
   const [detailTab, setDetailTab] = useState("simplified");
 
@@ -1400,14 +1402,27 @@ function JobHistoryDetailModal({ open, item, fallbackProfileKey, liveSimplifiedR
             </section>
           ) : null}
 
-          <section className="jsc-history-detail-section" aria-label="Job match score">
+          <section className="jsc-history-detail-section jsc-history-detail-section--score" aria-label="Job match score">
             <h4 className="jsc-history-detail-subtitle jsc-history-detail-subtitle--score">Job suitability</h4>
-            <JobScoreCard
-              result={item.result}
-              occupationName={item.occupationName}
-              ariaHeadingId="jsc-history-modal-score-heading"
-            />
+            <div className="jsc-history-detail-score-shell">
+              <JobScoreCard
+                result={item.result}
+                occupationName={item.occupationName}
+                ariaHeadingId="jsc-history-modal-score-heading"
+                hideInterviewPrepCta
+              />
+            </div>
           </section>
+
+          <div className="jsc-history-detail-footer">
+            <Link
+              className="jsc-history-detail-interview"
+              to="/interview-prep"
+              onClick={() => onClose()}
+            >
+              Start preparing for interview
+            </Link>
+          </div>
         </div>
       </div>
     </>
@@ -2024,13 +2039,26 @@ export default function SimplifyJobDescriptionPage() {
                         ) : (
                           <span className="jsc-history-time-spacer" />
                         )}
-                        <button
-                          type="button"
-                          className="jsc-history-detail-open"
-                          onClick={() => setHistoryDetailItem(item)}
-                        >
-                          View full detail
-                        </button>
+                        <div className="jsc-history-card-actions-btns">
+                          <button
+                            type="button"
+                            className="jsc-history-detail-open"
+                            onClick={() => setHistoryDetailItem(item)}
+                          >
+                            View full detail
+                          </button>
+                          <button
+                            type="button"
+                            className="jsc-history-delete-open"
+                            onClick={() => {
+                              const next = removeJobScoreHistoryEntry(item);
+                              setJobScoreHistory(next);
+                              setHistoryDetailItem((cur) => (cur && item && jobScoreHistoryEntriesEqual(cur, item) ? null : cur));
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </article>
                   );

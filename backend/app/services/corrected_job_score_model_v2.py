@@ -5,9 +5,9 @@ JOB SCORE MODEL v2 — HYBRID (RULES + ML)
 
 Combines (1) explainable rule-based factors for UX and (2) a RandomForest regressor
 trained on the clinical ADHD CSV (`data/ADHD dataset 4 classes u2.csv`) with
-semi-supervised targets (impairment vs synthetic job environment). Final score:
-``ml_w * ML + (1-ml_w) * rule_tilt`` where ``ml_w`` is 0.30–0.60 from ML probability uncertainty
-(near 0.5 ⇒ favor rules until real training data), then nonlinear spread; display clamp [0, 100] for debugging.
+semi-supervised targets (impairment vs synthetic job environment). Final score (unless ``ML_BLEND_WEIGHT`` is 0): ``ml_w * ML + (1-ml_w) * rule_tilt`` where ``ml_w`` is
+0.30–0.60 from ML probability uncertainty (near 0.5 ⇒ favor rules), then nonlinear spread; display clamp
+[0, 100] for debugging. When ``ML_BLEND_WEIGHT = 0`` and ``RULE_BLEND_WEIGHT = 1``, only rule tilt is used.
 
 The rule layer integrates the comprehensive user preference questionnaire:
 
@@ -87,11 +87,28 @@ def _normalize_soft_demand_level(value: object) -> Optional[str]:
     s = str(value).lower().strip()
     if not s:
         return None
+    # Exact tokens first (model sometimes echoes schema labels)
+    if s in ("low", "medium", "high"):
+        return s
     if any(x in s for x in ("low", "light", "minimal", "basic")):
         return "low"
     if any(x in s for x in ("medium", "moderate", "mid", "average", "balanced")):
         return "medium"
-    if any(x in s for x in ("high", "heavy", "strong", "critical", "essential", "significant")):
+    if any(
+        x in s
+        for x in (
+            "high",
+            "heavy",
+            "strong",
+            "critical",
+            "essential",
+            "significant",
+            "required",
+            "important",
+            "key",
+            "vital",
+        )
+    ):
         return "high"
     return None
 
@@ -184,11 +201,15 @@ class JobScoreModelV2:
 
     # Stronger negative adjustments (reduces 50–70 soft clustering on poor fits)
     PENALTY_STRENGTH = 1.28
+    # ── Hybrid blend (aggressive rebalance) ──────────────────────────────────────
+    # Keep rule layer primary while retaining ML penalty for hard domain mismatches.
+    ML_BLEND_WEIGHT = 0.20
+    RULE_BLEND_WEIGHT = 0.80
     # Baseline blend when no ML prob (documentation / trace only; actual blend is uncertainty-weighted).
     ML_BLEND_WEIGHT_BASE = 0.40
     RULE_BLEND_WEIGHT_BASE = 0.60
-    # Compress rule_score toward neutral before blending when ML is active (rules = tilt, not driver).
-    RULE_BLEND_COMPRESSION = 0.42
+    # Use raw rule score for blending (no compression toward 50).
+    RULE_BLEND_COMPRESSION = 1.0
 
     def __init__(self, training_data: Optional[Dict] = None):
         """
@@ -212,6 +233,8 @@ class JobScoreModelV2:
         Uncertainty-weighted ML share: 0.30 when p≈0.5 (uncertain), up to 0.60 at extremes.
         Complement goes to the compressed rule tilt until we have calibrated production labels.
         """
+        if JobScoreModelV2.ML_BLEND_WEIGHT <= 0.0 and JobScoreModelV2.RULE_BLEND_WEIGHT >= 1.0:
+            return 0.0, 1.0
         if ml_prob is None:
             return JobScoreModelV2.ML_BLEND_WEIGHT_BASE, JobScoreModelV2.RULE_BLEND_WEIGHT_BASE
         p = max(0.0, min(1.0, float(ml_prob)))
@@ -619,10 +642,16 @@ class JobScoreModelV2:
             blended = ml_w_eff * ml_100 + rule_w_eff * rule_tilt
             ml_layer["ml_blend_weight_effective"] = round(ml_w_eff, 4)
             ml_layer["rule_blend_weight_effective"] = round(rule_w_eff, 4)
-            ml_layer["blend"] = (
-                f"{ml_w_eff:.0%} ML ({blend_ml_desc}) + {rule_w_eff:.0%} compressed rule tilt "
-                f"(|p−0.5| weights ML 30–60% until retrain)"
-            )
+            if ml_w_eff <= 0.0:
+                ml_layer["blend"] = (
+                    "rules only — ML_BLEND_WEIGHT=0 (nuclear); compressed rule tilt only "
+                    f"(ML prob still logged: {blend_ml_desc})"
+                )
+            else:
+                ml_layer["blend"] = (
+                    f"{ml_w_eff:.0%} ML ({blend_ml_desc}) + {rule_w_eff:.0%} compressed rule tilt "
+                    f"(|p−0.5| weights ML 30–60% until retrain)"
+                )
             logger.info(
                 "[JobScoreModelV2 DEBUG] blend_constants ml_w_effective=%.4f rule_w_effective=%.4f "
                 "RULE_BLEND_COMPRESSION=%.4f (rule tilt pulls rule_score toward 50 before mixing)",
@@ -687,6 +716,8 @@ class JobScoreModelV2:
         # ── Transparent blend audit (API + logs): documents actual weights / steps ─────────
         blend_trace: Dict = {
             "formula_notes": (
+                "OVERRIDE: ML_BLEND_WEIGHT=0 & RULE_BLEND_WEIGHT=1 ⇒ ml_w_effective=0, rule_w_effective=1 "
+                "(rule tilt only; ML ignored for blend). Otherwise: "
                 "blended_pre_spread = ml_w_effective * ml_score_0_100 + rule_w_effective * rule_tilt; "
                 "ml_w in [0.30,0.60] from |ml_prob−0.5| (uncertain ⇒ favor rules); "
                 "rule_tilt = 50 + (rule_score - 50) * RULE_BLEND_COMPRESSION; "
@@ -694,6 +725,8 @@ class JobScoreModelV2:
                 f"then clamp to [{cap_lo}, {cap_hi}] for debugging."
             ),
             "constants": {
+                "ML_BLEND_WEIGHT": self.ML_BLEND_WEIGHT,
+                "RULE_BLEND_WEIGHT": self.RULE_BLEND_WEIGHT,
                 "ML_BLEND_WEIGHT_BASE": self.ML_BLEND_WEIGHT_BASE,
                 "RULE_BLEND_WEIGHT_BASE": self.RULE_BLEND_WEIGHT_BASE,
                 "ml_blend_weight_effective": ml_layer.get("ml_blend_weight_effective"),
@@ -772,7 +805,13 @@ class JobScoreModelV2:
         reasoning = self._build_detailed_reasoning(
             final_score, factors, occupation, user_questionnaire, ml_layer
         )
-        
+
+        soft_skills_debug = self._build_soft_skills_debug(
+            use_gemini_fit=use_gemini_fit,
+            parsed_soft_model=parsed_soft_model,
+            user_soft_inferred=user_soft_inferred,
+        )
+
         return {
             'score': round(final_score, 1),
             'recommendation': recommendation,
@@ -783,11 +822,78 @@ class JobScoreModelV2:
             'suggested_accommodations': accommodations,
             'match_confidence': round(confidence, 2),
             'ml_layer': ml_layer,
+            'soft_skills_debug': soft_skills_debug,
             'occupation': {
                 'name': occupation.get('occupation_name', ''),
                 'anzsco_code': occupation.get('anzsco_code', ''),
                 'complexity': occupation.get('work_complexity', 'Unknown')
             }
+        }
+
+    def _build_soft_skills_debug(
+        self,
+        *,
+        use_gemini_fit: bool,
+        parsed_soft_model: Optional[SoftSkillRequirements],
+        user_soft_inferred: Dict[str, str],
+    ) -> Dict:
+        """
+        API / UI payload: posting soft-skill demands (when parsed), inferred profile map,
+        and a 0–100 display score when at least one posting dimension was scored.
+        """
+        user_inf = {k: user_soft_inferred.get(k) for k in _SOFT_SKILL_KEYS}
+
+        demands_flat: Dict[str, str] = {}
+        if use_gemini_fit and parsed_soft_model is not None:
+            for k in _SOFT_SKILL_KEYS:
+                v = _normalize_soft_demand_level(getattr(parsed_soft_model, k, None))
+                if v:
+                    demands_flat[k] = v
+
+        dimensions_scored = len(demands_flat)
+        soft_skills_score: Optional[float] = None
+        if dimensions_scored > 0:
+            scores: List[float] = []
+            for key in _SOFT_SKILL_KEYS:
+                dlevel = demands_flat.get(key)
+                if not dlevel:
+                    continue
+                dn = _soft_level_to_num(dlevel)
+                if dn is None:
+                    continue
+                ulevel = user_inf.get(key, "medium")
+                un = _soft_level_to_num(ulevel)
+                if un is None:
+                    un = 1
+                gap = un - dn
+                if gap >= 1:
+                    dim_score = 100.0
+                elif gap == 0:
+                    dim_score = 80.0
+                elif gap == -1:
+                    dim_score = 50.0
+                else:
+                    dim_score = 20.0
+                scores.append(dim_score)
+            if scores:
+                soft_skills_score = float(round(sum(scores) / len(scores), 1))
+
+        tiered = sum(1 for k in _SOFT_SKILL_KEYS if user_inf.get(k) in ("medium", "high"))
+        ui_hint: Optional[str] = None
+        if soft_skills_score is None:
+            ui_hint = (
+                "Soft skills not clearly extracted from posting. "
+                f"Inferred from your profile: {tiered}/7 dimensions at medium or higher signal strength "
+                "(no role-specific soft-skill demands were parsed from this posting to score against)."
+            )
+
+        return {
+            "soft_skills_score": soft_skills_score,
+            "soft_skills_extracted": demands_flat if demands_flat else None,
+            "soft_skills_user_inferred": user_inf,
+            "posting_had_soft_skill_requirements": bool(dimensions_scored > 0),
+            "dimensions_scored": dimensions_scored,
+            "soft_skills_ui_hint": ui_hint,
         }
 
     def _infer_user_soft_skills(
