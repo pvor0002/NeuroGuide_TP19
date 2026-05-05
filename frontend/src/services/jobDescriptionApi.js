@@ -103,7 +103,8 @@ export async function predictJobScore(
   occupationId,
   jobSkills,
   sessionId,
-  jobFitFeaturesFromGemini = null
+  jobFitFeaturesFromGemini = null,
+  userSoftSkillsOverrides = null,
 ) {
   const res = await fetch(`${API_BASE}/predict-job-score`, {
     method: "POST",
@@ -113,6 +114,7 @@ export async function predictJobScore(
       occupation_id: occupationId,
       job_skills_from_gemini: jobSkills,
       job_fit_features_from_gemini: jobFitFeaturesFromGemini ?? null,
+      user_soft_skills_overrides: userSoftSkillsOverrides ?? null,
       session_id: sessionId ?? null,
     }),
   });

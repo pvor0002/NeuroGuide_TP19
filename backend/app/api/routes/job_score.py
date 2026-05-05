@@ -125,6 +125,7 @@ async def predict_job_score(request: JobScoreRequest):
             session_id=request.session_id,
             job_skills_from_gemini=request.job_skills_from_gemini,
             job_fit_features_from_gemini=fit_payload,
+            user_soft_skills_overrides=request.user_soft_skills_overrides,
         )
 
         logger.info(f"[JobScore] Score calculated: {result['score']}/100")

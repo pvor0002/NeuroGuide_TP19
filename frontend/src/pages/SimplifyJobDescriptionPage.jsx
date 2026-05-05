@@ -1472,6 +1472,7 @@ export default function SimplifyJobDescriptionPage() {
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [historyDetailItem, setHistoryDetailItem] = useState(null);
   const [jobScoreHistory, setJobScoreHistory] = useState([]);
+  const [softSkillOverrides, setSoftSkillOverrides] = useState({});
 
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
@@ -1513,6 +1514,7 @@ export default function SimplifyJobDescriptionPage() {
           extractedSkills.length > 0 ? extractedSkills : null,
           null,
           fitFeatures && typeof fitFeatures === "object" ? fitFeatures : null,
+          Object.keys(softSkillOverrides || {}).length ? softSkillOverrides : null,
         );
 
         setJobScoreOccupationName(occupationName);
@@ -1542,11 +1544,17 @@ export default function SimplifyJobDescriptionPage() {
         setJobScoreBusy(false);
       }
     },
-    [simplifiedResult, savedProfileKey, activeProfile, inputMode, text, fileExtractedText],
+    [simplifiedResult, savedProfileKey, activeProfile, inputMode, text, fileExtractedText, softSkillOverrides],
   );
 
   const handleSkillProfileChange = useCallback(
-    ({ skill, action }) => {
+    ({ skill, action, fromZone, toZone, softOverrideKey, softOverrideLevel }) => {
+      const softZone = String(fromZone || "").startsWith("soft_") && String(toZone || "").startsWith("soft_");
+      if (softZone && softOverrideKey && (softOverrideLevel === "high" || softOverrideLevel === "medium" || softOverrideLevel === "low")) {
+        setSoftSkillOverrides((prev) => ({ ...prev, [softOverrideKey]: softOverrideLevel }));
+        void runJobScoreForSkills({ appendHistory: false });
+        return;
+      }
       const label = String(skill || "").trim();
       if (!label || (action !== "add" && action !== "remove")) return;
       try {
@@ -1576,6 +1584,10 @@ export default function SimplifyJobDescriptionPage() {
     },
     [runJobScoreForSkills],
   );
+
+  useEffect(() => {
+    setSoftSkillOverrides({});
+  }, [jobScoreCacheSyncKey]);
 
   useEffect(() => {
     const sr = simplifiedResultRef.current;

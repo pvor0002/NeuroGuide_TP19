@@ -5978,6 +5978,61 @@ a.btn.btn-primary:hover {
   border: 1px solid rgba(82, 70, 55, 0.1);
 }
 
+.jsc-jobmatch-confidence-anchor {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+}
+
+.jsc-jobmatch-confidence-anchor:focus {
+  outline: none;
+}
+
+.jsc-jobmatch-confidence-anchor:focus-visible {
+  outline: 2px solid rgba(46, 106, 68, 0.45);
+  outline-offset: 4px;
+  border-radius: 14px;
+}
+
+.jsc-jobmatch-confidence-anchor--open {
+  z-index: 25;
+}
+
+.jsc-jobmatch-confidence-tooltip {
+  position: absolute;
+  top: calc(100% + 0.42rem);
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  pointer-events: none;
+  min-width: 13rem;
+  max-width: min(19rem, 92vw);
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(82, 70, 55, 0.22);
+  background: rgba(41, 36, 32, 0.94);
+  color: #fffaf2;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: left;
+  white-space: pre-wrap;
+  box-shadow: 0 10px 26px rgba(24, 18, 12, 0.28);
+}
+
+.jsc-jobmatch-confidence-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-bottom-color: rgba(41, 36, 32, 0.94);
+}
+
 .jsc-jobmatch-confidence-info {
   display: inline-flex;
   align-items: center;
