@@ -145,11 +145,14 @@ export default function DataConsentModal({
               Before you continue
             </h2>
             <p className="ng-consent-text">
-              NeuroGuide stores your <strong>profile answers</strong> and <strong>simplified job history</strong> in this browser so your progress is saved.
+              NeuroGuide saves your <strong>profile answers</strong> and <strong>job tools progress</strong> on this device so you can come back later.
             </p>
             <p className="ng-consent-text">
-              We do <strong>not</strong> store personal contact details (<strong>email</strong> or <strong>phone</strong>), and we do
-              <strong> not</strong> use your data for anything else.
+              If you accept, we also generate a <strong>pass key</strong> (a recovery code). This can be used to back up and restore your saved progress across devices.
+            </p>
+            <p className="ng-consent-text">
+              We do <strong>not</strong> ask for or store personal contact details like <strong>name</strong>, <strong>email</strong>, or{" "}
+              <strong>phone</strong>. Your saved data exists only for your convenience.
             </p>
             <div className="ng-consent-check-wrap">
               <label className="ng-consent-check">
@@ -166,7 +169,7 @@ export default function DataConsentModal({
             ) : null}
             <div className="ng-consent-actions">
               <button type="button" className="ng-consent-btn ng-consent-btn--ghost" onClick={decline}>
-                Decline
+                Continue as guest
               </button>
               <button type="button" className="ng-consent-btn ng-consent-btn--primary" onClick={accept}>
                 Accept and continue
