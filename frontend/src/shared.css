@@ -807,14 +807,7 @@ body {
   gap: 20px;
 }
 
-.interview-page {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 48px 24px 80px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+
 
 /* -- Menu list (root view) --------------------------------------------- */
 .settings-menu {
