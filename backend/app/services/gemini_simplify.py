@@ -434,6 +434,82 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
     if isinstance(raw_fit, dict):
         _ssr_raw = raw_fit.get("soft_skill_requirements")
 
+    def _apply_neutral_job_fit_defaults(model: GeminiJobFitFeatures) -> GeminiJobFitFeatures:
+        """
+        Ensure job_fit_features is never "all null".
+
+        The frontend and scoring endpoint treat an all-null object as "no signals extracted",
+        because the scoring request uses `exclude_none=True` (empty dict => Gemini job-fit
+        logic is skipped). We prefer explicit neutral defaults over missing values.
+        """
+        base = model.model_dump() if isinstance(model, GeminiJobFitFeatures) else {}
+        if not isinstance(base, dict):
+            base = {}
+
+        # Neutral defaults (match SYSTEM_INSTRUCTION allowed tokens).
+        base.setdefault("task_structure", None)
+        base.setdefault("work_environment", None)
+        base.setdefault("cognitive_load", None)
+        base.setdefault("attention_switching", None)
+        base.setdefault("deadline_pressure", None)
+        base.setdefault("autonomy", None)
+        base.setdefault("work_style", None)
+        base.setdefault("collaboration", None)
+        base.setdefault("interruptions", None)
+
+        if not (base.get("task_structure") or "").strip():
+            base["task_structure"] = "mixed"
+        if not (base.get("work_environment") or "").strip():
+            base["work_environment"] = "mixed"
+        if not (base.get("cognitive_load") or "").strip():
+            base["cognitive_load"] = "medium"
+        if not (base.get("attention_switching") or "").strip():
+            base["attention_switching"] = "low"
+        if not (base.get("deadline_pressure") or "").strip():
+            base["deadline_pressure"] = "low"
+        if not (base.get("autonomy") or "").strip():
+            base["autonomy"] = "medium"
+        if not (base.get("work_style") or "").strip():
+            base["work_style"] = "mixed"
+        if not (base.get("collaboration") or "").strip():
+            base["collaboration"] = "medium"
+        if not (base.get("interruptions") or "").strip():
+            base["interruptions"] = "medium"
+
+        ssr = base.get("soft_skill_requirements")
+        if not isinstance(ssr, dict):
+            ssr = {}
+        # Always provide all seven keys (neutral "medium" default).
+        for k in (
+            "communication",
+            "time_management",
+            "problem_solving",
+            "leadership",
+            "teamwork",
+            "adaptability",
+            "self_motivation",
+        ):
+            v = ssr.get(k)
+            if v is None or not str(v).strip():
+                ssr[k] = "medium"
+        base["soft_skill_requirements"] = ssr
+
+        try:
+            return GeminiJobFitFeatures.model_validate(base)
+        except Exception:
+            # In the worst case, return a minimally usable object.
+            return GeminiJobFitFeatures(
+                task_structure="mixed",
+                work_environment="mixed",
+                cognitive_load="medium",
+                attention_switching="low",
+                deadline_pressure="low",
+                autonomy="medium",
+                work_style="mixed",
+                collaboration="medium",
+                interruptions="medium",
+            )
+
     try:
         job_fit_features = GeminiJobFitFeatures.model_validate(raw_fit or {})
     except Exception:
@@ -442,6 +518,8 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
             json.dumps(raw_fit, default=str) if raw_fit is not None else "null",
         )
         job_fit_features = GeminiJobFitFeatures()
+
+    job_fit_features = _apply_neutral_job_fit_defaults(job_fit_features)
 
     _ssr = job_fit_features.soft_skill_requirements
     _ssr_any = False
