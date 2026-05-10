@@ -116,33 +116,6 @@ const HOW_IT_WORKS = [
   },
 ];
 
-const FAQ_ITEMS = [
-  {
-    id: "faq-what",
-    question: "What is NeuroGuide for?",
-    answer:
-      "It helps you read job posts in shorter chunks with clear headings. It also walks you through a simple profile so you can save how you describe your skills and experience.",
-  },
-  {
-    id: "faq-profile-storage",
-    question: "Where does my profile information go?",
-    answer:
-      "It is saved only in your browser on this device. You can close the tab and come back later.",
-  },
-  {
-    id: "faq-simplify",
-    question: "How does “Simplify Job Description” work?",
-    answer:
-      "You paste the posting or upload a file. NeuroGuide gives you a version split into shorter parts with headings so it is easier to read. If nothing comes back, simplify may not be ready for you yet.",
-  },
-  {
-    id: "faq-account",
-    question: "Do I need an account?",
-    answer:
-      "No. There is no login or password for this version.",
-  },
-];
-
 const DATA_SOURCES = [
   {
     iconSrc: "/images/datasets/au-jobs-skills-taxonomy.png",
@@ -203,12 +176,47 @@ export default function HomePage() {
             <BrandMark className="home-hero-mark" />
             <p className="home-hero-kicker">NeuroGuide</p>
           </div>
+          <p className="home-hero-badge">Built for ADHD minds in IT careers</p>
           <h1 id="home-hero-title" className="home-hero-title">
-            Where clarity meets opportunity
+            <span className="home-hero-title-line">Ever read a job description</span>
+            <span className="home-hero-title-line">and felt completely lost?</span>
           </h1>
-          <p className="home-hero-tagline" role="doc-subtitle">
-            Simplifying jobs and interviews for the way your mind works
+          <p className="home-hero-lead home-hero-lead--hero" role="doc-subtitle">
+            NeuroGuide is built for ADHD minds. We simplify the jargon, show you how well you fit, and guide your
+            interview prep — one step at a time.
           </p>
+          <ul className="home-hero-features" role="list" aria-label="What NeuroGuide offers">
+            <li className="home-hero-feature">
+              <span className="home-hero-feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z" />
+                  <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                </svg>
+              </span>
+              <span className="home-hero-feature-text">Simplified job descriptions</span>
+            </li>
+            <li className="home-hero-feature">
+              <span className="home-hero-feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                  <path d="M3 3v18h18" />
+                  <path d="M7 16V9" />
+                  <path d="M12 16v-4" />
+                  <path d="M17 16V6" />
+                </svg>
+              </span>
+              <span className="home-hero-feature-text">Your personal fit score</span>
+            </li>
+            <li className="home-hero-feature">
+              <span className="home-hero-feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                  <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+                  <path d="M12 19v3M8 22h8" />
+                </svg>
+              </span>
+              <span className="home-hero-feature-text">Interview confidence coaching</span>
+            </li>
+          </ul>
           <a
             href="#home-main-start"
             className="home-hero-scroll"
@@ -350,25 +358,6 @@ export default function HomePage() {
           </ul>
 
           <p className="home-focus-note">Reading tool only-not medical or career advice.</p>
-        </div>
-      </section>
-
-      <section className="home-band home-band--white home-faq" aria-labelledby="home-faq-title">
-        <div className="home-band-inner home-band-inner--wide">
-          <h2 id="home-faq-title" className="home-section-title">
-            Frequently asked questions
-          </h2>
-          <p className="home-section-lead">
-            Quick answers about how this prototype works and how your information is handled.
-          </p>
-          <div className="home-faq-list">
-            {FAQ_ITEMS.map(({ id, question, answer }) => (
-              <details key={id} className="home-faq-item" name="home-faq">
-                <summary className="home-faq-summary">{question}</summary>
-                <p className="home-faq-answer">{answer}</p>
-              </details>
-            ))}
-          </div>
         </div>
       </section>
 

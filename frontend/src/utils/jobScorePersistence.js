@@ -1,6 +1,9 @@
 export const JOB_SCORE_STORAGE_KEY = "neuroguide.jobScore.v1";
 export const JOB_SCORE_HISTORY_STORAGE_KEY = "neuroguide.jobScore.history.v1";
+/** JD scores the user explicitly saved (shown on My Saved Scores). */
+export const JOB_SCORE_USER_SAVED_STORAGE_KEY = "neuroguide.jobScore.savedByUser.v1";
 const MAX_HISTORY_ITEMS = 12;
+const MAX_USER_SAVED_ITEMS = 24;
 
 export function normalizeJobTitleKey(title) {
   return String(title || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -108,5 +111,57 @@ export function removeJobScoreHistoryEntry(entry) {
     return next;
   } catch {
     return readJobScoreHistory();
+  }
+}
+
+export function readUserSavedJobScores() {
+  try {
+    const raw = window.localStorage.getItem(JOB_SCORE_USER_SAVED_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((it) => it && typeof it === "object").slice(0, MAX_USER_SAVED_ITEMS);
+  } catch {
+    return [];
+  }
+}
+
+/** Persist a saved-by-user score; overwrites same JD key (title norm + simplify stamp). Score is stored as an integer 0–100. */
+export function appendUserSavedJobScore(entry) {
+  try {
+    if (!entry?.jobTitleNorm || !entry?.result) return;
+    const prev = readUserSavedJobScores();
+    const deduped = prev.filter(
+      (it) => !(it.jobTitleNorm === entry.jobTitleNorm && it.simplifiedVerStamp === entry.simplifiedVerStamp),
+    );
+    const rawScore = Number(entry.result.score);
+    const roundedResult = {
+      ...entry.result,
+      score: Number.isFinite(rawScore) ? Math.round(Math.min(100, Math.max(0, rawScore))) : entry.result.score,
+    };
+    const next = [
+      {
+        ...entry,
+        result: roundedResult,
+        jobTitleDisplay: entry.jobTitleDisplay != null ? String(entry.jobTitleDisplay) : "",
+        createdAt: entry.createdAt || Date.now(),
+      },
+      ...deduped,
+    ].slice(0, MAX_USER_SAVED_ITEMS);
+    window.localStorage.setItem(JOB_SCORE_USER_SAVED_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
+}
+
+export function removeUserSavedJobScore(entry) {
+  try {
+    if (!entry?.jobTitleNorm) return readUserSavedJobScores();
+    const prev = readUserSavedJobScores();
+    const next = prev.filter((it) => !jobScoreHistoryEntriesEqual(it, entry));
+    window.localStorage.setItem(JOB_SCORE_USER_SAVED_STORAGE_KEY, JSON.stringify(next));
+    return next;
+  } catch {
+    return readUserSavedJobScores();
   }
 }

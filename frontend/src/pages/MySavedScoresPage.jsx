@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import { JobHistoryDetailModal } from "./SimplifyJobDescriptionPage.jsx";
 import {
   jobScoreHistoryEntriesEqual,
-  readJobScoreHistory,
-  removeJobScoreHistoryEntry,
+  readUserSavedJobScores,
+  removeUserSavedJobScore,
 } from "../utils/jobScorePersistence.js";
 
 const CAREER_PROFILE_STORAGE_KEY = "neuroguide.careerProfile.react.v2";
@@ -29,11 +29,11 @@ function getProfileTabFromCareerProfile() {
 
 export default function MySavedScoresPage() {
   const savedProfileKey = getProfileTabFromCareerProfile();
-  const [rows, setRows] = useState(() => readJobScoreHistory());
+  const [rows, setRows] = useState(() => readUserSavedJobScores());
   const [detailItem, setDetailItem] = useState(null);
 
   const refreshRows = useCallback(() => {
-    setRows(readJobScoreHistory());
+    setRows(readUserSavedJobScores());
   }, []);
 
   const list = useMemo(() => rows, [rows]);
@@ -43,20 +43,22 @@ export default function MySavedScoresPage() {
       <header className="saved-scores-page__head">
         <h1 className="saved-scores-page__title">My Saved Scores</h1>
         <p className="saved-scores-page__sub">
-          Simplified job titles and the career match score from when you last ran the match on each posting.
+          Job descriptions you saved from Simplify Job Description after a match score above 50%.
         </p>
       </header>
 
       {list.length === 0 ? (
         <p className="saved-scores-page__empty">
           No saved scores yet. Open{" "}
-          <Link to="/simplify-job-description">Simplify Job Description</Link>, paste a job description, then use{" "}
-          <strong>See My Match Score</strong>. Each run is saved here.
+          <Link to="/simplify-job-description">Simplify Job Description</Link>, run <strong>See My Match Score</strong>,
+          and when your match is above 50%, choose <strong>Save this JD Score</strong>.
         </p>
       ) : (
         <ul className="saved-scores-list">
           {list.map((row, i) => {
-            const score = row.result?.score;
+            const rawScore = row.result?.score;
+            const scoreInt =
+              rawScore != null && Number.isFinite(Number(rawScore)) ? Math.round(Number(rawScore)) : null;
             const title = (row.jobTitleDisplay && String(row.jobTitleDisplay).trim()) || row.jobTitleNorm || "Job";
             const occ = row.occupationName || "—";
             const date =
@@ -78,7 +80,7 @@ export default function MySavedScoresPage() {
                 <div className="saved-scores-card__right">
                   <div className="saved-scores-card__score" aria-label="Match score">
                     <span className="saved-scores-card__score-num">
-                      {score != null && Number.isFinite(Number(score)) ? Number(score).toFixed(1) : "—"}
+                      {scoreInt != null ? scoreInt : "—"}
                     </span>
                     <span className="saved-scores-card__score-suffix">/100</span>
                   </div>
@@ -90,7 +92,7 @@ export default function MySavedScoresPage() {
                       type="button"
                       className="saved-scores-delete-btn"
                       onClick={() => {
-                        removeJobScoreHistoryEntry(row);
+                        removeUserSavedJobScore(row);
                         refreshRows();
                         setDetailItem((cur) => (cur && jobScoreHistoryEntriesEqual(cur, row) ? null : cur));
                       }}

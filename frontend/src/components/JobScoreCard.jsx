@@ -1,6 +1,32 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
+/** Match ProfileWizard: work preferences (max 2) and energy patterns (max 2) for scoring. */
+const WORK_STYLE_PREF_OPTIONS = [
+  "Clear priorities",
+  "Short tasks",
+  "Visual workflow",
+  "Low interruptions",
+  "Collaborative team",
+  "Quiet work blocks",
+];
+const ENERGY_PATTERN_SCORE_OPTIONS = [
+  "Best with routine",
+  "Best with variety",
+  "Best with clear deadlines",
+  "Best with flexible pace",
+  "Best with short focus sprints",
+  "Best with frequent breaks",
+  "Best with visual task boards",
+  "Best with one task at a time",
+  "Best in quieter settings",
+  "Best with accountability",
+  "Best with morning deep work",
+  "Best with afternoon deep work",
+];
+const MAX_SCORE_WORK_PREFS = 2;
+const MAX_SCORE_ENERGY = 2;
+
 const ASSESSMENT_CONFIDENCE_TOOLTIP =
   "Confidence is based on:\n- % of skills matched\n- Completeness of user profile\n- Gemini feature completeness";
 
@@ -723,6 +749,7 @@ function WorkStyleMatchCard({
   profileFitReason,
   strengths = [],
   challenges = [],
+  prefsEditor = null,
 }) {
   const pctLabel = matchPct != null ? `${Math.round(matchPct)}%` : "—";
   const rows = sortWorkStyleRowsForDisplay(comparisonRows);
@@ -741,6 +768,55 @@ function WorkStyleMatchCard({
           Environment signals weren&apos;t extracted from this posting—your score still uses your profile and occupation.
           Add work preferences in your career profile for a richer comparison.
         </p>
+      ) : null}
+
+      {prefsEditor ? (
+        <div className="jsc-ws-prefs-editor" aria-label="Edit work preferences for what-if scoring">
+          <p className="jsc-ws-prefs-editor__title">Your picks (what-if)</p>
+          <p className="jsc-muted-line jsc-ws-prefs-editor__hint">
+            Tap to change up to {MAX_SCORE_WORK_PREFS} work preferences and {MAX_SCORE_ENERGY} energy patterns. The match score updates after a short pause.
+          </p>
+          <div className="jsc-ws-prefs-editor__block">
+            <span className="jsc-ws-prefs-editor__label">Work preferences</span>
+            <div className="jsc-ws-prefs-chips" role="group">
+              {WORK_STYLE_PREF_OPTIONS.map((opt) => {
+                const on = prefsEditor.workPrefs.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    disabled={prefsEditor.busy}
+                    className={`jsc-ws-pref-chip${on ? " jsc-ws-pref-chip--on" : ""}`}
+                    aria-pressed={on}
+                    onClick={() => prefsEditor.onToggleWorkPreference(opt)}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="jsc-ws-prefs-editor__block">
+            <span className="jsc-ws-prefs-editor__label">Energy / focus</span>
+            <div className="jsc-ws-prefs-chips jsc-ws-prefs-chips--energy" role="group">
+              {ENERGY_PATTERN_SCORE_OPTIONS.map((opt) => {
+                const on = prefsEditor.energyPatterns.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    disabled={prefsEditor.busy}
+                    className={`jsc-ws-pref-chip${on ? " jsc-ws-pref-chip--on" : ""}`}
+                    aria-pressed={on}
+                    onClick={() => prefsEditor.onToggleEnergyPattern(opt)}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <div className="jsc-ws-grid" role="table" aria-label="Job environment compared to your preferences">
@@ -1060,6 +1136,12 @@ export default function JobScoreCard({
   ariaHeadingId = "jsc-inline-heading",
   /** When true, omit the inline “Start preparing for interview” link (e.g. modal provides its own CTA). */
   hideInterviewPrepCta = false,
+  /** Save current score to “My Saved Scores” (parent provides only on simplify page). */
+  onSaveScore = null,
+  /** True when this JD score is already in the user’s saved list. */
+  scoreSavedToList = false,
+  /** Optional: edit work prefs / energy inline and recalculate score (parent owns state + API). */
+  workStylePrefsEditor = null,
 }) {
   const [helpfulVote, setHelpfulVote] = useState(null);
   const [bdOpen, setBdOpen] = useState({ adhd: false, technical: true, soft: false });
@@ -1215,7 +1297,11 @@ export default function JobScoreCard({
   const tone = scoreTone(score);
   const scorePct = Math.min(100, Math.max(0, score));
   const scoreBand = !hasResult ? null : scorePct >= 71 ? "high" : scorePct >= 41 ? "mid" : "low";
-  const showInterviewCta = hasResult && score >= 71 && !hideInterviewPrepCta;
+  /** Interview prep + save only when match is strictly above 50%. */
+  const showHighScoreActions =
+    hasResult &&
+    score > 50 &&
+    (typeof onSaveScore === "function" || !hideInterviewPrepCta);
   const confidencePct = hasResult ? Math.round((result.match_confidence ?? 0) * 100) : 0;
   const donutLoading = Boolean(jobScoreBusy);
 
@@ -1401,6 +1487,17 @@ export default function JobScoreCard({
                 profileFitReason={factors.adhd_type?.reasoning}
                 strengths={strengths}
                 challenges={challenges}
+                prefsEditor={
+                  workStylePrefsEditor
+                    ? {
+                        workPrefs: workStylePrefsEditor.workPrefs || [],
+                        energyPatterns: workStylePrefsEditor.energyPatterns || [],
+                        onToggleWorkPreference: workStylePrefsEditor.onToggleWorkPreference,
+                        onToggleEnergyPattern: workStylePrefsEditor.onToggleEnergyPattern,
+                        busy: jobScoreBusy,
+                      }
+                    : null
+                }
               />
             </ScoreBreakdownRow>
 
@@ -1501,19 +1598,31 @@ export default function JobScoreCard({
           )}
         </div>
 
-        {hasResult && typeof onOpenHistory === "function" ? (
-          <div className="jsc-compare-footer">
-            <button type="button" className="simplify-next-step-btn jsc-compare-btn" onClick={onOpenHistory}>
-              Compare with Previous Simplified JDs
-            </button>
-          </div>
-        ) : null}
-
-        {showInterviewCta ? (
-          <div className="jsc-cta-wrap">
-            <Link className="jsc-interview-cta" to="/interview-prep">
-              Start preparing for interview
-            </Link>
+        {(hasResult &&
+          (typeof onOpenHistory === "function" ||
+            (showHighScoreActions &&
+              (typeof onSaveScore === "function" || !hideInterviewPrepCta)))) ? (
+          <div className="jsc-jobmatch-cta-row">
+            {hasResult && typeof onOpenHistory === "function" ? (
+              <button type="button" className="simplify-next-step-btn jsc-compare-btn" onClick={onOpenHistory}>
+                Compare with Previous Simplified JDs
+              </button>
+            ) : null}
+            {showHighScoreActions && typeof onSaveScore === "function" ? (
+              <button
+                type="button"
+                className="simplify-next-step-btn jsc-compare-btn"
+                onClick={onSaveScore}
+                disabled={scoreSavedToList}
+              >
+                {scoreSavedToList ? "Saved to My Scores" : "Save this JD Score"}
+              </button>
+            ) : null}
+            {showHighScoreActions && !hideInterviewPrepCta ? (
+              <Link className="simplify-next-step-btn jsc-compare-btn jsc-jobmatch-cta-link" to="/interview-prep">
+                Start preparing for interview
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </div>

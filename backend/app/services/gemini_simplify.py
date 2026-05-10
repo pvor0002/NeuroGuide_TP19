@@ -174,6 +174,261 @@ Rules:
 """
 
 
+_SOFT_SKILL_KEYS = (
+    "communication",
+    "time_management",
+    "problem_solving",
+    "leadership",
+    "teamwork",
+    "adaptability",
+    "self_motivation",
+)
+
+
+def _infer_job_fit_heuristics(corpus: str) -> dict[str, str]:
+    """
+    Lightweight keyword inference when Gemini omits specific dimensions.
+    Uses the posting + simplified sections so different ads yield different signals.
+    """
+    t = re.sub(r"\s+", " ", (corpus or "").lower()).strip()
+
+    # --- task_structure ---
+    if any(
+        k in t
+        for k in (
+            "ambiguous",
+            "fluid",
+            "wear many hats",
+            "multiple priorities",
+            "juggle",
+            "self-starter",
+            "prioritize own",
+            "figure it out",
+            "undefined",
+        )
+    ):
+        task_structure = "unstructured"
+    elif any(
+        k in t
+        for k in (
+            "defined process",
+            "playbook",
+            "standard operating",
+            "checklist",
+            "structured team",
+            "clear roadmap",
+            "documented procedure",
+        )
+    ):
+        task_structure = "structured"
+    else:
+        task_structure = "mixed"
+
+    # --- work_environment (quiet | collaborative | fast-paced | mixed) ---
+    score = 0
+    if any(k in t for k in ("fast-paced", "fast paced", "high volume", "rapid turnaround", "urgent", "deadline-driven")):
+        score += 2
+    if any(k in t for k in ("quiet", "heads-down", "deep work", "minimal meetings", "focused work")):
+        score -= 2
+    if any(
+        k in t
+        for k in (
+            "collaborate",
+            "cross-functional",
+            "stakeholder",
+            "team environment",
+            "stand-up",
+            "standup",
+            "pair programming",
+            "daily sync",
+        )
+    ):
+        score += 1
+    if any(k in t for k in ("remote", "work from home", "wfh", "distributed")):
+        score -= 1
+    if score >= 2:
+        work_environment = "fast-paced"
+    elif score <= -2:
+        work_environment = "quiet"
+    elif score == 1:
+        work_environment = "collaborative"
+    else:
+        work_environment = "mixed"
+
+    # --- interruptions (low | medium | high) ---
+    intr = 0
+    if any(k in t for k in ("on-call", "on call", "pager", "help desk", "walk-in", "retail floor", "shift work")):
+        intr += 2
+    if any(k in t for k in ("slack", "ticket queue", "multitas", "context switch", "switch between", "several projects")):
+        intr += 1
+    if any(k in t for k in ("queues", "incoming requests", "interrupt-driven")):
+        intr += 1
+    if any(k in t for k in ("quiet office", "minimal interruption", "focus time", "deep work blocks")):
+        intr -= 2
+    if intr >= 2:
+        interruptions = "high"
+    elif intr <= -1:
+        interruptions = "low"
+    else:
+        interruptions = "medium"
+
+    # --- cognitive_load ---
+    if any(
+        k in t
+        for k in (
+            "complex",
+            "strategic",
+            "architecture",
+            "research-led",
+            "quantitative",
+            "senior",
+            "principal",
+            "technical leadership",
+        )
+    ):
+        cognitive_load = "high"
+    elif any(k in t for k in ("routine", "administrative", "data entry", "straightforward", "repetitive")):
+        cognitive_load = "low"
+    else:
+        cognitive_load = "medium"
+
+    attention_switching = "high" if interruptions == "high" else "low"
+
+    if any(k in t for k in ("deadline", "urgent", "asap", "high pressure", "tight timeline")):
+        deadline_pressure = "high"
+    else:
+        deadline_pressure = "low"
+
+    if any(k in t for k in ("self-directed", "autonomy", "own your", "independent", "minimal supervision")):
+        autonomy = "high"
+    elif any(k in t for k in ("closely supervised", "training wheels", "follow procedures strictly")):
+        autonomy = "low"
+    else:
+        autonomy = "medium"
+
+    if interruptions == "high" or any(k in t for k in ("multitas", "many concurrent", "parallel streams")):
+        work_style = "context_switching"
+    elif any(k in t for k in ("deep work", "analysis", "focus blocks", "concentration")):
+        work_style = "deep_focus"
+    else:
+        work_style = "mixed"
+
+    if any(k in t for k in ("heavy collaboration", "pair programming", "cross-functional team", "high alignment meetings")):
+        collaboration = "high"
+    elif any(k in t for k in ("solo contributor", "individual contributor", "heads-down", "minimal collaboration")):
+        collaboration = "low"
+    else:
+        collaboration = "medium"
+
+    return {
+        "task_structure": task_structure,
+        "work_environment": work_environment,
+        "cognitive_load": cognitive_load,
+        "attention_switching": attention_switching,
+        "deadline_pressure": deadline_pressure,
+        "autonomy": autonomy,
+        "work_style": work_style,
+        "collaboration": collaboration,
+        "interruptions": interruptions,
+    }
+
+
+def _infer_soft_skill_heuristics(corpus: str) -> dict[str, str]:
+    """Bump soft-skill demand hints from posting language when Gemini omits values."""
+    t = re.sub(r"\s+", " ", (corpus or "").lower()).strip()
+    out = {k: "medium" for k in _SOFT_SKILL_KEYS}
+
+    if any(x in t for x in ("presentation", "presentations", "stakeholder", "written communication", "verbal communication", "communicate effectively")):
+        out["communication"] = "high"
+    elif any(x in t for x in ("minimal communication", "limited interaction")):
+        out["communication"] = "low"
+
+    if any(x in t for x in ("deadline", "prioritize", "time management", "scheduling", "planning")):
+        out["time_management"] = "high"
+
+    if any(x in t for x in ("troubleshoot", "root cause", "solve complex", "analytical")):
+        out["problem_solving"] = "high"
+
+    if any(x in t for x in ("lead a team", "manage team", "mentor", "people leadership")):
+        out["leadership"] = "high"
+
+    if any(x in t for x in ("team player", "collaborate", "cross-functional", "work closely with")):
+        out["teamwork"] = "high"
+
+    if any(x in t for x in ("fast-changing", "adapt quickly", "shifting priorities", "flexible")):
+        out["adaptability"] = "high"
+
+    if any(x in t for x in ("self-starter", "self-motivated", "proactive", "ownership")):
+        out["self_motivation"] = "high"
+
+    return out
+
+
+def _merge_job_fit_features(model: GeminiJobFitFeatures, corpus: str) -> GeminiJobFitFeatures:
+    """
+    Fill missing Gemini dimensions using keyword heuristics over the posting text,
+    then last-resort neutral tokens so scoring never receives an empty payload.
+    """
+    hints = _infer_job_fit_heuristics(corpus)
+    soft_hints = _infer_soft_skill_heuristics(corpus)
+
+    hard_fallback = {
+        "task_structure": "mixed",
+        "work_environment": "mixed",
+        "cognitive_load": "medium",
+        "attention_switching": "low",
+        "deadline_pressure": "low",
+        "autonomy": "medium",
+        "work_style": "mixed",
+        "collaboration": "medium",
+        "interruptions": "medium",
+    }
+
+    base = model.model_dump() if isinstance(model, GeminiJobFitFeatures) else {}
+    if not isinstance(base, dict):
+        base = {}
+
+    for key in (
+        "task_structure",
+        "work_environment",
+        "cognitive_load",
+        "attention_switching",
+        "deadline_pressure",
+        "autonomy",
+        "work_style",
+        "collaboration",
+        "interruptions",
+    ):
+        cur = base.get(key)
+        if cur is None or not str(cur).strip():
+            base[key] = hints.get(key) or hard_fallback[key]
+
+    ssr = base.get("soft_skill_requirements")
+    if not isinstance(ssr, dict):
+        ssr = {}
+    for k in _SOFT_SKILL_KEYS:
+        v = ssr.get(k)
+        if v is None or not str(v).strip():
+            ssr[k] = soft_hints.get(k, "medium")
+    base["soft_skill_requirements"] = ssr
+
+    try:
+        return GeminiJobFitFeatures.model_validate(base)
+    except Exception:
+        logger.warning("[Gemini] merged job_fit_features failed validation — using hard fallback model")
+        return GeminiJobFitFeatures(
+            task_structure=hard_fallback["task_structure"],
+            work_environment=hard_fallback["work_environment"],
+            cognitive_load=hard_fallback["cognitive_load"],
+            attention_switching=hard_fallback["attention_switching"],
+            deadline_pressure=hard_fallback["deadline_pressure"],
+            autonomy=hard_fallback["autonomy"],
+            work_style=hard_fallback["work_style"],
+            collaboration=hard_fallback["collaboration"],
+            interruptions=hard_fallback["interruptions"],
+        )
+
+
 def _parse_json_loose(text: str) -> dict[str, Any]:
     # Parse model output even if it wrapped JSON in markdown code fences.
     text = text.strip()
@@ -434,82 +689,6 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
     if isinstance(raw_fit, dict):
         _ssr_raw = raw_fit.get("soft_skill_requirements")
 
-    def _apply_neutral_job_fit_defaults(model: GeminiJobFitFeatures) -> GeminiJobFitFeatures:
-        """
-        Ensure job_fit_features is never "all null".
-
-        The frontend and scoring endpoint treat an all-null object as "no signals extracted",
-        because the scoring request uses `exclude_none=True` (empty dict => Gemini job-fit
-        logic is skipped). We prefer explicit neutral defaults over missing values.
-        """
-        base = model.model_dump() if isinstance(model, GeminiJobFitFeatures) else {}
-        if not isinstance(base, dict):
-            base = {}
-
-        # Neutral defaults (match SYSTEM_INSTRUCTION allowed tokens).
-        base.setdefault("task_structure", None)
-        base.setdefault("work_environment", None)
-        base.setdefault("cognitive_load", None)
-        base.setdefault("attention_switching", None)
-        base.setdefault("deadline_pressure", None)
-        base.setdefault("autonomy", None)
-        base.setdefault("work_style", None)
-        base.setdefault("collaboration", None)
-        base.setdefault("interruptions", None)
-
-        if not (base.get("task_structure") or "").strip():
-            base["task_structure"] = "mixed"
-        if not (base.get("work_environment") or "").strip():
-            base["work_environment"] = "mixed"
-        if not (base.get("cognitive_load") or "").strip():
-            base["cognitive_load"] = "medium"
-        if not (base.get("attention_switching") or "").strip():
-            base["attention_switching"] = "low"
-        if not (base.get("deadline_pressure") or "").strip():
-            base["deadline_pressure"] = "low"
-        if not (base.get("autonomy") or "").strip():
-            base["autonomy"] = "medium"
-        if not (base.get("work_style") or "").strip():
-            base["work_style"] = "mixed"
-        if not (base.get("collaboration") or "").strip():
-            base["collaboration"] = "medium"
-        if not (base.get("interruptions") or "").strip():
-            base["interruptions"] = "medium"
-
-        ssr = base.get("soft_skill_requirements")
-        if not isinstance(ssr, dict):
-            ssr = {}
-        # Always provide all seven keys (neutral "medium" default).
-        for k in (
-            "communication",
-            "time_management",
-            "problem_solving",
-            "leadership",
-            "teamwork",
-            "adaptability",
-            "self_motivation",
-        ):
-            v = ssr.get(k)
-            if v is None or not str(v).strip():
-                ssr[k] = "medium"
-        base["soft_skill_requirements"] = ssr
-
-        try:
-            return GeminiJobFitFeatures.model_validate(base)
-        except Exception:
-            # In the worst case, return a minimally usable object.
-            return GeminiJobFitFeatures(
-                task_structure="mixed",
-                work_environment="mixed",
-                cognitive_load="medium",
-                attention_switching="low",
-                deadline_pressure="low",
-                autonomy="medium",
-                work_style="mixed",
-                collaboration="medium",
-                interruptions="medium",
-            )
-
     try:
         job_fit_features = GeminiJobFitFeatures.model_validate(raw_fit or {})
     except Exception:
@@ -519,7 +698,30 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
         )
         job_fit_features = GeminiJobFitFeatures()
 
-    job_fit_features = _apply_neutral_job_fit_defaults(job_fit_features)
+    summary = (data.get("summary") or "").strip()
+    basic_info = (data.get("basic_info") or "").strip()
+    responsibilities = (data.get("responsibilities") or "").strip()
+    skills = (data.get("skills_qualifications") or "").strip()
+
+    if not any((summary, basic_info, responsibilities, skills)):
+        logger.error("[Gemini] All content fields are empty")
+        raise HTTPException(
+            status_code=502,
+            detail="The model did not return usable content for this job description.",
+        )
+
+    fit_corpus = "\n".join(
+        [
+            text.strip(),
+            job_title,
+            summary,
+            basic_info,
+            responsibilities,
+            skills,
+            " ".join(extracted_skills),
+        ]
+    )
+    job_fit_features = _merge_job_fit_features(job_fit_features, fit_corpus)
 
     _ssr = job_fit_features.soft_skill_requirements
     _ssr_any = False
@@ -535,11 +737,6 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
             raw,
         )
 
-    summary = (data.get("summary") or "").strip()
-    basic_info = (data.get("basic_info") or "").strip()
-    responsibilities = (data.get("responsibilities") or "").strip()
-    skills = (data.get("skills_qualifications") or "").strip()
-
     logger.info(
         "[Gemini] job_title=%s, extracted_skills=%s, job_fit_features=%s",
         job_title,
@@ -551,13 +748,6 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
         "[Gemini] Field lengths — summary=%d, basic_info=%d, responsibilities=%d, skills=%d",
         len(summary), len(basic_info), len(responsibilities), len(skills),
     )
-
-    if not any((summary, basic_info, responsibilities, skills)):
-        logger.error("[Gemini] All content fields are empty")
-        raise HTTPException(
-            status_code=502,
-            detail="The model did not return usable content for this job description.",
-        )
 
     # quick_snapshot: ensure exactly 3 items
     raw_snapshot = data.get("quick_snapshot")

@@ -33,6 +33,7 @@ const JOB_RESULT_KEY = "neuroguide.simplifiedResult.v1";
 const JOB_INPUT_PREFIX = "neuroguide.jobInput.v1";
 const JOB_SCORE_KEY = "neuroguide.jobScore.v1";
 const JOB_SCORE_HISTORY_KEY = "neuroguide.jobScore.history.v1";
+const JOB_SCORE_USER_SAVED_KEY = "neuroguide.jobScore.savedByUser.v1";
 
 function readJSON(key) {
   try {
@@ -124,6 +125,7 @@ export function buildJobWorkbenchBlob() {
     [`${JOB_INPUT_PREFIX}.fileText`]: window.localStorage.getItem(`${JOB_INPUT_PREFIX}.fileText`),
     [JOB_SCORE_KEY]: readJSON(JOB_SCORE_KEY),
     [JOB_SCORE_HISTORY_KEY]: readJSON(JOB_SCORE_HISTORY_KEY),
+    [JOB_SCORE_USER_SAVED_KEY]: readJSON(JOB_SCORE_USER_SAVED_KEY),
   };
 }
 
@@ -194,6 +196,7 @@ export function applySessionSnapshotToStorage(snap, meta = {}) {
         window.localStorage.removeItem(JOB_RESULT_KEY);
         window.localStorage.removeItem(JOB_SCORE_KEY);
         window.localStorage.removeItem(JOB_SCORE_HISTORY_KEY);
+        window.localStorage.removeItem(JOB_SCORE_USER_SAVED_KEY);
         window.localStorage.removeItem(`${JOB_INPUT_PREFIX}.mode`);
         window.localStorage.removeItem(`${JOB_INPUT_PREFIX}.text`);
         window.localStorage.removeItem(`${JOB_INPUT_PREFIX}.fileText`);
@@ -211,6 +214,7 @@ function applyJobWorkbenchBlob(blob) {
   if (blob[JOB_RESULT_KEY] !== undefined) writeJSON(JOB_RESULT_KEY, blob[JOB_RESULT_KEY]);
   if (blob[JOB_SCORE_KEY] !== undefined) writeJSON(JOB_SCORE_KEY, blob[JOB_SCORE_KEY]);
   if (blob[JOB_SCORE_HISTORY_KEY] !== undefined) writeJSON(JOB_SCORE_HISTORY_KEY, blob[JOB_SCORE_HISTORY_KEY]);
+  if (blob[JOB_SCORE_USER_SAVED_KEY] !== undefined) writeJSON(JOB_SCORE_USER_SAVED_KEY, blob[JOB_SCORE_USER_SAVED_KEY]);
   setItemRaw(`${JOB_INPUT_PREFIX}.mode`, blob[`${JOB_INPUT_PREFIX}.mode`]);
   setItemRaw(`${JOB_INPUT_PREFIX}.text`, blob[`${JOB_INPUT_PREFIX}.text`]);
   setItemRaw(`${JOB_INPUT_PREFIX}.fileText`, blob[`${JOB_INPUT_PREFIX}.fileText`]);

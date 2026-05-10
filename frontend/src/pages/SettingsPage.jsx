@@ -18,6 +18,33 @@ const PROFILE_STORAGE_KEY = "neuroguide.careerProfile.react.v2";
 const LOGIN_GATE_SESSION_KEY = "neuroguide.careerProfile.loginGateDismissed";
 const SITE_UNLOCK_KEY = "ng_site_unlock_v1";
 
+const FAQ_ITEMS = [
+  {
+    id: "faq-what",
+    question: "What is NeuroGuide for?",
+    answer:
+      "It helps you read job posts in shorter chunks with clear headings. It also walks you through a simple profile so you can save how you describe your skills and experience.",
+  },
+  {
+    id: "faq-profile-storage",
+    question: "Where does my profile information go?",
+    answer:
+      "It is saved only in your browser on this device. You can close the tab and come back later.",
+  },
+  {
+    id: "faq-simplify",
+    question: "How does “Simplify Job Description” work?",
+    answer:
+      "You paste the posting or upload a file. NeuroGuide gives you a version split into shorter parts with headings so it is easier to read. If nothing comes back, simplify may not be ready for you yet.",
+  },
+  {
+    id: "faq-account",
+    question: "Do I need an account?",
+    answer:
+      "No. There is no login or password for this version.",
+  },
+];
+
 const STORAGE_ITEMS = [
   {
     key: PROFILE_STORAGE_KEY,
@@ -91,6 +118,17 @@ const SECTION_DEFS = [
         <circle cx="9" cy="9" r="3.5" />
         <path d="M14 13l6 6" />
         <path d="M17 16l2-2" />
+      </svg>
+    ),
+  },
+  {
+    id: "faq",
+    title: "Frequently asked questions",
+    summary: "Quick answers about how NeuroGuide works and how your information is handled.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 16v-1M12 12a2 2 0 1 1 2-2c0 1.5-2 2-2 3" />
       </svg>
     ),
   },
@@ -496,6 +534,25 @@ export default function SettingsPage() {
                   we&apos;ll generate one for you.
                 </p>
               )}
+            </section>
+          ) : null}
+
+          {activeSection === "faq" ? (
+            <section className="settings-card home-faq" aria-labelledby="settings-faq-title">
+              <h2 id="settings-faq-title" className="home-section-title">
+                Frequently asked questions
+              </h2>
+              <p className="home-section-lead">
+                Quick answers about how this prototype works and how your information is handled.
+              </p>
+              <div className="home-faq-list">
+                {FAQ_ITEMS.map(({ id, question, answer }) => (
+                  <details key={id} className="home-faq-item" name="settings-faq">
+                    <summary className="home-faq-summary">{question}</summary>
+                    <p className="home-faq-answer">{answer}</p>
+                  </details>
+                ))}
+              </div>
             </section>
           ) : null}
 

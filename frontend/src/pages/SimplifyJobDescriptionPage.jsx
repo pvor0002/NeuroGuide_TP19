@@ -16,11 +16,13 @@ import {
 } from "../utils/simplifiedJobExport.js";
 import {
   appendJobScoreHistory,
+  appendUserSavedJobScore,
   clearPersistedJobScore,
   isJobScoreCacheValid,
   normalizeJobTitleKey,
   readJobScoreHistory,
   readPersistedJobScore,
+  readUserSavedJobScores,
   jobScoreHistoryEntriesEqual,
   removeJobScoreHistoryEntry,
   writePersistedJobScore,
@@ -37,6 +39,10 @@ const PROFILE_META = {
 };
 
 const CAREER_PROFILE_STORAGE_KEY = "neuroguide.careerProfile.react.v2";
+
+/** Same caps as profile wizard — matches backend questionnaire. */
+const MAX_JOB_SCORE_WORK_PREFS = 2;
+const MAX_JOB_SCORE_ENERGY = 2;
 
 /**
  * Reads the user's saved career profile from localStorage and returns the
@@ -1472,7 +1478,12 @@ export default function SimplifyJobDescriptionPage() {
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [historyDetailItem, setHistoryDetailItem] = useState(null);
   const [jobScoreHistory, setJobScoreHistory] = useState([]);
+  const [savedScoresTick, setSavedScoresTick] = useState(0);
   const [softSkillOverrides, setSoftSkillOverrides] = useState({});
+  /** Inline overrides for Work Style scoring (what-if); synced from profile when simplify run changes. */
+  const [scoreWorkPrefs, setScoreWorkPrefs] = useState([]);
+  const [scoreEnergyPatterns, setScoreEnergyPatterns] = useState([]);
+  const prefsEditDirtyRef = useRef(false);
 
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
@@ -1483,6 +1494,57 @@ export default function SimplifyJobDescriptionPage() {
     if (!simplifiedResult?.job_title) return "";
     return `${normalizeJobTitleKey(simplifiedResult.job_title)}|${String(simplifiedResult._ng_simp_ver ?? "")}`;
   }, [simplifiedResult?.job_title, simplifiedResult?._ng_simp_ver]);
+
+  const isCurrentJDScoreSaved = useMemo(() => {
+    if (!simplifiedResult?.job_title || !jobScoreResult) return false;
+    const key = normalizeJobTitleKey(simplifiedResult.job_title);
+    const stamp = simplifiedResult._ng_simp_ver ?? null;
+    const list = readUserSavedJobScores();
+    return list.some(
+      (it) =>
+        String(it.jobTitleNorm || "") === key &&
+        (it.simplifiedVerStamp ?? null) === stamp,
+    );
+  }, [simplifiedResult?.job_title, simplifiedResult?._ng_simp_ver, jobScoreResult, savedScoresTick]);
+
+  useEffect(() => {
+    if (!jobScoreCacheSyncKey) return;
+    try {
+      const raw = window.localStorage.getItem(CAREER_PROFILE_STORAGE_KEY);
+      const p = raw ? JSON.parse(raw) : null;
+      const wp = [...(p?.answers?.workStyles || [])].slice(0, MAX_JOB_SCORE_WORK_PREFS);
+      const ep = [...(p?.answers?.energyPatterns || [])].slice(0, MAX_JOB_SCORE_ENERGY);
+      prefsEditDirtyRef.current = false;
+      setScoreWorkPrefs(wp);
+      setScoreEnergyPatterns(ep);
+    } catch {
+      prefsEditDirtyRef.current = false;
+      setScoreWorkPrefs([]);
+      setScoreEnergyPatterns([]);
+    }
+  }, [jobScoreCacheSyncKey]);
+
+  const toggleScoreWorkPref = useCallback((label) => {
+    prefsEditDirtyRef.current = true;
+    setScoreWorkPrefs((prev) => {
+      const next = [...prev];
+      const i = next.indexOf(label);
+      if (i >= 0) return next.filter((_, j) => j !== i);
+      if (next.length >= MAX_JOB_SCORE_WORK_PREFS) return next;
+      return [...next, label];
+    });
+  }, []);
+
+  const toggleScoreEnergyPattern = useCallback((label) => {
+    prefsEditDirtyRef.current = true;
+    setScoreEnergyPatterns((prev) => {
+      const next = [...prev];
+      const i = next.indexOf(label);
+      if (i >= 0) return next.filter((_, j) => j !== i);
+      if (next.length >= MAX_JOB_SCORE_ENERGY) return next;
+      return [...next, label];
+    });
+  }, []);
 
   const runJobScoreForSkills = useCallback(
     async (options) => {
@@ -1498,7 +1560,14 @@ export default function SimplifyJobDescriptionPage() {
         return;
       }
       const mergedSkills = mergeProfileSkillLists(profile.answers);
-      const userQuestionnaire = buildJobScoreQuestionnaire(profile.answers, mergedSkills);
+      const userQuestionnaire = buildJobScoreQuestionnaire(
+        {
+          ...profile.answers,
+          workStyles: scoreWorkPrefs,
+          energyPatterns: scoreEnergyPatterns,
+        },
+        mergedSkills,
+      );
       const extractedSkills = simplifiedResult?.extracted_skills ?? [];
       const fitFeatures = simplifiedResult?.job_fit_features ?? null;
 
@@ -1544,8 +1613,43 @@ export default function SimplifyJobDescriptionPage() {
         setJobScoreBusy(false);
       }
     },
-    [simplifiedResult, savedProfileKey, activeProfile, inputMode, text, fileExtractedText, softSkillOverrides],
+    [simplifiedResult, savedProfileKey, activeProfile, inputMode, text, fileExtractedText, softSkillOverrides, scoreWorkPrefs, scoreEnergyPatterns],
   );
+
+  const handleSaveCurrentJDScore = useCallback(() => {
+    if (!jobScoreResult || !simplifiedResult?.job_title) return;
+    const jobTitle = simplifiedResult.job_title;
+    appendUserSavedJobScore({
+      jobTitleNorm: normalizeJobTitleKey(jobTitle),
+      jobTitleDisplay: jobTitle,
+      simplifiedVerStamp: simplifiedResult._ng_simp_ver ?? null,
+      occupationName: jobScoreOccupationName,
+      result: jobScoreResult,
+      createdAt: Date.now(),
+      simplifiedSnapshot: cloneSimplifiedSnapshotForHistory(simplifiedResult),
+      activeProfileKey: savedProfileKey ?? activeProfile,
+      originalPosting: buildOriginalPostingForHistory(inputMode, text, fileExtractedText),
+    });
+    setSavedScoresTick((n) => n + 1);
+  }, [
+    jobScoreResult,
+    simplifiedResult,
+    jobScoreOccupationName,
+    savedProfileKey,
+    activeProfile,
+    inputMode,
+    text,
+    fileExtractedText,
+  ]);
+
+  useEffect(() => {
+    if (!prefsEditDirtyRef.current) return;
+    const t = window.setTimeout(() => {
+      prefsEditDirtyRef.current = false;
+      void runJobScoreForSkills({ appendHistory: false });
+    }, 420);
+    return () => window.clearTimeout(t);
+  }, [scoreWorkPrefs, scoreEnergyPatterns, runJobScoreForSkills]);
 
   const handleSkillProfileChange = useCallback(
     ({ skill, action, fromZone, toZone, softOverrideKey, softOverrideLevel }) => {
@@ -1992,9 +2096,17 @@ export default function SimplifyJobDescriptionPage() {
                   result={jobScoreResult}
                   occupationName={jobScoreOccupationName}
                   onOpenHistory={() => setHistoryDrawerOpen(true)}
+                  onSaveScore={handleSaveCurrentJDScore}
+                  scoreSavedToList={isCurrentJDScoreSaved}
                   onSkillProfileChange={handleSkillProfileChange}
                   jobScoreBusy={jobScoreBusy}
                   jobFitFeatures={simplifiedResult?.job_fit_features ?? null}
+                  workStylePrefsEditor={{
+                    workPrefs: scoreWorkPrefs,
+                    energyPatterns: scoreEnergyPatterns,
+                    onToggleWorkPreference: toggleScoreWorkPref,
+                    onToggleEnergyPattern: toggleScoreEnergyPattern,
+                  }}
                 />
               ) : null}
             </div>
