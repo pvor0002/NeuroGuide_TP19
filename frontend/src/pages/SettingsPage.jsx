@@ -55,9 +55,9 @@ const STORAGE_ITEMS = [
   },
   {
     key: USER_CREDENTIALS_STORAGE_KEY,
-    title: "Local User ID & pass key",
+    title: "Pass key (recovery code)",
     purpose:
-      "A random User ID and memorable pass key so you can reopen your saved profile on this device. No name, email, or phone is stored.",
+      "A pass key is created if you accept consent. It lets you restore your saved progress (and optionally sync it to secure storage). We do not store your name, email, or phone.",
     where: "Browser local storage",
   },
   {
@@ -90,7 +90,7 @@ const SECTION_DEFS = [
   {
     id: "storage",
     title: "What we store on this device",
-    summary: "Every storage key, its purpose, and where it lives.",
+    summary: "What gets saved in your browser so you don't lose progress.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <rect x="3" y="4" width="18" height="4" rx="1.5" />
@@ -111,8 +111,8 @@ const SECTION_DEFS = [
   },
   {
     id: "credentials",
-    title: "User ID & pass key",
-    summary: "View, reveal, and copy your recovery details.",
+    title: "Pass key",
+    summary: "View and copy your recovery code.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="9" cy="9" r="3.5" />
@@ -284,7 +284,7 @@ export default function SettingsPage() {
 
   const clearProfileOnly = async () => {
     const ok = window.confirm(
-      "Clear your saved Career Profile answers on this device? Your User ID and pass key will be kept."
+      "Clear your saved Career Profile answers on this device? Your pass key will be kept."
     );
     if (!ok) return;
     if (hasCloudSessionCredentials()) {
@@ -305,7 +305,7 @@ export default function SettingsPage() {
 
   const clearEverything = async () => {
     const ok = window.confirm(
-      "This deletes ALL NeuroGuide data in this browser: profile answers, User ID, pass key, consent, and session flags. If you use cloud storage, your server rows are removed too. Continue?"
+      "This deletes ALL NeuroGuide data in this browser: profile answers, pass key, consent, and session flags. If you use cloud storage, your server rows are removed too. Continue?"
     );
     if (!ok) return;
     let serverNote = "";
@@ -369,7 +369,7 @@ export default function SettingsPage() {
               Your privacy &amp; your data
             </h1>
             <p className="settings-lead">
-              Pick a section to view or change. Everything stays on this device.
+              Pick a section to view or change. Your progress is saved for your convenience.
             </p>
           </section>
 
@@ -415,21 +415,17 @@ export default function SettingsPage() {
             <section className="settings-card" aria-label="Privacy policy">
               <ul className="settings-list">
                 <li>
-                  <strong>No account, no server profile.</strong> We don&apos;t ask for your
-                  name, email, or phone.
+                  <strong>No personal details.</strong> We don&apos;t ask for your name, email, or phone.
                 </li>
                 <li>
-                  <strong>Your data stays in your browser.</strong> Career Profile answers
-                  and simplified job history are saved to this device&apos;s local storage.
+                  <strong>Your progress is saved for you.</strong> Career Profile answers and job tool progress are saved in your browser so you can return later.
                 </li>
                 <li>
                   <strong>Job descriptions you paste</strong> are sent to our simplifier
                   service only for processing and are not linked to any personal profile.
                 </li>
                 <li>
-                  <strong>Anonymous sync (optional).</strong> If you accept, we generate a
-                  random User ID and pass key so you can reopen your profile on another
-                  browser. The ID is random and not linked to anything real about you.
+                  <strong>Pass key (optional).</strong> If you accept, we generate a pass key (recovery code) so you can restore your saved progress later. It is not linked to any real-world identity details.
                 </li>
                 <li>
                   <strong>You&apos;re in control.</strong> You can revoke consent or wipe all
@@ -441,7 +437,9 @@ export default function SettingsPage() {
 
           {activeSection === "storage" ? (
             <section className="settings-card" aria-label="What we store on this device">
-              <p className="settings-card-sub">Each item below is stored in your browser only.</p>
+              <p className="settings-card-sub">
+                These items are stored in your browser to save your progress. If you&apos;ve accepted consent and enabled cloud sync, some of this progress may also be saved to secure storage so it can be restored on another device.
+              </p>
               <ul className="settings-table" role="list">
                 {STORAGE_ITEMS.map((item) => (
                   <li key={item.key} className="settings-row">
@@ -488,18 +486,13 @@ export default function SettingsPage() {
           ) : null}
 
           {activeSection === "credentials" ? (
-            <section className="settings-card" aria-label="User ID and pass key">
+            <section className="settings-card" aria-label="Pass key">
               <p className="settings-card-sub">
-                Used to recover your profile on another browser. Keep them safe - we can&apos;t
-                reset what we never knew.
+                Your pass key is your recovery code. Keep it safe — we can&apos;t reset what we never knew.
               </p>
 
-              {credentials?.userId ? (
+              {credentials?.passKey ? (
                 <div className="settings-id-grid">
-                  <div className="settings-id-field">
-                    <span className="settings-id-label">User ID</span>
-                    <code className="settings-id-value">{credentials.userId}</code>
-                  </div>
                   <div className="settings-id-field">
                     <span className="settings-id-label">Pass key</span>
                     <code className="settings-id-value">
@@ -528,7 +521,7 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <p className="settings-empty">
-                  No User ID yet. When you accept the consent notice in the{" "}
+                  No pass key yet. When you accept the consent notice in the{" "}
                   <Link to="/profile">Career Profile</Link> or{" "}
                   <Link to="/simplify-job-description">Simplify Job Description</Link> tool,
                   we&apos;ll generate one for you.
@@ -563,7 +556,7 @@ export default function SettingsPage() {
                 <div className="settings-danger-item">
                   <h3 className="settings-danger-title">Clear profile answers only</h3>
                   <p className="settings-danger-desc">
-                    Wipes your Career Profile wizard answers. Keeps your User ID, pass key,
+                    Wipes your Career Profile wizard answers. Keeps your pass key
                     and consent record.
                   </p>
                   <button
@@ -578,7 +571,7 @@ export default function SettingsPage() {
                 <div className="settings-danger-item">
                   <h3 className="settings-danger-title">Delete everything on this device</h3>
                   <p className="settings-danger-desc">
-                    Removes profile answers, User ID, pass key, consent, and session flags
+                    Removes profile answers, pass key, consent, and session flags
                     from this browser.
                   </p>
                   <button
