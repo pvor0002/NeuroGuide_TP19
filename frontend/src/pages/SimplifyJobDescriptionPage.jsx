@@ -1490,12 +1490,14 @@ export default function SimplifyJobDescriptionPage() {
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
   const simplifiedResultRef = useRef(simplifiedResult);
-  simplifiedResultRef.current = simplifiedResult;
+  useLayoutEffect(() => {
+    simplifiedResultRef.current = simplifiedResult;
+  });
 
   const jobScoreCacheSyncKey = useMemo(() => {
     if (!simplifiedResult?.job_title) return "";
     return `${normalizeJobTitleKey(simplifiedResult.job_title)}|${String(simplifiedResult._ng_simp_ver ?? "")}`;
-  }, [simplifiedResult?.job_title, simplifiedResult?._ng_simp_ver]);
+  }, [simplifiedResult]);
 
   const runJobScoreForSkills = useCallback(
     async (options) => {
