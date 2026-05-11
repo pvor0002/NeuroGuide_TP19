@@ -17,12 +17,8 @@ const ENERGY_PATTERN_SCORE_OPTIONS = [
   "Best with flexible pace",
   "Best with short focus sprints",
   "Best with frequent breaks",
-  "Best with visual task boards",
   "Best with one task at a time",
   "Best in quieter settings",
-  "Best with accountability",
-  "Best with morning deep work",
-  "Best with afternoon deep work",
 ];
 const MAX_SCORE_WORK_PREFS = 2;
 const MAX_SCORE_ENERGY = 2;

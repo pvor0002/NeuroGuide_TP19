@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import SiteAppHeader from "../components/SiteAppHeader.jsx";
 import QuizScene from "../components/QuizScene.jsx";
+import ReadAloudButton from "../components/ReadAloudButton.jsx";
 import UserIdEntryBox from "../components/UserIdEntryBox.jsx";
 import WarmHeroPaperShapes from "../components/WarmHeroPaperShapes.jsx";
 import {
@@ -55,12 +56,8 @@ const ENERGY_PATTERN_OPTIONS = [
   "Best with flexible pace",
   "Best with short focus sprints",
   "Best with frequent breaks",
-  "Best with visual task boards",
   "Best with one task at a time",
   "Best in quieter settings",
-  "Best with accountability",
-  "Best with morning deep work",
-  "Best with afternoon deep work",
 ];
 
 const LEGACY_ENERGY_PATTERN_BODY_DOUBLING = "Best with body-doubling/accountability";
@@ -1584,7 +1581,12 @@ export default function ProfileWizardPage() {
       case "adhd-awareness":
         return (
           <>
-            <h2 className="q-title">Do you already know your focus profile?</h2>
+            <div className="q-question-head">
+              <div className="q-question-head-copy">
+                <h2 className="q-title">Do you already know your focus profile?</h2>
+              </div>
+              <ReadAloudButton segments={["Do you already know your focus profile?"]} />
+            </div>
             <div className="q-choice-stack">
               {renderLetteredOption("yes", "Yes, I know my profile", a.adhdAwareness, (v) => setAnswer("adhdAwareness", v), 0)}
               {renderLetteredOption("no", "Not sure yet - let's check", a.adhdAwareness, (v) => setAnswer("adhdAwareness", v), 1)}
@@ -1595,7 +1597,12 @@ export default function ProfileWizardPage() {
       case "adhd-type-known":
         return (
           <>
-            <h2 className="q-title">Which one best describes you?</h2>
+            <div className="q-question-head">
+              <div className="q-question-head-copy">
+                <h2 className="q-title">Which one best describes you?</h2>
+              </div>
+              <ReadAloudButton segments={["Which one best describes you?"]} />
+            </div>
             <div className="q-choice-stack">
               {Object.keys(ADHD_TYPE_LABELS).map((key, i) =>
                 renderLetteredOption(
@@ -1615,7 +1622,12 @@ export default function ProfileWizardPage() {
         const answer = a.quizAnswers?.[q.id];
         return (
           <>
-            <h2 className="q-title">{q.text}</h2>
+            <div className="q-question-head">
+              <div className="q-question-head-copy">
+                <h2 className="q-title">{q.text}</h2>
+              </div>
+              <ReadAloudButton segments={[q.text]} />
+            </div>
             <div className="q-choice-stack">
               {QUIZ_SCALE.map((opt, i) =>
                 renderLetteredOption(
@@ -1634,6 +1646,12 @@ export default function ProfileWizardPage() {
       case "adhd-quiz-result": {
         const score = scoreAdhdQuiz(a.quizAnswers);
         const inferredKey = a.quizInferredType || score.type;
+        const quizResultSegments = [
+          "Result",
+          `Your profile: ${ADHD_TYPE_LABELS[inferredKey]}`,
+          ADHD_TYPE_DESCRIPTIONS[inferredKey],
+          "This is not a medical or diagnostic test. It is a brief self-report profile based on research and common patterns. Use it as context for your strengths and needs, not as a clinical label.",
+        ];
         return (
           <div
             className="q-quiz-result"
@@ -1641,7 +1659,10 @@ export default function ProfileWizardPage() {
             aria-labelledby="q-quiz-result-title"
             aria-describedby="q-quiz-result-footnote"
           >
-            <p className="q-quiz-result-eyebrow">Result</p>
+            <div className="q-question-head q-question-head--quiz-result">
+              <p className="q-quiz-result-eyebrow">Result</p>
+              <ReadAloudButton segments={quizResultSegments} />
+            </div>
             <div className="q-quiz-result-focal">
               <h2 className="q-quiz-result-focal-heading" id="q-quiz-result-title">
                 <span className="q-quiz-result-focal-prefix">Your profile:</span>
@@ -1662,8 +1683,18 @@ export default function ProfileWizardPage() {
       case "work-style":
         return (
           <>
-            <h2 className="q-title">Which work preferences bring out your best?</h2>
-            <p className="q-subtitle">Pick up to {MAX_PICK_ALL_APPLY} that apply.</p>
+            <div className="q-question-head">
+              <div className="q-question-head-copy">
+                <h2 className="q-title">Which work preferences bring out your best?</h2>
+                <p className="q-subtitle">Pick up to {MAX_PICK_ALL_APPLY} that apply.</p>
+              </div>
+              <ReadAloudButton
+                segments={[
+                  "Which work preferences bring out your best?",
+                  `Pick up to ${MAX_PICK_ALL_APPLY} that apply.`,
+                ]}
+              />
+            </div>
             {renderChips("workStyles", WORK_STYLE_OPTIONS, { mode: "multi" })}
           </>
         );
@@ -1671,8 +1702,18 @@ export default function ProfileWizardPage() {
       case "support-needs":
         return (
           <>
-            <h2 className="q-title">Which supports help you most?</h2>
-            <p className="q-subtitle">Pick up to {MAX_PICK_ALL_APPLY} that apply.</p>
+            <div className="q-question-head">
+              <div className="q-question-head-copy">
+                <h2 className="q-title">Which supports help you most?</h2>
+                <p className="q-subtitle">Pick up to {MAX_PICK_ALL_APPLY} that apply.</p>
+              </div>
+              <ReadAloudButton
+                segments={[
+                  "Which supports help you most?",
+                  `Pick up to ${MAX_PICK_ALL_APPLY} that apply.`,
+                ]}
+              />
+            </div>
             <div className="support-needs-step">
               {renderChips("supportNeeds", SUPPORT_NEED_OPTIONS, { mode: "multi" })}
             </div>
@@ -1682,12 +1723,22 @@ export default function ProfileWizardPage() {
       case "roles-pick":
         return (
           <>
-            <h2 className="q-title">What IT or software job role have you had?</h2>
-            <p className="q-subtitle">
-              This step is for people with experience as <strong>recent graduates</strong> or with about{" "}
-              <strong>one to two years</strong> in a role. Please choose a <strong>single</strong> title that
-              best matches you—we only use software and IT-related job names so suggestions stay on-topic.
-            </p>
+            <div className="q-question-head">
+              <div className="q-question-head-copy">
+                <h2 className="q-title">What IT or software job role have you had?</h2>
+                <p className="q-subtitle">
+                  This step is for people with experience as <strong>recent graduates</strong> or with about{" "}
+                  <strong>one to two years</strong> in a role. Please choose a <strong>single</strong> title that
+                  best matches you—we only use software and IT-related job names so suggestions stay on-topic.
+                </p>
+              </div>
+              <ReadAloudButton
+                segments={[
+                  "What IT or software job role have you had?",
+                  "This step is for people with experience as recent graduates or with about one to two years in a role. Please choose a single title that best matches you. We only use software and IT-related job names so suggestions stay on-topic.",
+                ]}
+              />
+            </div>
             {renderRoleSelector()}
           </>
         );
@@ -1695,7 +1746,14 @@ export default function ProfileWizardPage() {
       case "role-duration":
         return (
           <>
-            <h2 className="q-title">How long have you done <em>{step.role}</em>?</h2>
+            <div className="q-question-head">
+              <div className="q-question-head-copy">
+                <h2 className="q-title">
+                  How long have you done <em>{step.role}</em>?
+                </h2>
+              </div>
+              <ReadAloudButton segments={[`How long have you done ${step.role}?`]} />
+            </div>
             <div className="q-choice-stack">
               {DURATION_OPTIONS.map((d, i) =>
                 renderLetteredOption(
@@ -1713,8 +1771,18 @@ export default function ProfileWizardPage() {
       case "skills":
         return (
           <>
-            <h2 className="q-title">Which skills match your experience?</h2>
-            <p className="q-subtitle">We&apos;ve added some based on your roles - keep, remove, or add more.</p>
+            <div className="q-question-head">
+              <div className="q-question-head-copy">
+                <h2 className="q-title">Which skills match your experience?</h2>
+                <p className="q-subtitle">We&apos;ve added some based on your roles - keep, remove, or add more.</p>
+              </div>
+              <ReadAloudButton
+                segments={[
+                  "Which skills match your experience?",
+                  "We've added some based on your roles. Keep, remove, or add more.",
+                ]}
+              />
+            </div>
             {renderSkillSelector()}
           </>
         );
@@ -1800,6 +1868,12 @@ export default function ProfileWizardPage() {
           const profileSkillsSection = dashboardSections.find((s) => s.id === "skills");
           const profileSupportSection = dashboardSections.find((s) => s.id === "support");
 
+          const profileReadySpeakTitle = `Your profile is ${indefiniteArticleBeforeProfileLabel(profileTypeLabel)} ${profileTypeLabel} type.`;
+          const profileReadySpeakChip = allRequiredDone ? "Completed." : `${completedRequiredCount} of 4 sections done.`;
+          const profileReadySpeakDetail = allRequiredDone
+            ? "Profile ready to use."
+            : [missingHint || "", "Finish the rest to unlock full results."].filter(Boolean).join(" ");
+
           return (
             <div className="q-profile-ready q-profile-dashboard">
               <section
@@ -1827,6 +1901,10 @@ export default function ProfileWizardPage() {
                         >
                           {allRequiredDone ? "Completed" : `${completedRequiredCount}/4 done`}
                         </p>
+                        <ReadAloudButton
+                          className="q-read-aloud-btn--profile-hero"
+                          segments={[profileReadySpeakTitle, profileReadySpeakChip, profileReadySpeakDetail]}
+                        />
                       </div>
                       <p
                         className={`q-subtitle q-subtitle--hero-compact ${allRequiredDone ? "q-subtitle--success" : "q-subtitle--pending"}`}
@@ -2123,8 +2201,18 @@ export default function ProfileWizardPage() {
       case "energy":
         return (
           <>
-            <h2 className="q-title">When and how do you do your best work?</h2>
-            <p className="q-subtitle">Pick up to {MAX_ENERGY_PATTERNS}.</p>
+            <div className="q-question-head">
+              <div className="q-question-head-copy">
+                <h2 className="q-title">When and how do you do your best work?</h2>
+                <p className="q-subtitle">Pick up to {MAX_ENERGY_PATTERNS}.</p>
+              </div>
+              <ReadAloudButton
+                segments={[
+                  "When and how do you do your best work?",
+                  `Pick up to ${MAX_ENERGY_PATTERNS}.`,
+                ]}
+              />
+            </div>
             <div className="energy-patterns-step">
               <div className="energy-check-grid" role="group" aria-label="Work style options">
                 {ENERGY_PATTERN_OPTIONS.map((option) => {

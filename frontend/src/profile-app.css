@@ -3730,6 +3730,36 @@ button:disabled {
   border-bottom: 2px solid rgba(47, 124, 224, 0.35);
 }
 
+.q-question-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.q-question-head-copy {
+  flex: 1 1 min(100%, 22rem);
+  min-width: 0;
+}
+
+.q-question-head .q-read-aloud-btn {
+  flex-shrink: 0;
+}
+
+.q-question-head--quiz-result {
+  align-items: center;
+}
+
+.q-question-head--quiz-result .q-quiz-result-eyebrow {
+  margin-bottom: 0;
+}
+
+.q-profile-title-row .q-read-aloud-btn--profile-hero {
+  margin-left: auto;
+}
+
 .q-subtitle {
   margin: 0;
   color: var(--ink-soft);
