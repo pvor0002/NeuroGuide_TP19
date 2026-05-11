@@ -1623,10 +1623,14 @@ export default function SimplifyJobDescriptionPage() {
     }
   }, [jobScoreResult]);
 
-  useEffect(() => {
-    if (!historyDrawerOpen) return;
-    setJobScoreHistory(readJobScoreHistory());
-  }, [historyDrawerOpen, jobScoreResult]);
+  const [historyLoadKey, setHistoryLoadKey] = useState(null);
+  const historyKey = historyDrawerOpen ? jobScoreResult : null;
+  if (historyKey !== historyLoadKey) {
+    setHistoryLoadKey(historyKey);
+    if (historyDrawerOpen) {
+      setJobScoreHistory(readJobScoreHistory());
+    }
+  }
 
   useEffect(() => {
     if (!scrollToOutputOnResult) return;
@@ -1639,10 +1643,16 @@ export default function SimplifyJobDescriptionPage() {
     return () => window.clearTimeout(t);
   }, [scrollToOutputOnResult, outputVisible]);
 
+  const [prevInputMode, setPrevInputMode] = useState(inputMode);
+  if (prevInputMode !== inputMode) {
+    setPrevInputMode(inputMode);
+    if (inputMode !== "file") {
+      setFileDropActive(false);
+    }
+  }
   useEffect(() => {
     if (inputMode !== "file") {
       fileDropDepthRef.current = 0;
-      setFileDropActive(false);
     }
   }, [inputMode]);
 
