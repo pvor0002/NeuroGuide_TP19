@@ -14,6 +14,7 @@ export default function App() {
         <Route element={<MarketingLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/simplify-job-description" element={<SimplifyJobDescriptionPage />} />
+          <Route path="/day-in-life" element={<DayInLifePage />} /> 
           <Route path="/my-saved-scores" element={<MySavedScoresPage />} />
           <Route path="/interview-prep" element={<InterviewPrepPage />} />
           <Route path="/settings" element={<SettingsPage />} />
