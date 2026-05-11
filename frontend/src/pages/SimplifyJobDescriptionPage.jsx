@@ -16,6 +16,7 @@ import {
 } from "../utils/simplifiedJobExport.js";
 import {
   appendJobScoreHistory,
+  appendSavedJobScore,
   clearPersistedJobScore,
   isJobScoreCacheValid,
   normalizeJobTitleKey,
@@ -1160,6 +1161,14 @@ function readCareerProfileForJobScore() {
   }
 }
 
+/** Job titles the user saved under Job focus in the career profile (used on the score card). */
+function getCareerProfileSelectedRoles() {
+  const data = readCareerProfileForJobScore();
+  const raw = data?.answers?.selectedRoles;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((r) => String(r).trim()).filter(Boolean);
+}
+
 function cloneSimplifiedSnapshotForHistory(result) {
   if (!result || typeof result !== "object") return null;
   try {
@@ -1180,7 +1189,7 @@ function buildJobScoreQuestionnaire(answers, skillsList) {
     adhd_profile_type: answers.adhdProfileType || "inattentive",
     work_preferences: answers.workStyles ?? answers.workPreferences ?? [],
     support_needs: answers.supportNeeds ?? [],
-    energy_patterns: answers.energyPatterns ?? [],
+    energy_patterns: Array.isArray(answers.energyPatterns) ? answers.energyPatterns : [],
     primary_role: answers.selectedRoles?.[0] || answers.primaryRole || "",
     role_duration: roleDuration,
     skills: [...skillsList],
@@ -1408,8 +1417,10 @@ export function JobHistoryDetailModal({ open, item, fallbackProfileKey, liveSimp
               <JobScoreCard
                 result={item.result}
                 occupationName={item.occupationName}
+                careerProfileJobRoles={getCareerProfileSelectedRoles()}
                 ariaHeadingId="jsc-history-modal-score-heading"
                 hideInterviewPrepCta
+                hidePostScoreActions
               />
             </div>
           </section>
@@ -1473,6 +1484,8 @@ export default function SimplifyJobDescriptionPage() {
   const [historyDetailItem, setHistoryDetailItem] = useState(null);
   const [jobScoreHistory, setJobScoreHistory] = useState([]);
   const [softSkillOverrides, setSoftSkillOverrides] = useState({});
+  /** Bumped when career profile work-env prefs are saved so questionnaireBaseline refreshes. */
+  const [careerProfileFitRevision, setCareerProfileFitRevision] = useState(0);
 
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
@@ -1498,7 +1511,12 @@ export default function SimplifyJobDescriptionPage() {
         return;
       }
       const mergedSkills = mergeProfileSkillLists(profile.answers);
-      const userQuestionnaire = buildJobScoreQuestionnaire(profile.answers, mergedSkills);
+      const userQuestionnaire = options?.questionnairePatch
+        ? {
+            ...buildJobScoreQuestionnaire(profile.answers, mergedSkills),
+            ...options.questionnairePatch,
+          }
+        : buildJobScoreQuestionnaire(profile.answers, mergedSkills);
       const extractedSkills = simplifiedResult?.extracted_skills ?? [];
       const fitFeatures = simplifiedResult?.job_fit_features ?? null;
 
@@ -1584,6 +1602,71 @@ export default function SimplifyJobDescriptionPage() {
     },
     [runJobScoreForSkills],
   );
+
+  const handleSaveJobScore = useCallback(() => {
+    const jobTitle = simplifiedResult?.job_title?.trim();
+    if (!jobTitle || !jobScoreResult) return;
+    appendSavedJobScore({
+      jobTitleNorm: normalizeJobTitleKey(jobTitle),
+      jobTitleDisplay: jobTitle,
+      simplifiedVerStamp: simplifiedResult?._ng_simp_ver ?? null,
+      occupationName: jobScoreOccupationName,
+      result: jobScoreResult,
+      createdAt: Date.now(),
+      simplifiedSnapshot: cloneSimplifiedSnapshotForHistory(simplifiedResult),
+      activeProfileKey: savedProfileKey ?? activeProfile,
+      originalPosting: buildOriginalPostingForHistory(inputMode, text, fileExtractedText),
+    });
+  }, [
+    simplifiedResult,
+    jobScoreResult,
+    jobScoreOccupationName,
+    savedProfileKey,
+    activeProfile,
+    inputMode,
+    text,
+    fileExtractedText,
+  ]);
+
+  const questionnaireBaseline = useMemo(() => {
+    const profile = readCareerProfileForJobScore();
+    const a = profile?.answers;
+    if (!a) return null;
+    return {
+      work_preferences: [...(a.workStyles || [])].slice(0, 2),
+      support_needs: [...(a.supportNeeds || [])].slice(0, 2),
+      energy_patterns: [...(a.energyPatterns || [])].slice(0, 2),
+    };
+  }, [jobScoreResult, careerProfileFitRevision]);
+
+  const handleQuestionnairePreviewPatch = useCallback(
+    async (patch) => {
+      await runJobScoreForSkills({ appendHistory: false, questionnairePatch: patch });
+    },
+    [runJobScoreForSkills],
+  );
+
+  const handleQuestionnaireSaveToProfile = useCallback((patch) => {
+    try {
+      const raw = window.localStorage.getItem(CAREER_PROFILE_STORAGE_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (!p.answers) return;
+      if (Array.isArray(patch.work_preferences)) {
+        p.answers.workStyles = patch.work_preferences.slice(0, 2);
+      }
+      if (Array.isArray(patch.support_needs)) {
+        p.answers.supportNeeds = patch.support_needs.slice(0, 2);
+      }
+      if (Array.isArray(patch.energy_patterns)) {
+        p.answers.energyPatterns = patch.energy_patterns.slice(0, 2);
+      }
+      window.localStorage.setItem(CAREER_PROFILE_STORAGE_KEY, JSON.stringify(p));
+      setCareerProfileFitRevision((n) => n + 1);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     setSoftSkillOverrides({});
@@ -1991,7 +2074,12 @@ export default function SimplifyJobDescriptionPage() {
                 <JobScoreCard
                   result={jobScoreResult}
                   occupationName={jobScoreOccupationName}
+                  careerProfileJobRoles={getCareerProfileSelectedRoles()}
+                  questionnaireBaseline={questionnaireBaseline}
+                  onQuestionnairePreviewPatch={handleQuestionnairePreviewPatch}
+                  onQuestionnaireSaveToProfile={handleQuestionnaireSaveToProfile}
                   onOpenHistory={() => setHistoryDrawerOpen(true)}
+                  onSaveJobScore={handleSaveJobScore}
                   onSkillProfileChange={handleSkillProfileChange}
                   jobScoreBusy={jobScoreBusy}
                   jobFitFeatures={simplifiedResult?.job_fit_features ?? null}

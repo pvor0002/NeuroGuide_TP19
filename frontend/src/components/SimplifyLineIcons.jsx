@@ -144,6 +144,18 @@ export function SimplifyLineIcon({ name, className = "", ...rest }) {
           <path d="M6 4h12v17l-6-4-6 4V4z" stroke="currentColor" strokeWidth={sw} strokeLinejoin="round" />
         </svg>
       );
+    case "edit":
+      return (
+        <svg {...base}>
+          <path
+            d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L8 18l-4 1 1-4L16.5 3.5z"
+            stroke="currentColor"
+            strokeWidth={sw}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
     default:
       return (
         <svg {...base}>
