@@ -19,12 +19,19 @@ export default function DayInLifePage() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState(null);
 
+  const jobKey = job_title && adhd_type ? `${job_title}|${adhd_type}` : null;
+  const [prevJobKey, setPrevJobKey] = useState(null);
+  if (jobKey !== prevJobKey) {
+    setPrevJobKey(jobKey);
+    if (jobKey) {
+      setLoading(true);
+      setError(null);
+      setTimeline(null);
+    }
+  }
+
   useEffect(() => {
     if (!job_title || !adhd_type) return;
-
-    setLoading(true);
-    setError(null);
-
     fetchDayInLife(job_title, adhd_type)
       .then((data) => setTimeline(data.timeline))
       .catch((err) => setError(err.message))
