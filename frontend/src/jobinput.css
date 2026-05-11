@@ -1932,6 +1932,468 @@ a.btn.btn-primary:hover {
   border-bottom-color: #1f1b19;
 }
 
+/* Day in Life — reuse career profile back control (profile-app.css .button / .q-profile-prev-*) */
+.day-in-life-page {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 0.35rem 1rem 2.5rem;
+  box-sizing: border-box;
+  font-size: clamp(0.94rem, 0.22vw + 0.88rem, 1.06rem);
+}
+
+.day-in-life-page .day-in-life-back {
+  margin-bottom: 0.15rem;
+}
+
+.day-in-life-header .day-in-life-back {
+  margin-bottom: 0.55rem;
+}
+
+.day-in-life-header h1 {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.35rem, 2.5vw, 1.65rem);
+  font-weight: 900;
+  color: #2f2720;
+  line-height: 1.2;
+}
+
+.day-in-life-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #5a524c;
+}
+
+.day-in-life-no-data,
+.day-in-life-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.5rem 0;
+}
+
+.day-in-life-no-data p,
+.day-in-life-error p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #4a433c;
+}
+
+/* ---- A Day in the Life — ADHD-friendly vertical timeline ---- */
+.day-life-loading {
+  margin: 1rem 0 1.5rem;
+}
+
+.day-life-loading__inner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.day-life-loading__pulse {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: #7fb89a;
+  animation: day-life-pulse 1.25s ease-in-out infinite;
+}
+
+.day-life-loading__txt {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: #5a524c;
+}
+
+@keyframes day-life-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.day-life-skeleton {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.day-life-skeleton__card {
+  height: 5.5rem;
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(82, 70, 55, 0.06) 25%, rgba(82, 70, 55, 0.12) 37%, rgba(82, 70, 55, 0.06) 63%);
+  background-size: 400% 100%;
+  animation: day-life-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes day-life-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+.day-life-timeline {
+  position: relative;
+  margin-top: 0.5rem;
+  padding-bottom: 2rem;
+}
+
+.day-life-timeline__track {
+  position: absolute;
+  left: calc(4.15rem + 10px);
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(127, 184, 154, 0.55) 0%,
+    rgba(214, 189, 226, 0.35) 45%,
+    rgba(180, 210, 238, 0.5) 100%
+  );
+  opacity: 0.85;
+}
+
+@media (max-width: 520px) {
+  .day-life-timeline__track {
+    left: calc(3.35rem + 8px);
+  }
+}
+
+.day-life-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 4.15rem minmax(0, 1fr);
+  gap: 0.55rem 0.65rem;
+  margin-bottom: 1.15rem;
+  animation: day-life-card-in 0.55s ease-out both;
+}
+
+@media (max-width: 520px) {
+  .day-life-card {
+    grid-template-columns: 3.35rem minmax(0, 1fr);
+  }
+}
+
+@keyframes day-life-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.day-life-card__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding-top: 0.15rem;
+}
+
+.day-life-card__time {
+  font-size: 0.72rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: #5a524c;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 4rem;
+}
+
+.day-life-card__dot {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 14px rgba(45, 41, 38, 0.08);
+  color: #3d5a4a;
+  background: #eef6f1;
+}
+
+.day-life-card__dot--high {
+  background: #e3f4ea;
+  color: #2d6a47;
+}
+
+.day-life-card__dot--medium {
+  background: #fdf6e3;
+  color: #8a6d1f;
+}
+
+.day-life-card__dot--low {
+  background: #fdecea;
+  color: #a85c52;
+}
+
+.day-life-card__dot--break {
+  background: #e8f2fb;
+  color: #3d6b8c;
+}
+
+.day-life-rail-icon {
+  display: block;
+}
+
+.day-life-card__shell {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(82, 70, 55, 0.1);
+  background: #fffdf9;
+  box-shadow: 0 8px 26px rgba(45, 41, 38, 0.06);
+}
+
+.day-life-card--focus-window .day-life-card__shell {
+  border-color: rgba(61, 125, 82, 0.35);
+  box-shadow: 0 10px 32px rgba(61, 125, 82, 0.12);
+}
+
+.day-life-card__wave {
+  height: 5px;
+  width: 100%;
+  opacity: 0.85;
+}
+
+.day-life-card__wave--high {
+  background: linear-gradient(90deg, #c8e6d9 0%, #e3f4ea 100%);
+}
+
+.day-life-card__wave--medium {
+  background: linear-gradient(90deg, #fff3d6 0%, #fdecc8 100%);
+}
+
+.day-life-card__wave--low {
+  background: linear-gradient(90deg, #ffd9d1 0%, #ffe9e4 100%);
+}
+
+.day-life-card__wave--break {
+  background: linear-gradient(90deg, #d4e8f7 0%, #e8f2fb 100%);
+}
+
+.day-life-card__inner {
+  padding: 0.75rem 0.95rem 0.85rem;
+}
+
+.day-life-card__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem 0.65rem;
+  margin-bottom: 0.45rem;
+}
+
+.day-life-card__task {
+  margin: 0;
+  flex: 1 1 12rem;
+  font-size: clamp(0.98rem, 0.35vw + 0.88rem, 1.08rem);
+  font-weight: 900;
+  color: #2f2720;
+  line-height: 1.25;
+}
+
+.day-life-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.22rem 0.52rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.day-life-badge__text {
+  white-space: nowrap;
+}
+
+.day-life-badge--high {
+  background: #dff3e8;
+  color: #1b5636;
+  border-color: rgba(61, 125, 82, 0.28);
+}
+
+.day-life-badge--medium {
+  background: #fff6dc;
+  color: #6b5618;
+  border-color: rgba(212, 176, 76, 0.35);
+}
+
+.day-life-badge--low {
+  background: #ffe9e4;
+  color: #7a4540;
+  border-color: rgba(200, 120, 105, 0.28);
+}
+
+.day-life-badge--break {
+  background: #e8f2fb;
+  color: #355f78;
+  border-color: rgba(100, 152, 186, 0.28);
+}
+
+.day-life-focus-strip {
+  margin: 0 0 0.5rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #1f4d32;
+  background: rgba(223, 243, 232, 0.85);
+  border: 1px dashed rgba(61, 125, 82, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.day-life-focus-strip__star {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.day-life-card__desc {
+  margin: 0 0 0.55rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: #4d453d;
+}
+
+.day-life-tip {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  padding: 0.45rem 0.55rem;
+  border-radius: 12px;
+  background: rgba(255, 248, 235, 0.85);
+  border: 1px solid rgba(212, 176, 76, 0.22);
+  margin-bottom: 0.55rem;
+}
+
+.day-life-tip__bulb {
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.day-life-tip__label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a7351;
+  margin-bottom: 0.15rem;
+}
+
+.day-life-tip__txt {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #4a4338;
+}
+
+.day-life-card__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.28rem 0.15rem;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #5b6d63;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.day-life-card__more:focus-visible {
+  outline: 2px solid rgba(61, 125, 82, 0.55);
+  outline-offset: 2px;
+}
+
+.day-life-card__chev {
+  transition: transform 0.2s ease;
+}
+
+.day-life-card__chev--open {
+  transform: rotate(180deg);
+}
+
+.day-life-card__expanded {
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed rgba(82, 70, 55, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.day-life-detail__h {
+  margin: 0 0 0.22rem;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #6e655c;
+}
+
+.day-life-detail__p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #4a433c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-life-card,
+  .day-life-skeleton__card,
+  .day-life-loading__pulse {
+    animation: none !important;
+  }
+
+  .day-life-card {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .day-life-card__chev {
+    transition: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .day-life-card__shell {
+    border-width: 2px;
+    border-color: #2f2720;
+  }
+
+  .day-life-badge {
+    border-width: 2px;
+  }
+}
+
 .simplify-hero-shapes {
   display: flex;
   justify-content: center;
@@ -5793,35 +6255,35 @@ a.btn.btn-primary:hover {
 }
 
 .jsc-panel--jobmatch-shell .jsc-post-score-actions {
-  margin-top: 1.2rem;
-  padding-top: 0.8rem;
+  margin-top: 1.05rem;
+  padding-top: 0.65rem;
 }
 
 .jsc-post-score-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
+  gap: 0.48rem;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 0.75rem;
-  padding-top: 0.85rem;
+  margin-top: 0.65rem;
+  padding-top: 0.72rem;
   border-top: 1px solid rgba(82, 70, 55, 0.12);
 }
 
 .jsc-post-score-btn {
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   border-radius: 999px;
-  padding: 0.55rem 1.35rem;
+  padding: 0.38rem 1rem;
   cursor: pointer;
   text-decoration: none;
   text-align: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.45rem;
+  min-height: 2.05rem;
   box-sizing: border-box;
   transition: background 0.15s ease, border-color 0.15s ease;
   /* Reference: white pill, light gray border, taupe label */
@@ -6642,6 +7104,44 @@ a.btn.btn-primary:hover {
   line-height: 1;
 }
 
+.jsc-bd-row__callout-slot {
+  grid-column: 2 / 4;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 0;
+}
+
+.jsc-bd-row__callout {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.26rem 0.52rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.015em;
+  line-height: 1.28;
+  text-align: left;
+}
+
+.jsc-bd-row__callout--good {
+  background: rgba(58, 122, 82, 0.12);
+  color: #1a4d2e;
+  border: 1px solid rgba(46, 106, 68, 0.28);
+}
+
+.jsc-bd-row__callout--warn {
+  background: rgba(196, 154, 58, 0.15);
+  color: #5c4512;
+  border: 1px solid rgba(180, 140, 48, 0.38);
+}
+
+.jsc-bd-row__callout--risk {
+  background: rgba(198, 96, 85, 0.12);
+  color: #6e2e26;
+  border: 1px solid rgba(198, 96, 85, 0.4);
+}
+
 .jsc-bd-row__expand {
   display: flex;
   flex-direction: column;
@@ -7357,6 +7857,17 @@ a.btn.btn-primary:hover {
   .jsc-bd-row__score {
     grid-row: 2;
     grid-column: 2 / 3;
+  }
+
+  .jsc-bd-row__callout-slot {
+    grid-row: 2;
+    grid-column: 1 / 3;
+    justify-content: stretch;
+  }
+
+  .jsc-bd-row__callout {
+    width: 100%;
+    text-align: center;
   }
 
   .jsc-bd-row__expand {
@@ -8804,16 +9315,26 @@ a.btn.btn-primary:hover {
   padding: 0.15rem 0 0.35rem;
 }
 
+.jsc-exp-fit--good {
+  border-left: 3px solid #3d7d52;
+  padding-left: 0.65rem;
+}
+
+.jsc-exp-fit--moderate {
+  border-left: 3px solid #c49a3a;
+  padding-left: 0.65rem;
+}
+
+.jsc-exp-fit--gap {
+  border-left: 3px solid #c66055;
+  padding-left: 0.65rem;
+}
+
 .jsc-exp-fit-head {
   display: flex;
   align-items: flex-start;
   gap: 0.55rem;
   margin-bottom: 0.45rem;
-}
-
-.jsc-exp-fit-emoji {
-  font-size: 1.25rem;
-  line-height: 1.2;
 }
 
 .jsc-exp-fit-titles {

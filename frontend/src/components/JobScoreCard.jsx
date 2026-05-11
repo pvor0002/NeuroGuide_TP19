@@ -575,12 +575,16 @@ function BreakdownRowIcon({ variant }) {
   );
 }
 
-function ScoreBreakdownRow({ rowId, label, pct, expanded, onToggle, children, variant = "soft", hint }) {
+function ScoreBreakdownRow({ rowId, label, pct, expanded, onToggle, children, variant = "soft", hint, statusCallout }) {
   const safe = pct == null ? null : Math.max(0, Math.min(100, Number(pct)));
   const tone = barToneClass(safe);
-  const showBar = safe != null;
+  const showBar = statusCallout == null && safe != null;
   const scoreText = showBar ? String(Math.round(safe)) : "—";
-  const ariaScore = showBar ? `Score ${scoreText} out of 100` : "Score not available yet";
+  const ariaScore = statusCallout
+    ? statusCallout.label
+    : showBar
+      ? `Score ${scoreText} out of 100`
+      : "Score not available yet";
   const ariaExpand = expanded ? "Collapse details" : "Expand for details";
   return (
     <div className={`jsc-bd-row${expanded ? " jsc-bd-row--expanded" : ""}`}>
@@ -603,16 +607,24 @@ function ScoreBreakdownRow({ rowId, label, pct, expanded, onToggle, children, va
             {hint ? <span className="jsc-bd-row__hint">{hint}</span> : null}
           </span>
         </span>
-        <span className="jsc-bd-row__track" aria-hidden="true">
-          <span
-            className={`jsc-bd-row__fill jsc-bd-row__fill--${tone}`}
-            style={{ width: showBar ? `${safe}%` : "0%" }}
-          />
-        </span>
-        <span className="jsc-bd-row__score">
-          <span className="jsc-bd-row__val">{scoreText}</span>
-          <span className="jsc-bd-row__outof">/ 100</span>
-        </span>
+        {statusCallout ? (
+          <span className="jsc-bd-row__callout-slot">
+            <span className={`jsc-bd-row__callout jsc-bd-row__callout--${statusCallout.tone}`}>{statusCallout.label}</span>
+          </span>
+        ) : (
+          <>
+            <span className="jsc-bd-row__track" aria-hidden="true">
+              <span
+                className={`jsc-bd-row__fill jsc-bd-row__fill--${tone}`}
+                style={{ width: showBar ? `${safe}%` : "0%" }}
+              />
+            </span>
+            <span className="jsc-bd-row__score">
+              <span className="jsc-bd-row__val">{scoreText}</span>
+              <span className="jsc-bd-row__outof">/ 100</span>
+            </span>
+          </>
+        )}
         <span className="jsc-bd-row__expand" aria-hidden="true">
           <span className="jsc-bd-row__expand-label">Details</span>
           <span className="jsc-bd-row__chev-wrap">
@@ -827,11 +839,11 @@ export default function JobScoreCard({
     return bucketCoveragePct(matchedByType.soft, partialByType.soft, missingByType.soft);
   }, [softBucketsFromDebug, softDebug, matchedByType.soft, partialByType.soft, missingByType.soft]);
 
-  const experienceBarPct = useMemo(() => {
+  const experienceStatusCallout = useMemo(() => {
     const st = result?.experience_fit?.status;
-    if (st === "moderate") return 62;
-    if (st === "gap") return 36;
-    if (st === "good") return 84;
+    if (st === "good") return { label: "Good to go", tone: "good" };
+    if (st === "moderate") return { label: "Tight fit — proceed carefully", tone: "warn" };
+    if (st === "gap") return { label: "Should not proceed — posting asks more experience", tone: "risk" };
     return null;
   }, [result?.experience_fit?.status]);
 
@@ -1086,8 +1098,9 @@ export default function JobScoreCard({
               rowId="experience"
               label="Experience Match"
               variant="experience"
-              hint="Your experience band compared with what this posting tends to ask for."
-              pct={experienceBarPct}
+              hint="Quick read on whether this posting’s experience bar fits your band."
+              pct={null}
+              statusCallout={experienceStatusCallout}
               expanded={bdOpen.experience}
               onToggle={() => setBdOpen((o) => ({ ...o, experience: !o.experience }))}
             >
@@ -1222,24 +1235,20 @@ export default function JobScoreCard({
                 </button>
               )
             ) : null}
-          </div>
-        ) : null}
-
-        {hasResult ? (
-          <div className="jsc-cta-wrap">
             <button
               type="button"
-              className="jsc-interview-cta"
-              onClick={() =>
-                navigate("/day-in-life", {
-                  state: {
-                    job_title: occupationName || "this role",
-                    adhd_type: getAdhdTypeFromProfile(),
-                  },
-                })
-              }
+              className="jsc-post-score-btn"
+              onClick={() => {
+                const jobTitle = occupationName || "this role";
+                const adhdType = getAdhdTypeFromProfile();
+                const q = new URLSearchParams({
+                  job_title: jobTitle,
+                  adhd_type: adhdType,
+                });
+                navigate({ pathname: "/day-in-life", search: `?${q.toString()}` }, { state: { job_title: jobTitle, adhd_type: adhdType } });
+              }}
             >
-            See a day in this job
+              See a day in this job
             </button>
           </div>
         ) : null}

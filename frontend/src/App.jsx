@@ -12,13 +12,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<MarketingLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/simplify-job-description" element={<SimplifyJobDescriptionPage />} />
-          <Route path="/day-in-life" element={<DayInLifePage />} /> 
-          <Route path="/my-saved-scores" element={<MySavedScoresPage />} />
-          <Route path="/interview-prep" element={<InterviewPrepPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+        {/* path="/" layout so nested routes resolve (RR v7); index = home */}
+        <Route path="/" element={<MarketingLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="simplify-job-description" element={<SimplifyJobDescriptionPage />} />
+          <Route path="day-in-life" element={<DayInLifePage />} />
+          <Route path="my-saved-scores" element={<MySavedScoresPage />} />
+          <Route path="interview-prep" element={<InterviewPrepPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="/profile" element={<ProfileWizardPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

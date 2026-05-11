@@ -9,8 +9,6 @@ export function ExperienceMatchPanel({ experienceFit }) {
   const req = experienceFit?.required_years;
   const userY = experienceFit?.user_years;
 
-  const emoji = status === "good" ? "🟢" : status === "moderate" ? "🟡" : "🔴";
-
   const detailParts = [];
   if (typeof userY === "number") {
     detailParts.push(`About ${userY} years in your profile band`);
@@ -33,11 +31,8 @@ export function ExperienceMatchPanel({ experienceFit }) {
   }
 
   return (
-    <div className="jsc-exp-fit" role="region" aria-label="Experience match">
+    <div className={`jsc-exp-fit jsc-exp-fit--${status}`} role="region" aria-label="Experience match">
       <div className="jsc-exp-fit-head">
-        <span className="jsc-exp-fit-emoji" aria-hidden="true">
-          {emoji}
-        </span>
         <div className="jsc-exp-fit-titles">
           <span className="jsc-exp-fit-headline">{headline}</span>
           {detail ? <span className="jsc-exp-fit-detail">{detail}</span> : null}

@@ -113,6 +113,8 @@ def generate_day_in_life_with_gemini(
     adhd_type: str,
     settings: Settings,
 ) -> DayInLifeResponse:
+    job_title = job_title.strip()
+    adhd_type = adhd_type.strip()
     logger.info(
         "[DayInLife] generate_day_in_life_with_gemini called: job_title=%r, adhd_type=%r",
         job_title,
@@ -126,8 +128,8 @@ def generate_day_in_life_with_gemini(
         )
 
     user_prompt = (
-        f"Job title: {job_title.strip()}\n"
-        f"ADHD type: {adhd_type.strip()}\n\n"
+        f"Job title: {job_title}\n"
+        f"ADHD type: {adhd_type}\n\n"
         "Generate a realistic day-in-the-life workday timeline for this role and ADHD type. "
         "Return only the JSON object."
     )
