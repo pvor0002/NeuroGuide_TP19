@@ -11,17 +11,21 @@ Day 2: Replace the mock block with the real day_in_life_service call.
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.schemas.day_in_life import DayInLifeRequest, DayInLifeResponse, TimeBlock
+from app.core.config import Settings, get_settings
+from app.schemas.day_in_life import DayInLifeRequest, DayInLifeResponse
+from app.services.gemini_day_in_life import generate_day_in_life_with_gemini
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Day in Life"])
 
-
 @router.post("/day-in-life", response_model=DayInLifeResponse)
-async def get_day_in_life(body: DayInLifeRequest) -> DayInLifeResponse:
+async def get_day_in_life(
+    body: DayInLifeRequest,
+    settings: Settings = Depends(get_settings),
+) -> DayInLifeResponse:
 
     logger.info(
         "[DayInLife] Request received: job_title=%r, adhd_type=%r",
@@ -30,78 +34,7 @@ async def get_day_in_life(body: DayInLifeRequest) -> DayInLifeResponse:
     )
 
     try:
-
-        # ── Day 2: replace this mock block with the real service call ──────
-        # from app.services.day_in_life_service import generate_day_in_life
-        # result = generate_day_in_life(body.job_title, body.adhd_type)
-        # return result
-        # ───────────────────────────────────────────────────────────────────
-
-        mock_timeline = [
-            TimeBlock(
-                time="9:00 AM",
-                task="Emails + Slack catch-up",
-                description="Review overnight messages, flag urgent items, plan the day.",
-                energy_level="low",
-                adhd_tip="Use this window — your focus peaks later in the morning.",
-            ),
-            TimeBlock(
-                time="9:30 AM",
-                task="Deep focused work",
-                description="Uninterrupted solo work block. Your most cognitively demanding task of the day.",
-                energy_level="high",
-                adhd_tip="Block notifications. Try 25-min Pomodoro sprints with a 5-min break.",
-            ),
-            TimeBlock(
-                time="11:00 AM",
-                task="Morning break",
-                description="Step away from the screen. Walk, stretch, or grab a coffee.",
-                energy_level="break",
-                adhd_tip=None,
-            ),
-            TimeBlock(
-                time="11:15 AM",
-                task="Team check-in or meeting",
-                description="Short sync with your team. Usually 30–45 minutes.",
-                energy_level="medium",
-                adhd_tip="Prepare 2–3 talking points beforehand so you stay on track.",
-            ),
-            TimeBlock(
-                time="1:00 PM",
-                task="Lunch — proper break",
-                description="Away from your desk. This break matters more than it sounds for afternoon focus.",
-                energy_level="break",
-                adhd_tip=None,
-            ),
-            TimeBlock(
-                time="2:00 PM",
-                task="Collaborative or review work",
-                description="Apply feedback, iterate on work, or hand off to colleagues.",
-                energy_level="medium",
-                adhd_tip="Use a checklist for repetitive steps so nothing gets missed.",
-            ),
-            TimeBlock(
-                time="4:00 PM",
-                task="Admin + plan tomorrow",
-                description="Log completed tasks, update any trackers, write tomorrow's top 3 priorities.",
-                energy_level="low",
-                adhd_tip="End-of-day admin suits low energy — save your deep work for the morning.",
-            ),
-        ]
-
-        logger.info(
-            "[DayInLife] Returning mock timeline (%d blocks) for job_title=%r",
-            len(mock_timeline),
-            body.job_title,
-        )
-
-        return DayInLifeResponse(
-            job_title=body.job_title,
-            adhd_type=body.adhd_type,
-            data_source="gemini_fallback",
-            timeline=mock_timeline,
-        )
-
+        return generate_day_in_life_with_gemini(body.job_title, body.adhd_type, settings)
     except HTTPException:
         raise
     except Exception as exc:
