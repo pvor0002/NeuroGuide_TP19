@@ -1520,30 +1520,29 @@ export default function JobScoreCard({
           </div>
         ) : null}
 
-{showInterviewCta ? (
-          <div className="jsc-cta-wrap">
-            <Link className="jsc-interview-cta" to="/interview-prep">
-              Start preparing for interview
-            </Link>
-          </div>
-        ) : null}
-
-        {hasResult ? (
-          <div className="jsc-cta-wrap">
-            <button
-              type="button"
-              className="jsc-interview-cta"
-              onClick={() =>
-                navigate("/day-in-life", {
-                  state: {
-                    job_title: occupationName || "this role",
-                    adhd_type: getAdhdTypeFromProfile(),
-                  },
-                })
-              }
-            >
-            See a day in this job
-            </button>
+{(showInterviewCta || hasResult) ? (
+          <div className="jsc-cta-wrap jsc-cta-wrap--row">
+            {showInterviewCta ? (
+              <Link className="jsc-interview-cta" to="/interview-prep">
+                Start preparing for interview
+              </Link>
+            ) : null}
+            {hasResult ? (
+              <button
+                type="button"
+                className="jsc-interview-cta jsc-interview-cta--secondary"
+                onClick={() =>
+                  navigate("/day-in-life", {
+                    state: {
+                      job_title: occupationName || "this role",
+                      adhd_type: getAdhdTypeFromProfile(),
+                    },
+                  })
+                }
+              >
+                See a day in this job
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
