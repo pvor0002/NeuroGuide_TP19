@@ -6,6 +6,7 @@ import SimplifyJobDescriptionPage from "./pages/SimplifyJobDescriptionPage.jsx";
 import InterviewPrepPage from "./pages/InterviewPrepPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import MySavedScoresPage from "./pages/MySavedScoresPage.jsx";
+import DayInLifePage from "./pages/DayInLifePage.jsx";
 
 export default function App() {
   return (

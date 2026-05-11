@@ -65,6 +65,9 @@ export default function SiteTopNav() {
           <Link to="/simplify-job-description" aria-current={location.pathname === "/simplify-job-description" ? "page" : undefined} onClick={closeMobileMenu}>
             Simplify Job Description
           </Link>
+          <Link to="/day-in-life" aria-current={location.pathname === "/day-in-life" ? "page" : undefined} onClick={closeMobileMenu}>
+            Day in the Life
+          </Link>
           <Link to="/my-saved-scores" aria-current={location.pathname === "/my-saved-scores" ? "page" : undefined} onClick={closeMobileMenu}>
             My Saved Scores
           </Link>
