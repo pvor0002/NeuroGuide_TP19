@@ -1101,18 +1101,11 @@ export default function JobScoreCard({
   const softDebugSplit = useMemo(() => splitSoftSkillsFromDebug(softDebug), [softDebug]);
   const softBucketsFromDebug = softDebugSplit != null;
   const [softDnDState, setSoftDnDState] = useState(null);
-
-  useEffect(() => {
-    if (!softDebugSplit) {
-      setSoftDnDState(null);
-      return;
-    }
-    setSoftDnDState({
-      matched: [...softDebugSplit.matched],
-      partial: [...softDebugSplit.partial],
-      missing: [...softDebugSplit.missing],
-    });
-  }, [softDebugSplit]);
+  const [prevSoftDebugSplit, setPrevSoftDebugSplit] = useState(softDebugSplit);
+  if (prevSoftDebugSplit !== softDebugSplit) {
+    setPrevSoftDebugSplit(softDebugSplit);
+    setSoftDnDState(null);
+  }
 
   const skillBuckets = useMemo(() => {
     const pM = partitionByType(split.matched);
@@ -1141,11 +1134,6 @@ export default function JobScoreCard({
     () => bucketCoveragePct(matchedByType.tool, partialByType.tool, missingByType.tool),
     [matchedByType.tool, partialByType.tool, missingByType.tool],
   );
-  const softPct = useMemo(
-    () => bucketCoveragePct(matchedByType.soft, partialByType.soft, missingByType.soft),
-    [matchedByType.soft, partialByType.soft, missingByType.soft],
-  );
-
   const softRowPct = useMemo(() => {
     if (softBucketsFromDebug) {
       return softScoreFromBuckets({

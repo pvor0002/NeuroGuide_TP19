@@ -28,7 +28,7 @@ export default function DayInLifePage() {
         </button>
         <h1>A Day in the Life</h1>
         <p className="day-in-life-subtitle">
-          Here's what a typical workday might look like for a{" "}
+          Here&apos;s what a typical workday might look like for a{" "}
           <strong>{job_title}</strong> with <strong>{adhd_type}</strong> ADHD.
         </p>
       </div>
