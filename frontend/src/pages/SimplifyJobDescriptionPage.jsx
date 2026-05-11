@@ -1477,12 +1477,14 @@ export default function SimplifyJobDescriptionPage() {
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
   const simplifiedResultRef = useRef(simplifiedResult);
-  simplifiedResultRef.current = simplifiedResult;
+  useLayoutEffect(() => {
+    simplifiedResultRef.current = simplifiedResult;
+  });
 
   const jobScoreCacheSyncKey = useMemo(() => {
     if (!simplifiedResult?.job_title) return "";
     return `${normalizeJobTitleKey(simplifiedResult.job_title)}|${String(simplifiedResult._ng_simp_ver ?? "")}`;
-  }, [simplifiedResult?.job_title, simplifiedResult?._ng_simp_ver]);
+  }, [simplifiedResult]);
 
   const runJobScoreForSkills = useCallback(
     async (options) => {
@@ -1585,29 +1587,26 @@ export default function SimplifyJobDescriptionPage() {
     [runJobScoreForSkills],
   );
 
-  useEffect(() => {
+  const [prevJobScoreCacheSyncKey, setPrevJobScoreCacheSyncKey] = useState(jobScoreCacheSyncKey);
+  if (prevJobScoreCacheSyncKey !== jobScoreCacheSyncKey) {
+    setPrevJobScoreCacheSyncKey(jobScoreCacheSyncKey);
     setSoftSkillOverrides({});
-  }, [jobScoreCacheSyncKey]);
-
-  useEffect(() => {
-    const sr = simplifiedResultRef.current;
-    if (!jobScoreCacheSyncKey || !sr || !hasRenderableSimplifiedOutput(sr)) return;
-    const cached = readPersistedJobScore();
-    if (!cached) {
-      setJobScoreResult(null);
-      setJobScoreOccupationName("");
-      return;
+    if (jobScoreCacheSyncKey && simplifiedResult && hasRenderableSimplifiedOutput(simplifiedResult)) {
+      const cached = readPersistedJobScore();
+      if (!cached) {
+        setJobScoreResult(null);
+        setJobScoreOccupationName("");
+      } else if (!isJobScoreCacheValid(cached, simplifiedResult)) {
+        clearPersistedJobScore();
+        setJobScoreResult(null);
+        setJobScoreOccupationName("");
+      } else {
+        setJobScoreResult(cached.result);
+        setJobScoreOccupationName(cached.occupationName || "");
+        setJobScoreError("");
+      }
     }
-    if (!isJobScoreCacheValid(cached, sr)) {
-      clearPersistedJobScore();
-      setJobScoreResult(null);
-      setJobScoreOccupationName("");
-      return;
-    }
-    setJobScoreResult(cached.result);
-    setJobScoreOccupationName(cached.occupationName || "");
-    setJobScoreError("");
-  }, [jobScoreCacheSyncKey]);
+  }
 
   useEffect(() => {
     if (!jobScoreResult) return;
@@ -1623,10 +1622,14 @@ export default function SimplifyJobDescriptionPage() {
     }
   }, [jobScoreResult]);
 
-  useEffect(() => {
-    if (!historyDrawerOpen) return;
-    setJobScoreHistory(readJobScoreHistory());
-  }, [historyDrawerOpen, jobScoreResult]);
+  const [historyLoadKey, setHistoryLoadKey] = useState(null);
+  const historyKey = historyDrawerOpen ? jobScoreResult : null;
+  if (historyKey !== historyLoadKey) {
+    setHistoryLoadKey(historyKey);
+    if (historyDrawerOpen) {
+      setJobScoreHistory(readJobScoreHistory());
+    }
+  }
 
   useEffect(() => {
     if (!scrollToOutputOnResult) return;
@@ -1639,10 +1642,16 @@ export default function SimplifyJobDescriptionPage() {
     return () => window.clearTimeout(t);
   }, [scrollToOutputOnResult, outputVisible]);
 
+  const [prevInputMode, setPrevInputMode] = useState(inputMode);
+  if (prevInputMode !== inputMode) {
+    setPrevInputMode(inputMode);
+    if (inputMode !== "file") {
+      setFileDropActive(false);
+    }
+  }
   useEffect(() => {
     if (inputMode !== "file") {
       fileDropDepthRef.current = 0;
-      setFileDropActive(false);
     }
   }, [inputMode]);
 

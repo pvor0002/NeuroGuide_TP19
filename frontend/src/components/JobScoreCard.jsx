@@ -1,5 +1,27 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate  } from "react-router-dom";
+
+
+const CAREER_PROFILE_STORAGE_KEY = "neuroguide.careerProfile.react.v2";
+
+function getAdhdTypeFromProfile() {
+  try {
+    const raw = window.localStorage.getItem(CAREER_PROFILE_STORAGE_KEY);
+    if (!raw) return "inattentive";
+    const parsed = JSON.parse(raw);
+    const type =
+      parsed?.answers?.adhdProfileType ||
+      parsed?.answers?.quizInferredType ||
+      "";
+    if (type === "hyperactive-impulsive") return "hyperactive";
+    if (type === "combined") return "combined";
+    if (type === "inattentive") return "inattentive";
+    return "inattentive";
+  } catch {
+    return "inattentive";
+  }
+}
+
 
 const ASSESSMENT_CONFIDENCE_TOOLTIP =
   "Confidence is based on:\n- % of skills matched\n- Completeness of user profile\n- Gemini feature completeness";
@@ -1061,6 +1083,7 @@ export default function JobScoreCard({
   /** When true, omit the inline “Start preparing for interview” link (e.g. modal provides its own CTA). */
   hideInterviewPrepCta = false,
 }) {
+  const navigate = useNavigate();
   const [helpfulVote, setHelpfulVote] = useState(null);
   const [bdOpen, setBdOpen] = useState({ adhd: false, technical: true, soft: false });
   const assessmentConfidenceTipId = useId();
@@ -1078,18 +1101,11 @@ export default function JobScoreCard({
   const softDebugSplit = useMemo(() => splitSoftSkillsFromDebug(softDebug), [softDebug]);
   const softBucketsFromDebug = softDebugSplit != null;
   const [softDnDState, setSoftDnDState] = useState(null);
-
-  useEffect(() => {
-    if (!softDebugSplit) {
-      setSoftDnDState(null);
-      return;
-    }
-    setSoftDnDState({
-      matched: [...softDebugSplit.matched],
-      partial: [...softDebugSplit.partial],
-      missing: [...softDebugSplit.missing],
-    });
-  }, [softDebugSplit]);
+  const [prevSoftDebugSplit, setPrevSoftDebugSplit] = useState(softDebugSplit);
+  if (prevSoftDebugSplit !== softDebugSplit) {
+    setPrevSoftDebugSplit(softDebugSplit);
+    setSoftDnDState(null);
+  }
 
   const skillBuckets = useMemo(() => {
     const pM = partitionByType(split.matched);
@@ -1118,11 +1134,6 @@ export default function JobScoreCard({
     () => bucketCoveragePct(matchedByType.tool, partialByType.tool, missingByType.tool),
     [matchedByType.tool, partialByType.tool, missingByType.tool],
   );
-  const softPct = useMemo(
-    () => bucketCoveragePct(matchedByType.soft, partialByType.soft, missingByType.soft),
-    [matchedByType.soft, partialByType.soft, missingByType.soft],
-  );
-
   const softRowPct = useMemo(() => {
     if (softBucketsFromDebug) {
       return softScoreFromBuckets({
@@ -1509,11 +1520,30 @@ export default function JobScoreCard({
           </div>
         ) : null}
 
-        {showInterviewCta ? (
+{showInterviewCta ? (
           <div className="jsc-cta-wrap">
             <Link className="jsc-interview-cta" to="/interview-prep">
               Start preparing for interview
             </Link>
+          </div>
+        ) : null}
+
+        {hasResult ? (
+          <div className="jsc-cta-wrap">
+            <button
+              type="button"
+              className="jsc-interview-cta"
+              onClick={() =>
+                navigate("/day-in-life", {
+                  state: {
+                    job_title: occupationName || "this role",
+                    adhd_type: getAdhdTypeFromProfile(),
+                  },
+                })
+              }
+            >
+            See a day in this job
+            </button>
           </div>
         ) : null}
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import SiteAppHeader from "../components/SiteAppHeader.jsx";
@@ -741,7 +741,9 @@ export default function ProfileWizardPage() {
   const [skillTags, setSkillTags] = useState([]);
   const [state, setState] = useState(loadPersistedState);
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useLayoutEffect(() => {
+    stateRef.current = state;
+  });
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState("error");
   const [phase, setPhase] = useState("in"); // "in" | "out-forward" | "out-back"
@@ -829,9 +831,7 @@ export default function ProfileWizardPage() {
     return pre.length === 0 || pre.every((s) => isStepAnswered(s, state.answers));
   }, [steps, state.answers]);
 
-  useEffect(() => {
-    if (canCheckJobSuitability) setShowSuitabilityGate(false);
-  }, [canCheckJobSuitability]);
+  const effectiveShowSuitabilityGate = showSuitabilityGate && !canCheckJobSuitability;
 
   const safeStepIndex = Math.min(state.stepIndex, Math.max(steps.length - 1, 0));
   const currentStep = steps[safeStepIndex];
@@ -840,18 +840,22 @@ export default function ProfileWizardPage() {
   // When the visitor lands on the quiz-result step, auto-commit the inferred
   // profile so they don't need to pick it manually - the Next button validates
   // against ``adhdProfileType``.
-  useEffect(() => {
-    if (currentStep?.kind !== "adhd-quiz-result") return;
-    if (state.answers.adhdProfileType) return;
-    const inferred =
-      state.answers.quizInferredType ||
-      scoreAdhdQuiz(state.answers.quizAnswers).type;
-    if (!inferred) return;
-    setState((prev) => ({
-      ...prev,
-      answers: { ...prev.answers, adhdProfileType: inferred },
-    }));
-  }, [currentStep?.kind, state.answers.adhdProfileType, state.answers.quizInferredType, state.answers.quizAnswers]);
+  const [lastAutoInferKey, setLastAutoInferKey] = useState("");
+  const autoInferKey = `${currentStep?.kind}|${state.answers.adhdProfileType ?? ""}`;
+  if (autoInferKey !== lastAutoInferKey) {
+    setLastAutoInferKey(autoInferKey);
+    if (currentStep?.kind === "adhd-quiz-result" && !state.answers.adhdProfileType) {
+      const inferred =
+        state.answers.quizInferredType ||
+        scoreAdhdQuiz(state.answers.quizAnswers).type;
+      if (inferred) {
+        setState((prev) => ({
+          ...prev,
+          answers: { ...prev.answers, adhdProfileType: inferred },
+        }));
+      }
+    }
+  }
 
   const roleOptions = useMemo(() => {
     const q = state.answers.roleSearchQuery.trim().toLowerCase();
@@ -1346,7 +1350,6 @@ export default function ProfileWizardPage() {
       void syncProfileToServer();
     }, 0);
     return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only when navigating to this step, not on every answer keystroke
   }, [safeStepIndex, currentStep?.kind, currentStep?.id]);
 
   const handleCopyProfileId = async () => {
@@ -1955,7 +1958,7 @@ export default function ProfileWizardPage() {
                             >
                               Check job suitability score
                             </button>
-                            {showSuitabilityGate ? (
+                            {effectiveShowSuitabilityGate ? (
                               <div className="q-profile-cta-gate" role="alert">
                                 <p className="q-profile-cta-gate-msg">
                                   Please complete every profile question before checking job suitability.

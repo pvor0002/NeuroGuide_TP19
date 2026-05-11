@@ -44,14 +44,16 @@ export default function UserIdEntryModal({
 
   // Reset internal state whenever the modal is re-opened so it always starts
   // at the primary "Yes / No" question.
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setBranch("choose");
       setIdInput("");
       setErrorMessage("");
       setIsBusy(false);
     }
-  }, [open]);
+  }
 
   // Focus management: put focus on the first option / the input depending on
   // which branch is visible.

@@ -6,6 +6,7 @@ import SimplifyJobDescriptionPage from "./pages/SimplifyJobDescriptionPage.jsx";
 import InterviewPrepPage from "./pages/InterviewPrepPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import MySavedScoresPage from "./pages/MySavedScoresPage.jsx";
+import DayInLifePage from "./pages/DayInLifePage.jsx";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route element={<MarketingLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/simplify-job-description" element={<SimplifyJobDescriptionPage />} />
+          <Route path="/day-in-life" element={<DayInLifePage />} /> 
           <Route path="/my-saved-scores" element={<MySavedScoresPage />} />
           <Route path="/interview-prep" element={<InterviewPrepPage />} />
           <Route path="/settings" element={<SettingsPage />} />
