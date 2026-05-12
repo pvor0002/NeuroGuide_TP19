@@ -24,35 +24,33 @@ export default function OrganiseStage({
   };
 
   return (
-    <section className="ip-stage ip-card ip-stage--compact" aria-labelledby="ip-stage-org-title">
-      <h2 id="ip-stage-org-title" className="ip-card-title ip-card-title--soft">
-        Organise
-      </h2>
-      <p className="ip-card-intro ip-card-intro--tight">
-        Drag cards between STAR zones, or tap a card then a zone. Add a missing detail below if needed.
-      </p>
+    <section className="ip-stage" aria-labelledby="ip-stage-org-title">
 
-      {needsStarSort ? (
-        <div className="ip-inline-msg ip-inline-msg--action" role="status">
-          <span>Your ideas aren’t sorted into STAR yet.</span>
-          <button type="button" className="ip-btn ip-btn--secondary ip-btn--compact" disabled={organising} onClick={onSortNow}>
-            {organising ? "Sorting…" : "Sort into STAR"}
-          </button>
+      <div className="ip-stage-head">
+        <div>
+          <h2 id="ip-stage-org-title" className="ip-stage-title">Organise into STAR</h2>
+          <p className="ip-stage-lead">Drag cards between zones, or tap a card then tap a zone to move it.</p>
         </div>
-      ) : usedFallbackSort ? (
-        <p className="ip-inline-msg" role="status">
-          Drag cards into the right zones, or add a quick line below if something is missing.
-        </p>
-      ) : (
-        <p className="ip-muted ip-muted--tight">Fine-tune with drag or tap-to-move.</p>
+
+        {needsStarSort && (
+          <button type="button" className="ip-btn ip-btn--secondary" disabled={organising} onClick={onSortNow}>
+            {organising ? "Sorting…" : "✦ Auto-sort into STAR"}
+          </button>
+        )}
+      </div>
+
+      {usedFallbackSort && !needsStarSort && (
+        <div className="ip-stage-notice" role="status">
+          Cards were sorted automatically. Drag to fine-tune, or add a missing detail below.
+        </div>
       )}
 
       <StarGrid dumpCards={dumpCards} starZones={starZones} onZonesChange={onZonesChange} />
 
       <FollowUpBubble starZones={starZones} onAddToZone={addToZone} />
 
-      <footer className="ip-footer-actions ip-footer-actions--split">
-        <button type="button" className="ip-btn ip-btn--quiet" onClick={onBack}>
+      <footer className="ip-stage-footer">
+        <button type="button" className="ip-btn ip-btn--ghost" onClick={onBack}>
           ← Brain dump
         </button>
         <button type="button" className="ip-btn ip-btn--primary" disabled={needsStarSort} onClick={onContinue}>

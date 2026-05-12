@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Day in Life"])
 
 @router.post("/day-in-life", response_model=DayInLifeResponse)
+@router.post("/day-in-life/", response_model=DayInLifeResponse)
 async def get_day_in_life(
     body: DayInLifeRequest,
     settings: Settings = Depends(get_settings),

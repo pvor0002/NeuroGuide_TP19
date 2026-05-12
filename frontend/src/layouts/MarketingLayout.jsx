@@ -18,8 +18,14 @@ export default function MarketingLayout() {
   const location = useLocation();
   const isHome = location.pathname === "/";
   const isSimplify = location.pathname === "/simplify-job-description";
+  const isDayInLife = location.pathname === "/day-in-life";
+  const isInterviewPrep = location.pathname === "/interview-prep";
 
-  const mainClass = [isHome && "main--bleed", isSimplify && "main--simplify"].filter(Boolean).join(" ") || undefined;
+  const mainClass = [
+    isHome && "main--bleed",
+    isSimplify && "main--simplify",
+    (isDayInLife || isInterviewPrep) && "main--bleed",
+  ].filter(Boolean).join(" ") || undefined;
 
   return (
     <div className="marketing-app layout">

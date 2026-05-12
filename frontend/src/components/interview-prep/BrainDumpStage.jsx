@@ -25,12 +25,7 @@ export default function BrainDumpStage({
     [dumpCards, onDumpChange],
   );
 
-  const onVoice = useCallback(
-    (transcript) => {
-      addCard(transcript);
-    },
-    [addCard],
-  );
+  const onVoice = useCallback((transcript) => addCard(transcript), [addCard]);
 
   const onSubmitLine = useCallback(() => {
     addCard(line);
@@ -40,48 +35,85 @@ export default function BrainDumpStage({
   const listOk = useMemo(() => selectedQuestion && dumpCards.length >= 2, [dumpCards.length, selectedQuestion]);
 
   return (
-    <section className="ip-stage ip-card ip-stage--compact" aria-labelledby="ip-stage-dump-title">
-      <h2 id="ip-stage-dump-title" className="ip-card-title ip-card-title--soft">
-        Brain dump
-      </h2>
-      <p className="ip-card-intro ip-card-intro--tight">Pick a question, then add ideas — messy is fine.</p>
+    <section className="ip-stage" aria-labelledby="ip-stage-dump-title">
 
-      <h3 className="ip-subheading">Question</h3>
-      <QuestionSelector questions={questions} selectedQuestion={selectedQuestion} onSelect={onSelectQuestion} />
+      {/* Two-column layout */}
+      <div className="ip-bd-layout">
 
-      <DumpZone cards={dumpCards} onRemove={(id) => onDumpChange(dumpCards.filter((c) => c.id !== id))} />
+        {/* Left — question picker */}
+        <div className="ip-bd-left">
+          <div className="ip-bd-section-head">
+            <span className="ip-bd-step-badge">1</span>
+            <h2 className="ip-bd-section-title" id="ip-stage-dump-title">Pick a question</h2>
+          </div>
+          <p className="ip-bd-hint">Choose one to focus on. You can come back and try others.</p>
+          <QuestionSelector questions={questions} selectedQuestion={selectedQuestion} onSelect={onSelectQuestion} />
+        </div>
 
-      <div className="ip-dump-input-row">
-        <label className="ip-visually-hidden" htmlFor="ip-dump-line">
-          Add an idea
-        </label>
-        <input
-          id="ip-dump-line"
-          className="ip-input ip-input--grow"
-          value={line}
-          onChange={(e) => setLine(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              onSubmitLine();
-            }
-          }}
-          placeholder="Snippet, then Enter or Add"
-        />
-        <button type="button" className="ip-btn ip-btn--quiet" onClick={onSubmitLine} disabled={!line.trim()}>
-          Add
-        </button>
+        {/* Divider */}
+        <div className="ip-bd-divider" aria-hidden="true" />
+
+        {/* Right — ideas */}
+        <div className="ip-bd-right">
+          <div className="ip-bd-section-head">
+            <span className="ip-bd-step-badge">2</span>
+            <h2 className="ip-bd-section-title">Brain dump</h2>
+          </div>
+          <p className="ip-bd-hint">Anything that comes to mind, messy is fine. Add as many ideas as you like.</p>
+
+          <DumpZone
+            cards={dumpCards}
+            onRemove={(id) => onDumpChange(dumpCards.filter((c) => c.id !== id))}
+          />
+
+          <div className="ip-dump-input-row">
+            <label className="ip-visually-hidden" htmlFor="ip-dump-line">Add an idea</label>
+            <input
+              id="ip-dump-line"
+              className="ip-input ip-input--grow"
+              value={line}
+              onChange={(e) => setLine(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); onSubmitLine(); }
+              }}
+              placeholder="Type an idea, then Enter…"
+              disabled={!selectedQuestion}
+            />
+            <button
+              type="button"
+              className="ip-btn ip-btn--add"
+              onClick={onSubmitLine}
+              disabled={!line.trim() || !selectedQuestion}
+            >
+              Add
+            </button>
+            <VoiceButton onTranscript={onVoice} disabled={!selectedQuestion} />
+          </div>
+
+          {!selectedQuestion && (
+            <p className="ip-bd-nudge">← Pick a question first to start adding ideas.</p>
+          )}
+        </div>
       </div>
 
-      <VoiceButton onTranscript={onVoice} disabled={!selectedQuestion} />
-
-      <footer className="ip-footer-actions ip-footer-actions--split">
-        <Link to="/simplify-job-description" className="ip-btn ip-btn--quiet ip-text-link">
+      {/* Footer */}
+      <footer className="ip-stage-footer">
+        <Link to="/simplify-job-description" className="ip-btn ip-btn--ghost">
           ← Job posting
         </Link>
-        <button type="button" className="ip-btn ip-btn--primary" disabled={!listOk || organising} onClick={onContinue}>
-          {organising ? "Organising…" : "Organise my ideas →"}
-        </button>
+        <div className="ip-stage-footer__right">
+          {dumpCards.length > 0 && dumpCards.length < 2 && (
+            <span className="ip-stage-footer__hint">Add at least one more idea to continue</span>
+          )}
+          <button
+            type="button"
+            className="ip-btn ip-btn--primary"
+            disabled={!listOk || organising}
+            onClick={onContinue}
+          >
+            {organising ? "Organising…" : "Organise my ideas →"}
+          </button>
+        </div>
       </footer>
     </section>
   );

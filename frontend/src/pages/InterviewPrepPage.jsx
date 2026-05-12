@@ -119,11 +119,35 @@ function normalizedSkills(jobContext) {
   return parseManualTags(jobContext.skillsManual);
 }
 
-function buildQuestionList(jobContext) {
+function buildQuestionList(jobContext, profileSkillSet) {
   const skills = normalizedSkills(jobContext);
+
+  // Split into skills the candidate already has vs skills they're missing
+  const knownSkills = skills.filter((s) => skillMatchesProfile(s, profileSkillSet));
+  const missingSkills = skills.filter((s) => !skillMatchesProfile(s, profileSkillSet));
+
   const tailored = [];
-  if (skills[0]) tailored.push(`How does your experience with ${skills[0]} apply in this role?`);
-  if (skills[1]) tailored.push(`Tell me about a time you used ${skills[1]} when things were messy or unclear.`);
+
+  // Known skills → experience-based questions
+  const knownTemplates = [
+    (s) => `Tell me about a time you used ${s} to solve a real problem.`,
+    (s) => `Describe a project where ${s} was central to what you contributed.`,
+    (s) => `How has working with ${s} shaped the way you approach this kind of work?`,
+  ];
+  knownSkills.slice(0, 3).forEach((s, i) => {
+    tailored.push(knownTemplates[i % knownTemplates.length](s));
+  });
+
+  // Missing skills → learning/growth questions
+  const missingTemplates = [
+    (s) => `This role involves ${s}. How would you go about getting up to speed with it?`,
+    (s) => `You'll be working with ${s} here. What's your strategy for picking up a new tool quickly?`,
+    (s) => `What do you already know about ${s}, and what steps would you take to close any gaps?`,
+  ];
+  missingSkills.slice(0, 3).forEach((s, i) => {
+    tailored.push(missingTemplates[i % missingTemplates.length](s));
+  });
+
   const universal = [
     "Tell me about a challenge you overcame.",
     "What are you most proud of professionally?",
@@ -131,12 +155,13 @@ function buildQuestionList(jobContext) {
     "Why do you want this role?",
     "Tell me about yourself.",
   ];
-  const out = [...tailored.slice(0, 2)];
+
+  const out = [...tailored.slice(0, 4)];
   for (const u of universal) {
-    if (out.length >= 5) break;
+    if (out.length >= 6) break;
     if (!out.includes(u)) out.push(u);
   }
-  return out.slice(0, 5);
+  return out.slice(0, 6);
 }
 
 function readinessLabelFor(p) {
@@ -164,7 +189,7 @@ export default function InterviewPrepPage() {
     return readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
   }, []);
 
-  const questions = useMemo(() => buildQuestionList(jobContext), [jobContext]);
+  const questions = useMemo(() => buildQuestionList(jobContext, profileSkillSet), [jobContext, profileSkillSet]);
 
   const resolvedQuestion = useMemo(() => {
     if (!questions.length) return null;
@@ -277,101 +302,112 @@ export default function InterviewPrepPage() {
   const hasJobHints = Boolean(jobContext.role || jobContext.company || skillsShow.length);
 
   return (
-    <div className="ip-builder ip-builder--flow ip-builder--site">
+    <div className="ip-page">
       <a className="skip-link" href="#ip-main-content">
         Skip to interview prep
       </a>
-      <div className="ip-builder-inner">
-        <header className="ip-builder-header ip-builder-header--compact">
-          <div className="ip-builder-header__row">
-            <div>
-              <p className="ip-builder-eyebrow">Interview prep</p>
-              <h1 className="ip-builder-title">Answer builder</h1>
+
+      {/* ── Hero header ── */}
+      <header className="ip-hero-override">
+        <div className="ip-hero-inner">
+
+          {/* Top row: copy + job context pill */}
+          <div className="ip-hero-top">
+            <div className="ip-hero-copy">
+              <p className="simplify-hero-eyebrow">Step by step · STAR method</p>
+              <h1 className="ip-hero-title">Interview Prep</h1>
+              <p className="ip-hero-lead">
+                Build confident, structured answers using the STAR method, tailored to your job and ADHD profile.
+              </p>
             </div>
+
+            {/* Role pill — top-right on desktop */}
+            {hasJobHints ? (
+              <div className="ip-role-pill" aria-label="Role from your simplified posting">
+                <span className="ip-role-pill__label">Preparing for</span>
+                <strong className="ip-role-pill__role">{jobContext.role || "Role"}</strong>
+                {jobContext.company ? (
+                  <span className="ip-role-pill__company">at {jobContext.company}</span>
+                ) : null}
+              </div>
+            ) : (
+              <p className="ip-role-pill ip-role-pill--hint">
+                <Link to="/simplify-job-description">Simplify a job posting</Link> for tailored questions.
+              </p>
+            )}
           </div>
 
-          {hasJobHints ? (
-            <div className="ip-job-strip" aria-label="Role from your simplified posting">
-              <span className="ip-job-strip__main">
-                <strong>{jobContext.role || "Role"}</strong>
-                {jobContext.company ? (
-                  <>
-                    {" "}
-                    <span className="ip-job-strip__at">at</span> {jobContext.company}
-                  </>
-                ) : null}
-              </span>
-              {skillsShow.length ? (
-                <span className="ip-job-strip__tags">
-                  {skillsShow.slice(0, 10).map((tag) => (
-                    <span key={tag} className={`ip-tag ${skillMatchesProfile(tag, profileSkillSet) ? "ip-tag--match" : ""}`}>
-                      {tag}
-                    </span>
-                  ))}
+          {/* Skill tags row */}
+          {skillsShow.length > 0 && (
+            <div className="ip-skill-row">
+              {skillsShow.slice(0, 10).map((tag) => (
+                <span key={tag} className={`ip-tag ${skillMatchesProfile(tag, profileSkillSet) ? "ip-tag--match" : ""}`}>
+                  {tag}
                 </span>
-              ) : null}
+              ))}
             </div>
-          ) : (
-            <p className="ip-job-strip ip-job-strip--hint">
-              <Link to="/simplify-job-description">Simplify a job posting</Link> first for tailored questions and skill tags.
-            </p>
           )}
 
-          <StageTabs stage={stage} onSelect={setStage} canOrganise={canOrganise} canPractise={canPractise} />
-        </header>
+          {/* Stage tabs — full-width strip at bottom of hero */}
+          <div className="ip-hero-tabs">
+            <StageTabs stage={stage} onSelect={setStage} canOrganise={canOrganise} canPractise={canPractise} />
+          </div>
 
-        <main id="ip-main-content" className="ip-flow-main">
-          {stage === 1 ? (
-            <section role="tabpanel" id="ip-tab-panel-1" aria-labelledby="ip-tab-1" className="ip-tab-panel">
-              <BrainDumpStage
-                questions={questions}
-                selectedQuestion={resolvedQuestion}
-                onSelectQuestion={setSelectedQuestion}
-                dumpCards={dumpCards}
-                onDumpChange={setDumpCards}
-                onContinue={() => runOrganise()}
-                organising={organising}
-              />
-            </section>
-          ) : null}
+        </div>
+      </header>
 
-          {stage === 2 ? (
-            <section role="tabpanel" id="ip-tab-panel-2" aria-labelledby="ip-tab-2" className="ip-tab-panel">
-              <OrganiseStage
-                dumpCards={dumpCards}
-                onDumpChange={setDumpCards}
-                starZones={starZones}
-                onZonesChange={setStarZones}
-                usedFallbackSort={usedFallbackSort}
-                onContinue={goBuildAnswer}
-                onBack={() => setStage(1)}
-                needsStarSort={dumpCards.length >= 2 && !zonesHaveCards(starZones)}
-                onSortNow={() => runOrganise()}
-                organising={organising}
-              />
-            </section>
-          ) : null}
+      {/* ── Main content ── */}
+      <main id="ip-main-content" className="ip-page-main">
+        {stage === 1 ? (
+          <section role="tabpanel" id="ip-tab-panel-1" aria-labelledby="ip-tab-1" className="ip-tab-panel">
+            <BrainDumpStage
+              questions={questions}
+              selectedQuestion={resolvedQuestion}
+              onSelectQuestion={setSelectedQuestion}
+              dumpCards={dumpCards}
+              onDumpChange={setDumpCards}
+              onContinue={() => runOrganise()}
+              organising={organising}
+            />
+          </section>
+        ) : null}
 
-          {stage === 3 ? (
-            <section role="tabpanel" id="ip-tab-panel-3" aria-labelledby="ip-tab-3" className="ip-tab-panel">
-              <PractiseStage
-                selectedQuestion={resolvedQuestion}
-                answerDraft={answerDraft}
-                onAnswerChange={(t) => {
-                  setAnswerDraft(t);
-                  bumpReadiness(3);
-                }}
-                readinessPercent={readinessPercent}
-                readinessLabel={readinessLabelFn}
-                onBumpReadiness={bumpReadiness}
-                onSave={saveAnswer}
-                onNextQuestion={nextQuestion}
-                onBack={() => setStage(2)}
-              />
-            </section>
-          ) : null}
-        </main>
-      </div>
+        {stage === 2 ? (
+          <section role="tabpanel" id="ip-tab-panel-2" aria-labelledby="ip-tab-2" className="ip-tab-panel">
+            <OrganiseStage
+              dumpCards={dumpCards}
+              onDumpChange={setDumpCards}
+              starZones={starZones}
+              onZonesChange={setStarZones}
+              usedFallbackSort={usedFallbackSort}
+              onContinue={goBuildAnswer}
+              onBack={() => setStage(1)}
+              needsStarSort={dumpCards.length >= 2 && !zonesHaveCards(starZones)}
+              onSortNow={() => runOrganise()}
+              organising={organising}
+            />
+          </section>
+        ) : null}
+
+        {stage === 3 ? (
+          <section role="tabpanel" id="ip-tab-panel-3" aria-labelledby="ip-tab-3" className="ip-tab-panel">
+            <PractiseStage
+              selectedQuestion={resolvedQuestion}
+              answerDraft={answerDraft}
+              onAnswerChange={(t) => {
+                setAnswerDraft(t);
+                bumpReadiness(3);
+              }}
+              readinessPercent={readinessPercent}
+              readinessLabel={readinessLabelFn}
+              onBumpReadiness={bumpReadiness}
+              onSave={saveAnswer}
+              onNextQuestion={nextQuestion}
+              onBack={() => setStage(2)}
+            />
+          </section>
+        ) : null}
+      </main>
     </div>
   );
 }

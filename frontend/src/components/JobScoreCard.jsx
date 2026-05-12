@@ -841,8 +841,8 @@ export default function JobScoreCard({
   const experienceStatusCallout = useMemo(() => {
     const st = result?.experience_fit?.status;
     if (st === "good") return { label: "Good to go", tone: "good" };
-    if (st === "moderate") return { label: "Tight fit — proceed carefully", tone: "warn" };
-    if (st === "gap") return { label: "Should not proceed — posting asks more experience", tone: "risk" };
+    if (st === "moderate") return { label: "Tight fit, proceed carefully", tone: "warn" };
+    if (st === "gap") return { label: "Should not proceed, posting asks more experience", tone: "risk" };
     return null;
   }, [result?.experience_fit?.status]);
 
@@ -1155,9 +1155,9 @@ export default function JobScoreCard({
                 </p>
               ) : null}
               {softBucketsFromDebug ? (
-                <p className="jsc-dnd-hint">Drag chips between columns to update your profile — scores refresh after save.</p>
+                <p className="jsc-dnd-hint">Drag chips between columns to update your profile. Scores refresh after save.</p>
               ) : canDnD ? (
-                <p className="jsc-dnd-hint">Drag chips between columns to update your profile — scores refresh after save.</p>
+                <p className="jsc-dnd-hint">Drag chips between columns to update your profile. Scores refresh after save.</p>
             ) : null}
               <div className="jsc-skill-buckets-row jsc-skill-buckets-row--2" role="group" aria-label="Soft skills: matching and missing">
                 <SkillDropBucket

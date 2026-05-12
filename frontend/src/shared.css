@@ -2215,6 +2215,223 @@ body {
   .day-in-life-legend { gap: 8px 14px; }
 }
 
+/* ======================================================================== */
+/* Interview Prep page                                                       */
+/* ======================================================================== */
+
+.ip-page {
+  /* Re-declare the ip-builder CSS variables so child components still resolve them */
+  --ip-ink: #2d2926;
+  --ip-muted: #6b635c;
+  --ip-line: rgba(45, 41, 38, 0.12);
+  --ip-accent: #8f6f5e;
+  --ip-cta-top: #b8956a;
+  --ip-cta-bottom: #8f6f5e;
+  --ip-card: #ffffff;
+  --ip-shadow: 0 12px 40px rgba(45, 41, 38, 0.08);
+  --ip-shadow-sm: 0 4px 20px rgba(45, 41, 38, 0.06);
+  --ip-radius: 16px;
+  --ip-radius-sm: 12px;
+
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  font-family: var(--font-ui, "Montserrat", system-ui, -apple-system, sans-serif);
+  color: #2d2926;
+}
+
+/* Content below the hero — constrained and padded */
+.ip-page-main {
+  max-width: 1100px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 2.5rem clamp(16px, 4vw, 48px) 5rem;
+  box-sizing: border-box;
+}
+
+/* ── Hero override ── */
+.ip-hero-override {
+  background: linear-gradient(135deg, #fffdf9 0%, #fef9f0 30%, #fdf0fb 65%, #eff6ff 100%);
+  border-bottom: 1px solid rgba(45, 41, 38, 0.07);
+  padding: clamp(2rem, 4vw, 3rem) clamp(16px, 5vw, 60px) 0;
+}
+
+.ip-hero-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Top row: copy block + role pill side by side */
+.ip-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.ip-hero-copy {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ip-hero-title {
+  margin: 0.4rem 0 0.5rem;
+  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #221c1f;
+}
+
+.ip-hero-lead {
+  margin: 0;
+  font-size: clamp(0.95rem, 1.8vw, 1.05rem);
+  line-height: 1.65;
+  color: #5a524c;
+  max-width: 44ch;
+}
+
+/* Role pill — compact card top-right */
+.ip-role-pill {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(45, 41, 38, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(45, 41, 38, 0.06);
+  max-width: 260px;
+}
+
+.ip-role-pill__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a7f74;
+}
+
+.ip-role-pill__role {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #221c1f;
+  line-height: 1.2;
+}
+
+.ip-role-pill__company {
+  font-size: 0.82rem;
+  color: #6b635c;
+}
+
+.ip-role-pill--hint {
+  background: none;
+  border: 1px dashed rgba(143, 111, 94, 0.4);
+  font-size: 0.84rem;
+  color: #6b635c;
+  max-width: 220px;
+  box-shadow: none;
+}
+
+.ip-role-pill--hint a {
+  color: #8f6f5e;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* Skill tags row */
+.ip-skill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Stage tabs strip — bottom of hero, underline-style active state */
+.ip-hero-tabs {
+  margin-top: 1rem;
+}
+
+.ip-hero-tabs .ip-stage-tabs-wrap {
+  margin-bottom: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ip-hero-tabs .ip-stage-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  border-bottom: none;
+}
+
+.ip-hero-tabs .ip-stage-tabs__sep {
+  display: none;
+}
+
+.ip-hero-tabs .ip-stage-tabs__seg {
+  flex: 0 0 auto;
+}
+
+.ip-hero-tabs .ip-stage-tab {
+  border-radius: 0;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6b635c;
+  gap: 0.5rem;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.ip-hero-tabs .ip-stage-tab:hover:not(:disabled):not(.ip-stage-tab--disabled) {
+  color: #2d2926;
+  background: rgba(45, 41, 38, 0.04);
+  border-bottom-color: rgba(143, 111, 94, 0.35);
+}
+
+.ip-hero-tabs .ip-stage-tab--active {
+  color: #2d2926;
+  font-weight: 700;
+  background: transparent;
+  border-bottom-color: #8f6f5e;
+}
+
+.ip-hero-tabs .ip-stage-tab__n {
+  width: 1.3rem;
+  height: 1.3rem;
+  font-size: 0.72rem;
+  background: rgba(143, 111, 94, 0.12);
+}
+
+.ip-hero-tabs .ip-stage-tab--active .ip-stage-tab__n {
+  background: rgba(217, 122, 59, 0.22);
+  color: #b8600a;
+}
+
+@media (max-width: 720px) {
+  .ip-hero-top {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .ip-role-pill {
+    max-width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+  }
+}
+
 /* ── Job score card CTAs ───────────────────────────────── */
 
 .jsc-cta-wrap {

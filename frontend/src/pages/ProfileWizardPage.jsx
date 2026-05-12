@@ -95,7 +95,7 @@ const PROFILE_QUESTION_HELP = {
   "adhd-awareness": {
     hint: "We ask this so we can either save your known focus style or walk you through a short self-check.",
     optionsHint:
-      "Yes — you already identify with a focus pattern. Not sure — we use a few scale questions to suggest one.",
+      "Yes: you already identify with a focus pattern. Not sure: we use a few scale questions to suggest one.",
   },
   "adhd-type-known": {
     hint: "These labels describe common attention and energy patterns (not a medical diagnosis).",
@@ -104,23 +104,23 @@ const PROFILE_QUESTION_HELP = {
   },
   "work-style": {
     hint: "Work preferences tell tools like job fit scoring how you like tasks structured and environments shaped.",
-    optionsHint: `Choose up to ${MAX_PICK_ALL_APPLY} items — each one is a concrete habit or condition that helps you produce your best work.`,
+    optionsHint: `Choose up to ${MAX_PICK_ALL_APPLY} items, each one is a concrete habit or condition that helps you produce your best work.`,
   },
   "support-needs": {
     hint: "Supports are accommodations or routines that make it easier for you to stay on track.",
-    optionsHint: `Pick up to ${MAX_PICK_ALL_APPLY} — examples include reminders, quiet space, or breaking work into batches.`,
+    optionsHint: `Pick up to ${MAX_PICK_ALL_APPLY}. Examples include reminders, quiet space, or breaking work into batches.`,
   },
   "roles-pick": {
-    hint: "Choose one IT or software title that reflects where you’re focused — we use it for skill ideas and match scoring.",
+    hint: "Choose one IT or software title that reflects where you’re focused. We use it for skill ideas and match scoring.",
     optionsHint:
-      "Search the list or pick from common early-career titles — you can type a custom title if yours is not listed.",
+      "Search the list or pick from common early-career titles. You can type a custom title if yours is not listed.",
   },
   "role-duration": {
     hint: "Duration helps weight how strongly this role represents your recent experience.",
-    optionsHint: "Internship, 6 months, or 1–2 years — pick the band that best matches that role.",
+    optionsHint: "Internship, 6 months, or 1–2 years. Pick the band that best matches that role.",
   },
   skills: {
-    hint: "Skills are concrete things you can do — they strengthen fit scores and interview prep.",
+    hint: "Skills are concrete things you can do. They strengthen fit scores and interview prep.",
     optionsHint:
       "Add tags from search or type your own; we may pre-fill ideas from the job title you chose.",
   },
@@ -128,18 +128,18 @@ const PROFILE_QUESTION_HELP = {
 
 /** Short scale explanation reused for every ADHD quiz prompt. */
 const ADHD_QUIZ_OPTIONS_HINT =
-  "Never to Very often — how frequently each situation applies to you lately (not right or wrong, just pattern).";
+  "Never to Very often: how frequently each situation applies to you lately (not right or wrong, just pattern).";
 
 /** Per-quiz-question context (the scale hint is shared). */
 const ADHD_QUIZ_QUESTION_HELP = {
   q1: "Focus means staying with one task without drifting when something else pops up.",
   q2: "Includes appointments, objects, or tasks you meant to come back to.",
-  q3: "Sensory pull — conversations, movement, or noise catching your attention.",
+  q3: "Sensory pull: conversations, movement, or noise catching your attention.",
   q4: "Starting can feel easy; finishing or polishing after the first burst is harder.",
   q5: "Physical restlessness, needing to move, or feeling wired when you should sit still.",
-  q6: "Jumping in before others finish — not rudeness, often impulse or excitement.",
+  q6: "Jumping in before others finish, not rudeness, often impulse or excitement.",
   q7: "Acting or blurting before you've fully weighed consequences.",
-  q8: "A driven, always-on feeling — hard to slow down even when you want to.",
+  q8: "A driven, always-on feeling, hard to slow down even when you want to.",
 };
 
 // User-facing labels are intentionally soft - we never call these "ADHD
@@ -1034,7 +1034,7 @@ export default function ProfileWizardPage() {
         return { ...prev, answers: { ...prev.answers, [field]: next } };
       }
       if (values.length >= maxForField) {
-        setMessage(`You can pick up to ${maxForField} — remove one to choose another.`);
+        setMessage(`You can pick up to ${maxForField}. Remove one to choose another.`);
         setMessageTone("error");
         return prev;
       }
@@ -1452,7 +1452,7 @@ export default function ProfileWizardPage() {
         const next = loadPersistedState();
         setState(next);
         setSyncStatus("saved");
-        setSyncMessage("Welcome back — your saved data is loaded.");
+        setSyncMessage("Welcome back. Your saved data is loaded.");
         setMessage("");
         dismissLoginGate();
         return { id: "cloud" };
@@ -1627,7 +1627,7 @@ export default function ProfileWizardPage() {
         <p className="role-limit-note" aria-live="polite">
           {selectedValues.length === 0
             ? "You can add 1 job title. Pick from common roles below or search the full IT list."
-            : "1 of 1 role selected — click Change to search and pick a different title."}
+            : "1 of 1 role selected. Click Change to search and pick a different title."}
         </p>
         {showSuggestions ? (
           <div className="suggestion-list suggestion-list--roles" role="listbox" aria-label="Role suggestions">
@@ -1900,7 +1900,7 @@ export default function ProfileWizardPage() {
               <h2 className="q-title">Which area of IT are you most interested or experienced in?</h2>
             </QuestionTitleBar>
             <p className="q-subtitle">
-              Choose a <strong>single</strong> title — search the list, pick a common early-career role, or type your own.
+              Choose a <strong>single</strong> title. Search the list, pick a common early-career role, or type your own.
               Next you&apos;ll note how long you&apos;ve focused on that role (including internships or study projects).
             </p>
             {renderRoleSelector()}
@@ -2583,9 +2583,9 @@ export default function ProfileWizardPage() {
                           aria-label={
                             b.id === "profile"
                               ? isDone
-                                ? "Profile Ready — completed"
+                                ? "Profile Ready: completed"
                                 : isActive
-                                  ? "Profile Ready — current step"
+                                  ? "Profile Ready: current step"
                                   : "Go to Profile Ready"
                               : `Go to step ${stepNumber}: ${b.label}`
                           }
