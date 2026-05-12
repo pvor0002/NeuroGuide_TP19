@@ -11,7 +11,10 @@ import psycopg2
 import psycopg2.extras
 from app.db.postgres import get_db_connection
 from app.services.corrected_job_score_model_v2 import JobScoreModelV2
+from app.services.gemini_job_fit_scoring import apply_job_fit_defaults, normalize_gemini_job_fit
 from app.services.occupation_match import build_ilike_terms, normalize_job_title
+from app.services.work_environment_fit_ui import build_work_environment_fit_ui
+from app.services.experience_fit import build_experience_fit_and_penalty
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +203,26 @@ def save_recommendation(session_id: str, occupation_id: int, result: Dict) -> No
 # ============================================================================
 # MAIN SCORING FUNCTION
 # ============================================================================
+def _merged_job_fit_payload(occupation: dict, job_fit_features_from_gemini: Optional[dict]) -> dict:
+    merged: dict = {}
+    gf = occupation.get("gemini_job_fit")
+    if isinstance(gf, dict):
+        merged.update(gf)
+    if isinstance(job_fit_features_from_gemini, dict):
+        merged.update(job_fit_features_from_gemini)
+    return merged
+
+
+def _structured_work_environment_detail(fit_payload: dict) -> Optional[dict]:
+    st = fit_payload.get("work_environment_structured")
+    if isinstance(st, dict):
+        return st
+    we = fit_payload.get("work_environment")
+    if isinstance(we, dict):
+        return we
+    return None
+
+
 def calculate_job_score(
     user_questionnaire: Dict,
     occupation_id: int,
@@ -253,7 +276,51 @@ def calculate_job_score(
         list(dbg.keys()) if dbg else [],
     )
 
-    # 4. Save to RDS (optional — don't fail if this errors)
+    fit_payload = _merged_job_fit_payload(occupation, job_fit_features_from_gemini)
+    try:
+        norm = normalize_gemini_job_fit(fit_payload)
+        merged_flat = apply_job_fit_defaults(norm)
+        result["work_environment_fit"] = build_work_environment_fit_ui(
+            normalized_job_fit=merged_flat,
+            work_environment_detail=_structured_work_environment_detail(fit_payload),
+            work_preferences=user_questionnaire.get("work_preferences") or [],
+            support_needs=user_questionnaire.get("support_needs") or [],
+            energy_patterns=user_questionnaire.get("energy_patterns") or [],
+            adhd_profile_type=user_questionnaire.get("adhd_profile_type") or "combined",
+            work_style_score_0_100=ml.get("work_style_score_0_100"),
+        )
+    except Exception as exc:
+        logger.warning("[JobScore] work_environment_fit payload skipped: %s", exc)
+
+    try:
+        gf_dict = job_fit_features_from_gemini
+        if gf_dict is not None and hasattr(gf_dict, "model_dump"):
+            gf_dict = gf_dict.model_dump(exclude_none=True)
+        elif not isinstance(gf_dict, dict):
+            gf_dict = {}
+        occ_name = str(occupation.get("occupation_name") or "")
+        exp_fit, penalty_pts = build_experience_fit_and_penalty(
+            user_questionnaire=user_questionnaire if isinstance(user_questionnaire, dict) else {},
+            job_fit_features=gf_dict,
+            factor_breakdown=result.get("factor_breakdown") or {},
+            job_title_hint=occ_name,
+        )
+        result["experience_fit"] = exp_fit
+        if penalty_pts and penalty_pts > 0:
+            sc = float(result.get("score") or 0)
+            result["score"] = max(0.0, min(100.0, sc - penalty_pts))
+    except Exception as exc:
+        logger.warning("[JobScore] experience_fit skipped: %s", exc)
+        result["experience_fit"] = {
+            "status": "good",
+            "label": "Good match",
+            "message": "",
+            "required_years": None,
+            "user_years": None,
+            "score_adjustment_applied": 0.0,
+        }
+
+    # 5. Save to RDS (optional — don't fail if this errors)
     if session_id:
         save_recommendation(session_id, occupation_id, result)
 

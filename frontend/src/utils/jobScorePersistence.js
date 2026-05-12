@@ -1,6 +1,9 @@
 export const JOB_SCORE_STORAGE_KEY = "neuroguide.jobScore.v1";
 export const JOB_SCORE_HISTORY_STORAGE_KEY = "neuroguide.jobScore.history.v1";
+/** User-explicit saves only (shown on My Saved Scores); not auto-filled from each match run. */
+export const JOB_SCORE_SAVED_STORAGE_KEY = "neuroguide.jobScore.saved.v1";
 const MAX_HISTORY_ITEMS = 12;
+const MAX_SAVED_ITEMS = 24;
 
 export function normalizeJobTitleKey(title) {
   return String(title || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -108,5 +111,63 @@ export function removeJobScoreHistoryEntry(entry) {
     return next;
   } catch {
     return readJobScoreHistory();
+  }
+}
+
+export function readSavedJobScores() {
+  try {
+    const raw = window.localStorage.getItem(JOB_SCORE_SAVED_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((it) => it && typeof it === "object").slice(0, MAX_SAVED_ITEMS);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Persist one explicit save. Stores score as a whole number (0–100).
+ * De-dupes an existing row with the same normalized title + simplify stamp (latest save wins).
+ */
+export function appendSavedJobScore(entry) {
+  try {
+    if (!entry?.jobTitleNorm || !entry?.result) return;
+    const rounded = Math.round(Number(entry.result.score ?? NaN));
+    if (!Number.isFinite(rounded)) return;
+    const prev = readSavedJobScores();
+    const deduped = prev.filter(
+      (it) => !(it.jobTitleNorm === entry.jobTitleNorm && it.simplifiedVerStamp === entry.simplifiedVerStamp),
+    );
+    const resultStored = { ...entry.result, score: rounded };
+    const next = [
+      {
+        ...entry,
+        jobTitleDisplay: entry.jobTitleDisplay != null ? String(entry.jobTitleDisplay) : "",
+        createdAt: entry.createdAt || Date.now(),
+        result: resultStored,
+      },
+      ...deduped,
+    ].slice(0, MAX_SAVED_ITEMS);
+    window.localStorage.setItem(JOB_SCORE_SAVED_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Same identity keys as history rows (for delete / detail lookup). */
+export function savedJobScoreEntriesEqual(a, b) {
+  return jobScoreHistoryEntriesEqual(a, b);
+}
+
+export function removeSavedJobScoreEntry(entry) {
+  try {
+    if (!entry?.jobTitleNorm) return readSavedJobScores();
+    const prev = readSavedJobScores();
+    const next = prev.filter((it) => !savedJobScoreEntriesEqual(it, entry));
+    window.localStorage.setItem(JOB_SCORE_SAVED_STORAGE_KEY, JSON.stringify(next));
+    return next;
+  } catch {
+    return readSavedJobScores();
   }
 }
