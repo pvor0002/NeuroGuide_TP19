@@ -126,7 +126,7 @@ export default function PractiseStage({
                 <span className="ip-cs-zone ip-cs-zone--a">A</span>
                 <span className="ip-cs-body">
                   <strong>Action</strong>
-                  <span>Say "I did…" not "we did…". Name your exact steps.</span>
+                  <span>{'Say "I did…" not "we did…". Name your exact steps.'}</span>
                 </span>
               </li>
               <li>
