@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { fetchDayInLife } from "../services/dayInLifeApi.js";
 
@@ -21,10 +21,18 @@ function _cacheGet(job, adhd) {
   } catch { return null; }
 }
 function _cacheSet(job, adhd, timeline) {
-  try { sessionStorage.setItem(_cacheKey(job, adhd), JSON.stringify(timeline)); } catch {}
+  try {
+    sessionStorage.setItem(_cacheKey(job, adhd), JSON.stringify(timeline));
+  } catch {
+    // Ignore storage write failures (private mode/quota).
+  }
 }
 function _saveLastParams(job, adhd) {
-  try { sessionStorage.setItem(LAST_PARAMS_KEY, JSON.stringify({ job_title: job, adhd_type: adhd })); } catch {}
+  try {
+    sessionStorage.setItem(LAST_PARAMS_KEY, JSON.stringify({ job_title: job, adhd_type: adhd }));
+  } catch {
+    // Ignore storage write failures (private mode/quota).
+  }
 }
 function _loadLastParams() {
   try {
@@ -76,6 +84,7 @@ export default function DayInLifePage() {
   const job_title = String(st.job_title ?? searchParams.get("job_title") ?? _last?.job_title ?? "").trim();
   const adhd_type = String(st.adhd_type ?? searchParams.get("adhd_type") ?? _last?.adhd_type ?? "").trim();
 
+  const cachedTimeline = useMemo(() => _cacheGet(job_title, adhd_type), [job_title, adhd_type]);
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -88,17 +97,16 @@ export default function DayInLifePage() {
     _saveLastParams(job_title, adhd_type);
 
     // Check session cache first — same job+ADHD type returns the same timeline
-    const cached = _cacheGet(job_title, adhd_type);
-    if (cached) {
-      setTimeline(cached);
-      setLoading(false);
-      setError(null);
+    if (cachedTimeline) {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setTimeline(null);
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      setTimeline(null);
+    });
     fetchDayInLife(job_title, adhd_type)
       .then((data) => {
         if (!cancelled) {
@@ -115,9 +123,10 @@ export default function DayInLifePage() {
     return () => {
       cancelled = true;
     };
-  }, [job_title, adhd_type]);
+  }, [job_title, adhd_type, cachedTimeline]);
 
   const adhdDisplay = formatAdhdLabel(adhd_type);
+  const visibleTimeline = timeline ?? cachedTimeline;
 
   // Guard: no job data
   if (!job_title) {
@@ -139,7 +148,7 @@ export default function DayInLifePage() {
             <p className="simplify-hero-eyebrow">Energy mapped · Hour by hour</p>
             <h1 className="simplify-hero-title">A Day in the Life</h1>
             <p className="simplify-hero-lead">
-              What a typical workday looks like for <strong>{job_title}</strong> with <strong>{adhd_type}</strong> ADHD, energy mapped hour by hour.
+              What a typical workday looks like for <strong>{job_title}</strong> with <strong>{adhdDisplay || adhd_type}</strong> ADHD, energy mapped hour by hour.
             </p>
             <p className="dil-disclaimer">
               This is a general simulation and may not reflect your exact experience. Schedules, demands, and support vary widely by company, team, and role.
@@ -182,9 +191,9 @@ export default function DayInLifePage() {
       ) : null}
 
       {/* Timeline */}
-      {timeline && !loading && (
+      {visibleTimeline && !loading && (
         <div className="day-in-life-timeline">
-          {timeline.map((block, i) => {
+          {visibleTimeline.map((block, i) => {
             const energy = ENERGY_LABELS[block.energy_level] ?? ENERGY_LABELS.medium;
             const { hm, period } = parseTime(block.time);
             return (
