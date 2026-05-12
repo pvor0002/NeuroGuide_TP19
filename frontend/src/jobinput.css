@@ -1932,12 +1932,8 @@ a.btn.btn-primary:hover {
   border-bottom-color: #1f1b19;
 }
 
-/* Day in Life — reuse career profile back control (profile-app.css .button / .q-profile-prev-*) */
+/* Day in Life — layout is controlled entirely by shared.css; only set font-size here */
 .day-in-life-page {
-  max-width: 52rem;
-  margin: 0 auto;
-  padding: 0.35rem 1rem 2.5rem;
-  box-sizing: border-box;
   font-size: clamp(0.94rem, 0.22vw + 0.88rem, 1.06rem);
 }
 

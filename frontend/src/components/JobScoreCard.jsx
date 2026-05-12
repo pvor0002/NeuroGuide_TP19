@@ -1210,7 +1210,7 @@ export default function JobScoreCard({
                   className="jsc-post-score-btn jsc-post-score-btn--interview jsc-post-score-btn--interview-ready"
                   to="/interview-prep"
                 >
-                  Prepare for interview
+                  Start preparing for interview
                 </Link>
               ) : (
                 <button
@@ -1219,13 +1219,13 @@ export default function JobScoreCard({
                   disabled
                   title="Reach at least a 50% match score to open interview prep."
                 >
-                  Prepare for interview
+                  Start preparing for interview
                 </button>
               )
             ) : null}
             <button
               type="button"
-              className="jsc-post-score-btn"
+              className="jsc-post-score-btn jsc-interview-cta--secondary"
               onClick={() => {
                 const jobTitle = occupationName || "this role";
                 const adhdType = getAdhdTypeFromProfile();

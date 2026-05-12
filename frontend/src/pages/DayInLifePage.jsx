@@ -1,7 +1,45 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import DayInLifeTimeline from "../components/DayInLifeTimeline.jsx";
 import { fetchDayInLife } from "../services/dayInLifeApi.js";
+
+const ENERGY_LABELS = {
+  high:   { label: "High focus required", colour: "#dc2626", bg: "#fff5f5", pillBg: "#fee2e2" },
+  medium: { label: "Medium energy",       colour: "#d97706", bg: "#fffbf0", pillBg: "#fef3c7" },
+  low:    { label: "Low energy",          colour: "#16a34a", bg: "#f4fdf6", pillBg: "#dcfce7" },
+  break:  { label: "Break",               colour: "#3b82f6", bg: "#eff6ff", pillBg: "#dbeafe" },
+};
+
+const LAST_PARAMS_KEY = "dil_last_params";
+
+function _cacheKey(job, adhd) {
+  return `dil_cache_${job}|${adhd}`;
+}
+function _cacheGet(job, adhd) {
+  try {
+    const raw = sessionStorage.getItem(_cacheKey(job, adhd));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function _cacheSet(job, adhd, timeline) {
+  try {
+    sessionStorage.setItem(_cacheKey(job, adhd), JSON.stringify(timeline));
+  } catch {
+    // Ignore storage write failures (private mode/quota).
+  }
+}
+function _saveLastParams(job, adhd) {
+  try {
+    sessionStorage.setItem(LAST_PARAMS_KEY, JSON.stringify({ job_title: job, adhd_type: adhd }));
+  } catch {
+    // Ignore storage write failures (private mode/quota).
+  }
+}
+function _loadLastParams() {
+  try {
+    const raw = sessionStorage.getItem(LAST_PARAMS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
 
 function formatAdhdLabel(raw) {
   const s = String(raw || "")
@@ -14,7 +52,7 @@ function formatAdhdLabel(raw) {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
-/** Matches Profile Wizard / career profile “Previous step” control (`profile-app.css`). */
+/** Matches Profile Wizard / career profile "Previous step" control (`profile-app.css`). */
 function CareerProfileBackLink({ onClick, label }) {
   return (
     <div className="q-profile-prev-top day-in-life-back">
@@ -28,15 +66,25 @@ function CareerProfileBackLink({ onClick, label }) {
   );
 }
 
+/** Splits "9:00 AM" → { hm: "9:00", period: "AM" } */
+function parseTime(t = "") {
+  const m = t.match(/^(\d+:\d+)\s*(AM|PM)?/i);
+  if (!m) return { hm: t, period: "" };
+  return { hm: m[1], period: (m[2] || "").toUpperCase() };
+}
+
 export default function DayInLifePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const st = location.state ?? {};
-  const job_title = String(st.job_title ?? searchParams.get("job_title") ?? "").trim();
-  const adhd_type = String(st.adhd_type ?? searchParams.get("adhd_type") ?? "").trim();
+  // Resolve job_title / adhd_type from state → URL params → last-session fallback
+  const _last = (!st.job_title && !searchParams.get("job_title")) ? _loadLastParams() : null;
+  const job_title = String(st.job_title ?? searchParams.get("job_title") ?? _last?.job_title ?? "").trim();
+  const adhd_type = String(st.adhd_type ?? searchParams.get("adhd_type") ?? _last?.adhd_type ?? "").trim();
 
+  const cachedTimeline = useMemo(() => _cacheGet(job_title, adhd_type), [job_title, adhd_type]);
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -44,7 +92,16 @@ export default function DayInLifePage() {
   useEffect(() => {
     if (!job_title || !adhd_type) return;
     let cancelled = false;
-    queueMicrotask(() => {
+
+    // Persist params so returning to the page without state/URL still works
+    _saveLastParams(job_title, adhd_type);
+
+    // Check session cache first — same job+ADHD type returns the same timeline
+    if (cachedTimeline) {
+      return;
+    }
+
+    Promise.resolve().then(() => {
       if (cancelled) return;
       setLoading(true);
       setError(null);
@@ -52,7 +109,10 @@ export default function DayInLifePage() {
     });
     fetchDayInLife(job_title, adhd_type)
       .then((data) => {
-        if (!cancelled) setTimeline(data.timeline);
+        if (!cancelled) {
+          _cacheSet(job_title, adhd_type, data.timeline);
+          setTimeline(data.timeline);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err.message);
@@ -63,9 +123,10 @@ export default function DayInLifePage() {
     return () => {
       cancelled = true;
     };
-  }, [job_title, adhd_type]);
+  }, [job_title, adhd_type, cachedTimeline]);
 
   const adhdDisplay = formatAdhdLabel(adhd_type);
+  const visibleTimeline = timeline ?? cachedTimeline;
 
   // Guard: no job data
   if (!job_title) {
@@ -80,22 +141,33 @@ export default function DayInLifePage() {
   }
 
   return (
-    <div className="day-in-life-page">
-      <div className="day-in-life-header">
-        <CareerProfileBackLink label="Back" onClick={() => navigate(-1)} />
-        <h1>A Day in the Life</h1>
-        <p className="day-in-life-subtitle">
-          Here&apos;s what a typical workday may look like for a <strong>{job_title}</strong>
-          {adhdDisplay ? (
-            <>
-              {" "}
-              with <strong>{adhdDisplay}</strong> ADHD.
-            </>
-          ) : (
-            "."
-          )}
-        </p>
-      </div>
+    <main className="day-in-life-page">
+      <header className="simplify-hero dil-hero-override">
+        <div className="simplify-hero-grid">
+          <div className="simplify-hero-copy">
+            <p className="simplify-hero-eyebrow">Energy mapped · Hour by hour</p>
+            <h1 className="simplify-hero-title">A Day in the Life</h1>
+            <p className="simplify-hero-lead">
+              What a typical workday looks like for <strong>{job_title}</strong> with <strong>{adhdDisplay || adhd_type}</strong> ADHD, energy mapped hour by hour.
+            </p>
+            <p className="dil-disclaimer">
+              This is a general simulation and may not reflect your exact experience. Schedules, demands, and support vary widely by company, team, and role.
+            </p>
+            <button type="button" className="simplify-hero-back" onClick={() => navigate(-1)}>
+              ← Back
+            </button>
+          </div>
+
+          <div className="day-in-life-legend">
+            {Object.entries(ENERGY_LABELS).map(([key, { label, colour }]) => (
+              <span key={key} className="dil-legend-item">
+                <span className="dil-legend-dot" style={{ background: colour }} />
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </header>
 
       {loading && (
         <div className="day-life-loading" aria-busy="true" aria-live="polite">
@@ -118,7 +190,45 @@ export default function DayInLifePage() {
         </div>
       ) : null}
 
-      {timeline && !loading ? <DayInLifeTimeline blocks={timeline} /> : null}
-    </div>
+      {/* Timeline */}
+      {visibleTimeline && !loading && (
+        <div className="day-in-life-timeline">
+          {visibleTimeline.map((block, i) => {
+            const energy = ENERGY_LABELS[block.energy_level] ?? ENERGY_LABELS.medium;
+            const { hm, period } = parseTime(block.time);
+            return (
+              <div key={i} className="timeline-block">
+                <div className="timeline-time">
+                  <span className="timeline-time-hm">{hm}</span>
+                  {period && <span className="timeline-time-period">{period}</span>}
+                </div>
+                <div
+                  className="timeline-content"
+                  style={{
+                    "--dot-color": energy.colour,
+                    "--card-bg": energy.bg,
+                  }}
+                >
+                  <p className="timeline-task">{block.task}</p>
+                  <p className="timeline-description">{block.description}</p>
+                  <div className="timeline-footer">
+                    <span
+                      className="timeline-energy-badge"
+                      style={{ background: energy.pillBg, color: energy.colour }}
+                    >
+                      <span className="tl-dot" style={{ background: energy.colour }} />
+                      {energy.label}
+                    </span>
+                    {block.adhd_tip && (
+                      <span className="timeline-adhd-chip">💡 {block.adhd_tip}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </main>
   );
 }

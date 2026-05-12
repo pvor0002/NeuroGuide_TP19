@@ -269,6 +269,18 @@ def _extract_text_from_gemini_response(response: Any) -> str:
     return result
 
 
+def _coerce_str(val: Any, *, join: str = "\n") -> str:
+    """
+    Safely coerce any Gemini field value to a plain string.
+    - list  → join items with `join` separator (default newline for content, space for titles)
+    - str   → returned as-is
+    - None/other → empty string
+    """
+    if isinstance(val, list):
+        return join.join(str(v) for v in val if v)
+    return str(val) if val is not None else ""
+
+
 def _to_str_list(value: Any, *, min_len: int = 1, fill: str = "-") -> list[str]:
     """Coerce a JSON value to a list of non-empty strings with a floor length."""
     if isinstance(value, list):
@@ -483,7 +495,7 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
 
     logger.info("[Gemini] is_job_description=true — extracting content fields")
 
-    job_title = (data.get("job_title") or "").strip()
+    job_title = _coerce_str(data.get("job_title"), join=" ").strip()
     extracted_skills = _to_str_list(data.get("extracted_skills"), min_len=0)
 
     raw_fit = data.get("job_fit_features")
@@ -515,10 +527,10 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
             raw,
         )
 
-    summary = (data.get("summary") or "").strip()
-    basic_info = (data.get("basic_info") or "").strip()
-    responsibilities = (data.get("responsibilities") or "").strip()
-    skills = (data.get("skills_qualifications") or "").strip()
+    summary = _coerce_str(data.get("summary")).strip()
+    basic_info = _coerce_str(data.get("basic_info")).strip()
+    responsibilities = _coerce_str(data.get("responsibilities")).strip()
+    skills = _coerce_str(data.get("skills_qualifications")).strip()
 
     logger.info(
         "[Gemini] job_title=%s, extracted_skills=%s, job_fit_features=%s",
