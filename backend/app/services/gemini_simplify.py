@@ -19,9 +19,51 @@ from app.schemas.job_description import (
     InattentiveProfile,
     SimplifyResponse,
 )
-from app.schemas.job_fit_features import GeminiJobFitFeatures
+from app.schemas.job_fit_features import GeminiJobFitFeatures, WorkEnvironmentStructured
 
 logger = logging.getLogger(__name__)
+
+
+def _prepare_job_fit_raw(raw_fit: Any) -> dict[str, Any]:
+    """
+    Gemini may return legacy string `work_environment` OR a structured object.
+    Flatten structured signals onto top-level keys for scoring + validation.
+    """
+    if not isinstance(raw_fit, dict):
+        return {}
+    out = dict(raw_fit)
+    we = out.get("work_environment")
+    if isinstance(we, dict):
+        try:
+            ws = WorkEnvironmentStructured.model_validate(we)
+            dumped = ws.model_dump(exclude_none=True)
+            out["work_environment_structured"] = dumped
+            if dumped.get("interruptions"):
+                out["interruptions"] = dumped["interruptions"]
+            ts = str(dumped.get("task_structure") or "").lower()
+            if ts == "dynamic":
+                out["task_structure"] = "mixed"
+            elif dumped.get("task_structure"):
+                out["task_structure"] = dumped["task_structure"]
+            if dumped.get("collaboration"):
+                out["collaboration"] = dumped["collaboration"]
+            if dumped.get("cognitive_load"):
+                out["cognitive_load"] = dumped["cognitive_load"]
+            if dumped.get("autonomy"):
+                out["autonomy"] = dumped["autonomy"]
+            pace = str(dumped.get("pace") or "").lower()
+            collab = str(dumped.get("collaboration") or "").lower()
+            if "fast" in pace:
+                out["work_environment"] = "fast-paced"
+            elif "high" in collab or collab == "medium":
+                out["work_environment"] = "collaborative"
+            else:
+                out["work_environment"] = "mixed"
+        except Exception as exc:
+            logger.warning("[Gemini] work_environment object invalid (%s) — using mixed", exc)
+            out["work_environment"] = "mixed"
+    return out
+
 
 SYSTEM_INSTRUCTION = """You are assisting neurodivergent job seekers (including ADHD and autism).
 You receive text that may be a job posting or may be unrelated content.
@@ -46,7 +88,18 @@ You must respond with a single JSON object only (no markdown fences), using this
 job_fit_features shape (when is_job_description is true, REQUIRED — infer from the posting text):
 {
   "task_structure": "structured" | "unstructured" | "mixed",
-  "work_environment": "quiet" | "collaborative" | "fast-paced" | "mixed",
+  "work_environment": EITHER (A) one of "quiet" | "collaborative" | "fast-paced" | "mixed"
+    OR (B) a structured object (preferred for richer UI) with ONLY these keys and allowed tokens:
+    {
+      "interruptions": "low" | "medium" | "high",
+      "task_structure": "structured" | "mixed" | "dynamic",
+      "collaboration": "low" | "medium" | "high",
+      "communication_style": "written" | "mixed" | "verbal",
+      "pace": "slow" | "moderate" | "fast",
+      "cognitive_load": "low" | "medium" | "high",
+      "autonomy": "low" | "medium" | "high"
+    }
+    If you use (B), still set top-level "task_structure", "interruptions", "collaboration", etc. to matching tokens when possible.
   "cognitive_load": "low" | "medium" | "high",
   "attention_switching": "low" | "high",
   "deadline_pressure": "low" | "high",
@@ -54,6 +107,8 @@ job_fit_features shape (when is_job_description is true, REQUIRED — infer from
   "work_style": "deep_focus" | "context_switching" | "mixed",
   "collaboration": "low" | "medium" | "high",
   "interruptions": "low" | "medium" | "high",
+  "required_experience_years": number or null,
+  "entry_level_friendly": boolean or null,
   "soft_skill_requirements": {
     "communication": "low" | "medium" | "high",
     "time_management": "low" | "medium" | "high",
@@ -130,6 +185,8 @@ Rules:
 2c. job_fit_features: Fill every field when is_job_description is true — ADHD-specific interpretation of how work is structured,
     socially paced, cognitively demanding, interrupt-driven, deadline-heavy, autonomy-granting, deep vs switching work style,
     collaboration intensity, and interruption frequency.
+    Also set required_experience_years to the minimum whole years of professional experience asked for (e.g. 5 for "5+ years", 3 for "3-5 years" use the lower bound).
+    Use null if years are not stated. Set entry_level_friendly to true when the posting clearly targets interns, graduates, juniors, or entry-level candidates.
 3. If is_job_description is true, fill ALL content fields including all three profiles:
 
    summary: A gentle, plain-language overview (short paragraphs, bullets OK). Optimize for clarity and
@@ -435,7 +492,8 @@ def simplify_job_description_with_gemini(text: str, settings: Settings) -> Simpl
         _ssr_raw = raw_fit.get("soft_skill_requirements")
 
     try:
-        job_fit_features = GeminiJobFitFeatures.model_validate(raw_fit or {})
+        prepared_fit = _prepare_job_fit_raw(raw_fit if isinstance(raw_fit, dict) else {})
+        job_fit_features = GeminiJobFitFeatures.model_validate(prepared_fit or {})
     except Exception:
         logger.warning(
             "[Gemini] job_fit_features invalid — using empty defaults | job_fit raw=%.3000s",

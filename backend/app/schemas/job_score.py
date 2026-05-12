@@ -28,8 +28,8 @@ class UserQuestionnaire(BaseModel):
     )
     energy_patterns: List[str] = Field(
         default=[],
-        description="Up to 2 energy patterns",
-        examples=[["Best with routine"]]
+        description="Legacy field — career profile no longer collects energy patterns; clients should send [].",
+        examples=[[]],
     )
     primary_role: str = Field(
         default="",
@@ -45,6 +45,11 @@ class UserQuestionnaire(BaseModel):
         default=[],
         description="User's skills",
         examples=[["Python", "JavaScript", "Problem-solving"]]
+    )
+    it_domain: Optional[str] = Field(
+        default="",
+        description="IT interest area from career wizard (optional)",
+        examples=["Web Development"],
     )
 
 
@@ -125,5 +130,18 @@ class JobScoreResponse(BaseModel):
         description=(
             "Soft-skill posting extraction vs profile: soft_skills_score (0-100 when demands parsed), "
             "soft_skills_extracted, soft_skills_user_inferred, dimensions_scored, soft_skills_ui_hint."
+        ),
+    )
+    work_environment_fit: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Supportive Work Environment Fit UI payload (comfort/challenge chips, summary); "
+            "no scoring formulas exposed."
+        ),
+    )
+    experience_fit: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Experience vs posting requirement (supportive label + message); optional score nudge applied server-side."
         ),
     )

@@ -24,7 +24,6 @@ const SCENE_BY_STEP_KIND = {
   },
   "work-style":       { src: `${BASE}/h1.png`, alt: "Character tapping options on a large phone screen" },
   "support-needs":    { src: `${BASE}/kj.png`, alt: "Character exploring supportive tools on a phone" },
-  "energy":           { src: `${BASE}/g2.png`, alt: "Character lying down, working from a laptop at their own pace" },
   "roles-pick":       { src: `${BASE}/h5.png`, alt: "Team reviewing a dashboard of jobs and charts" },
   "role-duration":    { src: `${BASE}/h2.png`, alt: "Team chatting with speech bubbles about their experience" },
   "skills":           { src: `${BASE}/h5.png`, alt: "Team pointing at charts and skills on a big dashboard" },

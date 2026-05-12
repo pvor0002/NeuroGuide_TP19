@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Link, useNavigate  } from "react-router-dom";
-
+import { Link, useNavigate } from "react-router-dom";
+import WorkEnvironmentFitPanel from "./WorkEnvironmentFitPanel.jsx";
+import ExperienceMatchPanel from "./ExperienceMatchPanel.jsx";
 
 const CAREER_PROFILE_STORAGE_KEY = "neuroguide.careerProfile.react.v2";
 
@@ -21,7 +22,6 @@ function getAdhdTypeFromProfile() {
     return "inattentive";
   }
 }
-
 
 const ASSESSMENT_CONFIDENCE_TOOLTIP =
   "Confidence is based on:\n- % of skills matched\n- Completeness of user profile\n- Gemini feature completeness";
@@ -521,342 +521,6 @@ function neutralizeScoringCopy(text) {
     .trim();
 }
 
-function humanizeFitValue(v) {
-  const s = String(v ?? "").replace(/_/g, " ").trim();
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-/** Map client / API job-fit object keys to a stable shape for display. */
-function coerceJobFitShape(raw) {
-  if (!raw || typeof raw !== "object") return {};
-  const o = { ...raw };
-  if (o.interruptions != null && o.interrupt_frequency == null) {
-    o.interrupt_frequency = o.interruptions;
-  }
-  return o;
-}
-
-function fitToRowTone(fit) {
-  if (fit === "bad") return "mismatch";
-  if (fit === "warn") return "partial";
-  return "aligned";
-}
-
-/** Maps posting/user strings to meter position: low / mid / high / none. */
-function meterLevelFromText(s, kind) {
-  const t = String(s ?? "")
-    .toLowerCase()
-    .trim();
-  if (!t || t === "—") return "none";
-  if (t.includes("high") || t.includes("fast-paced")) return "high";
-  if (t.includes("low interruptions") || t.includes("quieter") || t.includes("shorter") || t.includes("quiet blocks"))
-    return "low";
-  if (t.includes("low") && !t.includes("slow")) return "low";
-  if (t.includes("deep-focus") || t.includes("deep focus")) return "high";
-  if (t.includes("mixed") || t.includes("medium") || t.includes("moderate")) return "mid";
-  if (kind === "task" && (t.includes("structured") || t.includes("unstructured"))) return "mid";
-  if (t.includes("collaborative") || t.includes("variety")) return "mid";
-  return "mid";
-}
-
-function meterFromInterruptJob(raw) {
-  const j = String(raw || "").toLowerCase();
-  if (j === "high") return "high";
-  if (j === "low") return "low";
-  if (j === "medium" || j === "mid") return "mid";
-  return "none";
-}
-
-function meterFromCognitiveJob(raw) {
-  const j = String(raw || "").toLowerCase();
-  if (j === "high") return "high";
-  if (j === "low") return "low";
-  if (j === "medium") return "mid";
-  return "none";
-}
-
-/** fit: good | warn | bad — bad sorts first (mismatch spotlight). */
-function buildWorkStyleMismatchRows(fitObj, workPrefs = [], energyPrefs = []) {
-  const fit = coerceJobFitShape(fitObj);
-  const prefs = workPrefs || [];
-  const energy = energyPrefs || [];
-  const hasP = (s) => prefs.includes(s);
-  const hasE = (s) => energy.includes(s);
-
-  const rows = [];
-
-  const jobTs = String(fit.task_structure || "").toLowerCase();
-  let userTs = "—";
-  if (hasP("Clear priorities") || hasP("Visual workflow")) userTs = "Clear priorities / structure";
-  else if (hasP("Short tasks")) userTs = "Shorter tasks";
-  else if (prefs.length) userTs = prefs.slice(0, 2).join(" · ");
-  let fitTs = "warn";
-  if (jobTs === "structured" && (hasP("Clear priorities") || hasP("Visual workflow") || hasP("Short tasks"))) {
-    fitTs = hasP("Short tasks") && !hasP("Clear priorities") ? "warn" : "good";
-  } else if (jobTs === "unstructured" && (hasP("Clear priorities") || hasP("Visual workflow"))) fitTs = "bad";
-  else if (jobTs === "mixed") fitTs = "warn";
-  else if (jobTs === "structured") fitTs = hasP("Clear priorities") || hasP("Visual workflow") ? "good" : "warn";
-  if (!jobTs) fitTs = "warn";
-
-  const jobTaskMeter = jobTs === "structured" || jobTs === "unstructured" ? "mid" : jobTs === "mixed" ? "mid" : "none";
-  const userTaskMeter = meterLevelFromText(userTs, "task");
-
-  rows.push({
-    key: "task_structure",
-    label: "Task structure",
-    jobText: humanizeFitValue(fit.task_structure) || "—",
-    userText: userTs,
-    fit: fitTs,
-    rank: fitTs === "bad" ? 0 : fitTs === "warn" ? 1 : 2,
-    rowTone: fitToRowTone(fitTs),
-    jobLevel: jobTaskMeter,
-    userLevel: userTaskMeter,
-  });
-
-  const jobInt = String(fit.interrupt_frequency || fit.attention_switching || "").toLowerCase();
-  let userInt = "—";
-  if (hasP("Low interruptions")) userInt = "Low interruptions";
-  else if (hasE("Best in quieter settings")) userInt = "Quieter settings";
-  let fitInt = "warn";
-  if (jobInt === "high" && hasP("Low interruptions")) fitInt = "bad";
-  else if (jobInt === "low" && hasP("Low interruptions")) fitInt = "good";
-  else if (jobInt === "medium" || jobInt === "") fitInt = "warn";
-  else if (jobInt === "low") fitInt = hasP("Low interruptions") ? "good" : "warn";
-  else if (jobInt === "high") fitInt = hasE("Best in quieter settings") ? "warn" : "bad";
-  if (!jobInt && !fit.attention_switching) fitInt = "warn";
-
-  const intRaw = fit.interrupt_frequency || fit.attention_switching;
-  const jobIntMeter = meterFromInterruptJob(intRaw);
-  let userIntMeter = "none";
-  if (hasP("Low interruptions")) userIntMeter = "low";
-  else if (hasE("Best in quieter settings")) userIntMeter = "low";
-
-  rows.push({
-    key: "interruptions",
-    label: "Interruptions",
-    jobText: humanizeFitValue(intRaw) || "—",
-    userText: userInt,
-    fit: fitInt,
-    rank: fitInt === "bad" ? 0 : fitInt === "warn" ? 1 : 2,
-    rowTone: fitToRowTone(fitInt),
-    jobLevel: jobIntMeter,
-    userLevel: userIntMeter,
-  });
-
-  const jobCog = String(fit.cognitive_load || "").toLowerCase();
-  let userCog = "—";
-  if (hasE("Best with short focus sprints") || hasE("Best with frequent breaks")) userCog = "Shorter bursts / breaks";
-  else if (hasE("Best with morning deep work") || hasE("Best with afternoon deep work")) userCog = "Deep-focus blocks";
-  else if (hasE("Best with one task at a time")) userCog = "One task at a time";
-  else if (energy.length) userCog = energy.slice(0, 2).join(" · ");
-  let fitCog = "warn";
-  if (jobCog === "high" && (hasE("Best with short focus sprints") || hasE("Best with frequent breaks"))) fitCog = "warn";
-  else if (jobCog === "high" && (hasE("Best with morning deep work") || hasE("Best with afternoon deep work"))) fitCog = "bad";
-  else if (jobCog === "low") fitCog = "good";
-  else if (jobCog === "medium") fitCog = "warn";
-  if (!jobCog) fitCog = "warn";
-
-  let userCogMeter = "none";
-  if (hasE("Best with short focus sprints") || hasE("Best with frequent breaks")) userCogMeter = "low";
-  else if (hasE("Best with morning deep work") || hasE("Best with afternoon deep work")) userCogMeter = "high";
-  else if (hasE("Best with one task at a time")) userCogMeter = "mid";
-  else if (energy.length) userCogMeter = meterLevelFromText(userCog, "cog");
-
-  rows.push({
-    key: "cognitive_load",
-    label: "Cognitive load",
-    jobText: humanizeFitValue(fit.cognitive_load) || "—",
-    userText: userCog,
-    fit: fitCog,
-    rank: fitCog === "bad" ? 0 : fitCog === "warn" ? 1 : 2,
-    rowTone: fitToRowTone(fitCog),
-    jobLevel: meterFromCognitiveJob(fit.cognitive_load),
-    userLevel: userCogMeter,
-  });
-
-  const jobWe = String(fit.work_environment || "").toLowerCase();
-  let userWe = "—";
-  if (hasP("Collaborative team")) userWe = "Collaborative";
-  else if (hasP("Quiet work blocks")) userWe = "Quiet blocks";
-  else if (hasE("Best with variety")) userWe = "Variety / pace";
-  let fitWe = "warn";
-  if (jobWe === "fast-paced" && (hasP("Quiet work blocks") || hasP("Low interruptions"))) fitWe = "bad";
-  else if (jobWe === "quiet" && hasP("Quiet work blocks")) fitWe = "good";
-  else if (jobWe === "collaborative" && hasP("Collaborative team")) fitWe = "good";
-  else if (jobWe === "mixed") fitWe = "warn";
-  if (!jobWe) fitWe = "warn";
-
-  rows.push({
-    key: "work_environment",
-    label: "Work environment",
-    jobText: humanizeFitValue(fit.work_environment) || "—",
-    userText: userWe,
-    fit: fitWe,
-    rank: fitWe === "bad" ? 0 : fitWe === "warn" ? 1 : 2,
-    rowTone: fitToRowTone(fitWe),
-    jobLevel: meterLevelFromText(humanizeFitValue(fit.work_environment), "env"),
-    userLevel: meterLevelFromText(userWe, "env"),
-  });
-
-  const sorted = [...rows].sort((a, b) => a.rank - b.rank || a.key.localeCompare(b.key));
-  return sorted.slice(0, 4);
-}
-
-const WS_ROW_ORDER = ["interruptions", "cognitive_load", "task_structure", "work_environment"];
-
-function sortWorkStyleRowsForDisplay(rows) {
-  const ix = (k) => {
-    const i = WS_ROW_ORDER.indexOf(k);
-    return i === -1 ? 99 : i;
-  };
-  return [...rows].sort((a, b) => ix(a.key) - ix(b.key));
-}
-
-function WorkStyleFeatureGlyph({ rowKey }) {
-  if (rowKey === "interruptions") {
-    return (
-      <span className="jsc-ws-feat-ico jsc-ws-feat-ico--alert" aria-hidden="true">
-        A
-      </span>
-    );
-  }
-  return (
-    <span className="jsc-ws-feat-ico jsc-ws-feat-ico--plus" aria-hidden="true">
-      +
-    </span>
-  );
-}
-
-function WorkStyleMatchMeter({ level }) {
-  const pos = { none: 50, low: 10, mid: 50, high: 90 }[level] ?? 50;
-  return (
-    <div className="jsc-ws-meter" aria-hidden="true">
-      <div className="jsc-ws-meter__track" />
-      <span className="jsc-ws-meter__dot" style={{ left: `${pos}%` }} />
-    </div>
-  );
-}
-
-function WorkStyleMatchCard({
-  matchPct,
-  comparisonRows,
-  hasJobSignals,
-  profileFitReason,
-  strengths = [],
-  challenges = [],
-}) {
-  const pctLabel = matchPct != null ? `${Math.round(matchPct)}%` : "—";
-  const rows = sortWorkStyleRowsForDisplay(comparisonRows);
-  const safeTone = (row) => row.rowTone || (row.fit === "bad" ? "mismatch" : row.fit === "warn" ? "partial" : "aligned");
-  const jl = (row) => row.jobLevel || "none";
-
-  return (
-    <div className="jsc-ws-detailed">
-      <div className="jsc-ws-detailed__head">
-        <span className="jsc-ws-detailed__head-title">Detailed Breakdown</span>
-        <span className="jsc-ws-detailed__head-pct">Match {pctLabel}</span>
-      </div>
-
-      {!hasJobSignals ? (
-        <p className="jsc-ws-detailed__fallback jsc-muted-line">
-          Environment signals weren&apos;t extracted from this posting—your score still uses your profile and occupation.
-          Add work preferences in your career profile for a richer comparison.
-        </p>
-      ) : null}
-
-      <div className="jsc-ws-grid" role="table" aria-label="Job environment compared to your preferences">
-        <div className="jsc-ws-grid__head" role="row">
-          <span className="jsc-ws-grid__h jsc-ws-grid__h--feat" role="columnheader">
-            Feature
-          </span>
-          <span className="jsc-ws-grid__h" role="columnheader">
-            Job environment
-          </span>
-          <span className="jsc-ws-grid__h jsc-ws-grid__h--fit" role="columnheader">
-            Fit
-          </span>
-          <span className="jsc-ws-grid__h" role="columnheader">
-            Your preference
-          </span>
-          </div>
-        {rows.map((row) => (
-          <div
-            key={row.key}
-            className={`jsc-ws-grid__row jsc-ws-grid__row--${safeTone(row)}`}
-            role="row"
-          >
-            <div className="jsc-ws-grid__feat" role="rowheader">
-              <WorkStyleFeatureGlyph rowKey={row.key} />
-              <span className="jsc-ws-grid__feat-label">{row.label}</span>
-            </div>
-            <div className="jsc-ws-grid__cell jsc-ws-grid__cell--job">
-              <div className="jsc-ws-grid__job-row">
-                <span className="jsc-ws-grid__val">{row.jobText}</span>
-                <div className="jsc-ws-grid__meter-block">
-                  <WorkStyleMatchMeter level={jl(row)} />
-                  <span className="jsc-ws-grid__cap">{meterCaption(jl(row))}</span>
-                </div>
-              </div>
-            </div>
-            <div className="jsc-ws-grid__fit" role="cell">
-              <span
-                className={`jsc-ws-fit-pill jsc-ws-fit-pill--${row.fit}`}
-                title={
-                  row.fit === "good" ? "Aligned" : row.fit === "bad" ? "Misaligned" : "Partial / mixed"
-                }
-              >
-                {row.fit === "good" ? "✓" : row.fit === "bad" ? "!" : "≈"}
-              </span>
-            </div>
-            <div className="jsc-ws-grid__cell jsc-ws-grid__cell--you">
-              <span className="jsc-ws-grid__val">{row.userText}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {profileFitReason || strengths.length > 0 || challenges.length > 0 ? (
-        <div className="jsc-ws-footer">
-          {profileFitReason ? (
-            <div className="jsc-ws-footer__block jsc-ws-footer__block--profile">
-              <span className="jsc-ws-footer__badge">Profile fit</span>
-              <p className="jsc-ws-footer__text">{neutralizeScoringCopy(profileFitReason)}</p>
-            </div>
-            ) : null}
-          {strengths.length > 0 ? (
-            <div className="jsc-ws-footer__block jsc-ws-footer__block--strengths">
-              <span className="jsc-ws-footer__badge jsc-ws-footer__badge--on-dark">Strengths</span>
-              <ul className="jsc-ws-footer__list">
-                {strengths.slice(0, 5).map((s, i) => (
-                  <li key={i}>{capitalizeFirst(s)}</li>
-                ))}
-              </ul>
-          </div>
-          ) : null}
-          {challenges.length > 0 ? (
-            <div className="jsc-ws-footer__block jsc-ws-footer__block--watch">
-              <span className="jsc-ws-footer__badge">Watch-outs</span>
-              <ul className="jsc-ws-footer__list jsc-ws-footer__list--watch">
-                {challenges.slice(0, 5).map((c, i) => (
-                  <li key={i}>{capitalizeFirst(c)}</li>
-                ))}
-              </ul>
-        </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function meterCaption(level) {
-  if (level === "high") return "HIGH";
-  if (level === "low") return "LOW";
-  if (level === "mid") return "MIXED";
-  return "—";
-}
-
 function BreakdownRowIcon({ variant }) {
   const stroke = {
     fill: "none",
@@ -892,6 +556,15 @@ function BreakdownRowIcon({ variant }) {
       </svg>
     );
   }
+  if (variant === "experience") {
+    return (
+      <svg className={cls} viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" {...stroke} />
+        <rect x="5" y="7" width="14" height="13" rx="2" {...stroke} />
+        <path d="M9 12h6M9 16h4" {...stroke} />
+      </svg>
+    );
+  }
   return (
     <svg className={cls} viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" {...stroke} />
@@ -902,12 +575,16 @@ function BreakdownRowIcon({ variant }) {
   );
 }
 
-function ScoreBreakdownRow({ rowId, label, pct, expanded, onToggle, children, variant = "soft", hint }) {
+function ScoreBreakdownRow({ rowId, label, pct, expanded, onToggle, children, variant = "soft", hint, statusCallout }) {
   const safe = pct == null ? null : Math.max(0, Math.min(100, Number(pct)));
   const tone = barToneClass(safe);
-  const showBar = safe != null;
+  const showBar = statusCallout == null && safe != null;
   const scoreText = showBar ? String(Math.round(safe)) : "—";
-  const ariaScore = showBar ? `Score ${scoreText} out of 100` : "Score not available yet";
+  const ariaScore = statusCallout
+    ? statusCallout.label
+    : showBar
+      ? `Score ${scoreText} out of 100`
+      : "Score not available yet";
   const ariaExpand = expanded ? "Collapse details" : "Expand for details";
   return (
     <div className={`jsc-bd-row${expanded ? " jsc-bd-row--expanded" : ""}`}>
@@ -930,16 +607,24 @@ function ScoreBreakdownRow({ rowId, label, pct, expanded, onToggle, children, va
             {hint ? <span className="jsc-bd-row__hint">{hint}</span> : null}
           </span>
         </span>
-        <span className="jsc-bd-row__track" aria-hidden="true">
-          <span
-            className={`jsc-bd-row__fill jsc-bd-row__fill--${tone}`}
-            style={{ width: showBar ? `${safe}%` : "0%" }}
-          />
-        </span>
-        <span className="jsc-bd-row__score">
-          <span className="jsc-bd-row__val">{scoreText}</span>
-          <span className="jsc-bd-row__outof">/ 100</span>
-        </span>
+        {statusCallout ? (
+          <span className="jsc-bd-row__callout-slot">
+            <span className={`jsc-bd-row__callout jsc-bd-row__callout--${statusCallout.tone}`}>{statusCallout.label}</span>
+          </span>
+        ) : (
+          <>
+            <span className="jsc-bd-row__track" aria-hidden="true">
+              <span
+                className={`jsc-bd-row__fill jsc-bd-row__fill--${tone}`}
+                style={{ width: showBar ? `${safe}%` : "0%" }}
+              />
+            </span>
+            <span className="jsc-bd-row__score">
+              <span className="jsc-bd-row__val">{scoreText}</span>
+              <span className="jsc-bd-row__outof">/ 100</span>
+            </span>
+          </>
+        )}
         <span className="jsc-bd-row__expand" aria-hidden="true">
           <span className="jsc-bd-row__expand-label">Details</span>
           <span className="jsc-bd-row__chev-wrap">
@@ -1075,17 +760,23 @@ function SkillDropBucket({
 export default function JobScoreCard({
   result,
   occupationName,
+  careerProfileJobRoles = [],
+  questionnaireBaseline = null,
+  onQuestionnairePreviewPatch,
+  onQuestionnaireSaveToProfile,
   onOpenHistory,
+  onSaveJobScore,
   onSkillProfileChange,
   jobScoreBusy = false,
-  jobFitFeatures = null,
   ariaHeadingId = "jsc-inline-heading",
   /** When true, omit the inline “Start preparing for interview” link (e.g. modal provides its own CTA). */
   hideInterviewPrepCta = false,
+  /** When true, hide Compare / Save / Interview toolbar (e.g. history detail modal). */
+  hidePostScoreActions = false,
 }) {
   const navigate = useNavigate();
   const [helpfulVote, setHelpfulVote] = useState(null);
-  const [bdOpen, setBdOpen] = useState({ adhd: false, technical: true, soft: false });
+  const [bdOpen, setBdOpen] = useState({ adhd: false, experience: false, technical: true, soft: false });
   const assessmentConfidenceTipId = useId();
   const [showAssessmentConfidenceTip, setShowAssessmentConfidenceTip] = useState(false);
 
@@ -1147,41 +838,20 @@ export default function JobScoreCard({
     return bucketCoveragePct(matchedByType.soft, partialByType.soft, missingByType.soft);
   }, [softBucketsFromDebug, softDebug, matchedByType.soft, partialByType.soft, missingByType.soft]);
 
+  const experienceStatusCallout = useMemo(() => {
+    const st = result?.experience_fit?.status;
+    if (st === "good") return { label: "Good to go", tone: "good" };
+    if (st === "moderate") return { label: "Tight fit — proceed carefully", tone: "warn" };
+    if (st === "gap") return { label: "Should not proceed — posting asks more experience", tone: "risk" };
+    return null;
+  }, [result?.experience_fit?.status]);
+
   const softCollapsedHint =
     softRowPct == null && softDebug?.soft_skills_ui_hint
       ? neutralizeScoringCopy(softDebug.soft_skills_ui_hint)
       : undefined;
 
   const canDnD = typeof onSkillProfileChange === "function";
-
-  const geminiFit = result?.factor_breakdown?.gemini_job_fit;
-  const normalizedJobFit = useMemo(() => {
-    const norm = geminiFit?.normalized;
-    if (norm && typeof norm === "object" && Object.keys(norm).length > 0) return norm;
-    if (jobFitFeatures && typeof jobFitFeatures === "object") return jobFitFeatures;
-    return {};
-  }, [geminiFit, jobFitFeatures]);
-
-  const hasJobFitSignals = useMemo(() => {
-    const f = coerceJobFitShape(normalizedJobFit);
-    return [
-      f.task_structure,
-      f.interrupt_frequency,
-      f.attention_switching,
-      f.cognitive_load,
-      f.work_environment,
-    ].some((v) => v != null && String(v).trim());
-  }, [normalizedJobFit]);
-
-  const workStyleComparisonRows = useMemo(
-    () =>
-      buildWorkStyleMismatchRows(
-        normalizedJobFit,
-        factors.work_preferences?.selected,
-        factors.energy_patterns?.selected,
-      ),
-    [normalizedJobFit, factors.work_preferences?.selected, factors.energy_patterns?.selected],
-  );
 
   const handleDrop = ({ skill, action, fromZone, toZone }) => {
     if (!canDnD || jobScoreBusy) return;
@@ -1225,24 +895,14 @@ export default function JobScoreCard({
   const score = hasResult ? Number(result.score || 0) : 0;
   const tone = scoreTone(score);
   const scorePct = Math.min(100, Math.max(0, score));
+  const canPrepareInterview = hasResult && scorePct >= 50;
   const scoreBand = !hasResult ? null : scorePct >= 71 ? "high" : scorePct >= 41 ? "mid" : "low";
-  const showInterviewCta = hasResult && score >= 71 && !hideInterviewPrepCta;
   const confidencePct = hasResult ? Math.round((result.match_confidence ?? 0) * 100) : 0;
   const donutLoading = Boolean(jobScoreBusy);
 
-  const strengths = (result?.key_strengths || []).map((s) => String(s).trim()).filter(Boolean);
-  const challenges = (result?.key_challenges || []).map((s) => String(s).trim()).filter(Boolean);
-
   const adhdWorkStylePct = workStylePct;
 
-  const workStyleRowHint =
-    adhdWorkStylePct == null
-      ? "Expand to compare once work preferences are saved."
-      : adhdWorkStylePct < 50
-        ? "Alignment is limited; expand for suggestions."
-        : "Expand to compare job vs. your preferences.";
-
-  const collapseBreakdown = () => setBdOpen({ adhd: false, technical: false, soft: false });
+  const collapseBreakdown = () => setBdOpen({ adhd: false, experience: false, technical: false, soft: false });
 
   return (
     <div className="jsc-inline jsc-inline--fullbleed" role="region" aria-labelledby={ariaHeadingId}>
@@ -1250,9 +910,17 @@ export default function JobScoreCard({
         <div className="jsc-assess-topbar">
           <div className="jsc-assess-brand">
             <p className="jsc-assess-brand-title">Career Compatibility Score</p>
-            <p id={ariaHeadingId} className="jsc-assess-role">
-              Assessment for: <strong>{occupationName || "this role"}</strong>
-            </p>
+            <div id={ariaHeadingId} className="jsc-assess-role-stack">
+              <p className="jsc-assess-role">
+                Assessment for: <strong>{occupationName || "this role"}</strong>
+              </p>
+              {careerProfileJobRoles.length > 0 ? (
+                <p className="jsc-assess-role jsc-assess-role--profile">
+                  Career profile role{careerProfileJobRoles.length > 1 ? "s" : ""}:{" "}
+                  <strong>{careerProfileJobRoles.join(", ")}</strong>
+                </p>
+              ) : null}
+            </div>
           </div>
           <div className="jsc-assess-top-actions">
           <div className="jsc-helpful-box" aria-label="Was it helpful?">
@@ -1398,21 +1066,33 @@ export default function JobScoreCard({
 
             <ScoreBreakdownRow
               rowId="adhd"
-              label="Work Style & Focus Alignment"
+              label="Work Environment Fit"
               variant="workStyle"
-              hint={workStyleRowHint}
+              hint="How this posting’s pace and structure line up with how you like to work."
               pct={adhdWorkStylePct}
               expanded={bdOpen.adhd}
               onToggle={() => setBdOpen((o) => ({ ...o, adhd: !o.adhd }))}
             >
-              <WorkStyleMatchCard
-                matchPct={adhdWorkStylePct}
-                comparisonRows={workStyleComparisonRows}
-                hasJobSignals={hasJobFitSignals}
-                profileFitReason={factors.adhd_type?.reasoning}
-                strengths={strengths}
-                challenges={challenges}
+              <WorkEnvironmentFitPanel
+                workEnvironmentFit={result?.work_environment_fit}
+                busy={jobScoreBusy}
+                questionnaireBaseline={questionnaireBaseline}
+                onPreviewPatch={onQuestionnairePreviewPatch}
+                onSavePatchToProfile={onQuestionnaireSaveToProfile}
               />
+            </ScoreBreakdownRow>
+
+            <ScoreBreakdownRow
+              rowId="experience"
+              label="Experience Match"
+              variant="experience"
+              hint="Quick read on whether this posting’s experience bar fits your band."
+              pct={null}
+              statusCallout={experienceStatusCallout}
+              expanded={bdOpen.experience}
+              onToggle={() => setBdOpen((o) => ({ ...o, experience: !o.experience }))}
+            >
+              <ExperienceMatchPanel experienceFit={result?.experience_fit} />
             </ScoreBreakdownRow>
 
             <ScoreBreakdownRow
@@ -1512,37 +1192,51 @@ export default function JobScoreCard({
           )}
         </div>
 
-        {hasResult && typeof onOpenHistory === "function" ? (
-          <div className="jsc-compare-footer">
-            <button type="button" className="simplify-next-step-btn jsc-compare-btn" onClick={onOpenHistory}>
-              Compare with Previous Simplified JDs
-            </button>
-          </div>
-        ) : null}
-
-{showInterviewCta ? (
-          <div className="jsc-cta-wrap">
-            <Link className="jsc-interview-cta" to="/interview-prep">
-              Start preparing for interview
-            </Link>
-          </div>
-        ) : null}
-
-        {hasResult ? (
-          <div className="jsc-cta-wrap">
+        {hasResult && !hidePostScoreActions ? (
+          <div className="jsc-post-score-actions" role="group" aria-label="Next steps after your score">
+            {typeof onOpenHistory === "function" ? (
+              <button type="button" className="jsc-post-score-btn jsc-post-score-btn--compare" onClick={onOpenHistory}>
+                Compare with previous JDs
+              </button>
+            ) : null}
+            {typeof onSaveJobScore === "function" ? (
+              <button type="button" className="jsc-post-score-btn jsc-post-score-btn--save" onClick={onSaveJobScore}>
+                Save this job Score
+              </button>
+            ) : null}
+            {!hideInterviewPrepCta ? (
+              canPrepareInterview ? (
+                <Link
+                  className="jsc-post-score-btn jsc-post-score-btn--interview jsc-post-score-btn--interview-ready"
+                  to="/interview-prep"
+                >
+                  Prepare for interview
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="jsc-post-score-btn jsc-post-score-btn--interview jsc-post-score-btn--interview-locked"
+                  disabled
+                  title="Reach at least a 50% match score to open interview prep."
+                >
+                  Prepare for interview
+                </button>
+              )
+            ) : null}
             <button
               type="button"
-              className="jsc-interview-cta"
-              onClick={() =>
-                navigate("/day-in-life", {
-                  state: {
-                    job_title: occupationName || "this role",
-                    adhd_type: getAdhdTypeFromProfile(),
-                  },
-                })
-              }
+              className="jsc-post-score-btn"
+              onClick={() => {
+                const jobTitle = occupationName || "this role";
+                const adhdType = getAdhdTypeFromProfile();
+                const q = new URLSearchParams({
+                  job_title: jobTitle,
+                  adhd_type: adhdType,
+                });
+                navigate({ pathname: "/day-in-life", search: `?${q.toString()}` }, { state: { job_title: jobTitle, adhd_type: adhdType } });
+              }}
             >
-            See a day in this job
+              See a day in this job
             </button>
           </div>
         ) : null}

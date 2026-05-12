@@ -2398,7 +2398,7 @@ button:disabled {
   width: 100%;
 }
 
-/* Portrait column: dev.png + Next step card below. */
+/* Portrait column: dev portrait only (Support sits beside Next step in summary grid). */
 .q-profile-dev-stack {
   display: flex;
   flex-direction: column;
@@ -2445,7 +2445,7 @@ button:disabled {
   align-self: stretch;
 }
 
-/* Right rail: Skills card matches height of Work + Job focus + Support column. */
+/* Right rail: Skills card matches height of Work + Job focus + Next step column. */
 .q-profile-skills-rail {
   align-self: stretch;
   display: flex;
@@ -2616,6 +2616,32 @@ button:disabled {
 
 .summary-block--dashboard .summary-item:last-child {
   margin-bottom: 0;
+}
+
+/* Job focus: Job role | Experience side by side on Profile Ready */
+.summary-block--dashboard.summary-block--roles .summary-list--roles-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem clamp(0.75rem, 2vw, 1.25rem);
+  align-items: start;
+}
+
+.summary-block--dashboard.summary-block--roles .summary-list--roles-two-col .summary-item {
+  margin-bottom: 0;
+}
+
+@media (max-width: 520px) {
+  .summary-block--dashboard.summary-block--roles .summary-list--roles-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-block--dashboard.summary-block--roles .summary-list--roles-two-col .summary-item {
+    margin-bottom: 1rem;
+  }
+
+  .summary-block--dashboard.summary-block--roles .summary-list--roles-two-col .summary-item:last-child {
+    margin-bottom: 0;
+  }
 }
 
 .summary-block-head {
@@ -3031,6 +3057,70 @@ button:disabled {
 .q-profile-next-aside--rail .q-profile-cta-item .q-profile-cta-btn:focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-section--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: clamp(0.75rem, 2vw, 1.35rem);
+}
+
+.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-main {
+  min-width: 0;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-actions-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 0.42rem;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-list {
+  width: auto;
+  max-width: min(100vw - 2rem, 300px);
+  align-items: flex-end;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-next-flow {
+  margin-bottom: 0;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-item {
+  justify-content: flex-end;
+}
+
+.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-item .q-profile-cta-btn {
+  width: auto;
+  min-width: min(100%, 13.75rem);
+}
+
+@media (max-width: 640px) {
+  .q-profile-next-aside--rail .q-profile-cta-section--split {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-actions-col {
+    align-items: stretch;
+    max-width: none;
+  }
+
+  .q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-list {
+    max-width: none;
+    align-items: stretch;
+  }
+
+  .q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-item {
+    justify-content: stretch;
+  }
+
+  .q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-item .q-profile-cta-btn {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3514,6 +3604,77 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.q-question-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.q-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+
+.q-title-actions {
+  flex-shrink: 0;
+  display: inline-flex;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.q-title-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.q-title-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1.5px solid rgba(45, 41, 38, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.q-title-tool:hover {
+  background: var(--selected-bg);
+  border-color: rgba(47, 124, 224, 0.35);
+  color: var(--ink);
+}
+
+.q-help-disclosure {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 251, 248, 0.92);
+  border: 1px solid var(--line);
+}
+
+.q-help-line {
+  margin: 0 0 0.45rem;
+}
+
+.q-help-line:last-child {
+  margin-bottom: 0;
+}
+
+.q-help-line--options {
+  margin-top: 0.35rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed rgba(45, 41, 38, 0.12);
 }
 
 .q-kicker {
@@ -4486,8 +4647,126 @@ button:disabled {
   box-sizing: border-box;
 }
 
-.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .summary-block--support-wide {
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--support-wide {
   grid-column: 1 / -1;
+}
+
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .q-profile-support-next-pair {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(12px, 1.4vw, 18px);
+  width: 100%;
+  min-width: 0;
+  max-width: min(920px, 100%);
+  margin-inline: auto;
+  justify-items: center;
+  align-items: start;
+}
+
+/* ADHD Support + Next step: same width as before; shorter height (not 1:1, not Skills rail height) */
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .summary-block.q-profile-ready-square-tile,
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .q-profile-next-aside.q-profile-ready-square-tile {
+  width: min(100%, min(380px, 42vw));
+  /* Landscape card: width : height = 8 : 5 → shorter than former square (1:1), width unchanged */
+  aspect-ratio: 8 / 5;
+  min-height: 0;
+  max-width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  align-self: start;
+  justify-self: center;
+}
+
+.q-profile-ready-square-tile.summary-block--dashboard {
+  overflow: hidden;
+}
+
+.q-profile-ready-square-tile.summary-block--dashboard .summary-block-head {
+  flex-shrink: 0;
+}
+
+.q-profile-ready-square-tile.summary-block--dashboard .summary-block-meaning {
+  flex-shrink: 0;
+  margin-bottom: 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.q-profile-ready-square-tile .q-profile-ready-square-tile__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
+}
+
+.q-profile-ready-square-tile .summary-support-two-col {
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}
+
+.q-profile-next-aside.q-profile-ready-square-tile.q-profile-next-aside--square-pair {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.q-profile-next-aside--square-pair.q-profile-next-aside--rail .q-profile-cta-section {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: clamp(0.65rem, 1.2vw, 0.85rem);
+}
+
+.q-profile-next-aside--square-pair.q-profile-next-aside--rail .q-profile-cta-section--split {
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  gap: 0.55rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.q-profile-next-aside--square-pair.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-main {
+  flex-shrink: 0;
+}
+
+.q-profile-next-aside--square-pair.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-actions-col {
+  align-items: stretch;
+  justify-content: flex-end;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.q-profile-next-aside--square-pair.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-list {
+  width: 100%;
+  max-width: none;
+  align-items: stretch;
+}
+
+.q-profile-next-aside--square-pair.q-profile-next-aside--rail .q-profile-cta-section--split .q-profile-cta-item .q-profile-cta-btn {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .q-profile-support-next-pair {
+    grid-template-columns: 1fr;
+    max-width: none;
+  }
+
+  .q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .summary-block.q-profile-ready-square-tile,
+  .q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .q-profile-next-aside.q-profile-ready-square-tile {
+    width: min(100%, 400px);
+  }
 }
 
 .summary-support-two-col {
@@ -4630,7 +4909,7 @@ button:disabled {
 /* Place the clear-row visually between the question heading/subtitle
    and the answer options inside the card body. */
 .q-card-body > * { order: 4; }
-.q-card-body > .q-title { order: 1; }
+.q-card-body > .q-question-block { order: 1; }
 .q-card-body > .q-subtitle,
 .q-card-body > .q-footnote { order: 2; }
 .q-card-body > .q-clear-row { order: 3; }
