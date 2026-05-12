@@ -932,8 +932,6 @@ export default function ProfileWizardPage() {
     return pre.length === 0 || pre.every((s) => isStepAnswered(s, state.answers));
   }, [steps, state.answers]);
 
-  const effectiveShowSuitabilityGate = showSuitabilityGate && !canCheckJobSuitability;
-
   const safeStepIndex = Math.min(state.stepIndex, Math.max(steps.length - 1, 0));
   const currentStep = steps[safeStepIndex];
   const totalSteps = steps.length;
@@ -944,7 +942,9 @@ export default function ProfileWizardPage() {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
-    setProfileHelpStepKey(null);
+    queueMicrotask(() => {
+      setProfileHelpStepKey(null);
+    });
   }, [currentStep?.id]);
 
   // When the visitor lands on the quiz-result step, auto-commit the inferred

@@ -114,12 +114,14 @@ export function WorkEnvironmentFitPanel({
   useEffect(() => {
     if (!drawerOpen || !questionnaireBaseline) return;
     const allowedEnergy = new Set(ENERGY_PATTERN_OPTIONS);
-    setDraft({
-      work_preferences: [...(questionnaireBaseline.work_preferences || [])],
-      support_needs: [...(questionnaireBaseline.support_needs || [])],
-      energy_patterns: [...(questionnaireBaseline.energy_patterns || [])].filter((x) =>
-        allowedEnergy.has(x),
-      ),
+    queueMicrotask(() => {
+      setDraft({
+        work_preferences: [...(questionnaireBaseline.work_preferences || [])],
+        support_needs: [...(questionnaireBaseline.support_needs || [])],
+        energy_patterns: [...(questionnaireBaseline.energy_patterns || [])].filter((x) =>
+          allowedEnergy.has(x),
+        ),
+      });
     });
   }, [drawerOpen, baselineKey, questionnaireBaseline]);
 

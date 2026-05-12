@@ -1631,6 +1631,7 @@ export default function SimplifyJobDescriptionPage() {
   ]);
 
   const questionnaireBaseline = useMemo(() => {
+    void careerProfileFitRevision;
     const profile = readCareerProfileForJobScore();
     const a = profile?.answers;
     if (!a) return null;
@@ -1639,7 +1640,7 @@ export default function SimplifyJobDescriptionPage() {
       support_needs: [...(a.supportNeeds || [])].slice(0, 2),
       energy_patterns: [...(a.energyPatterns || [])].slice(0, 2),
     };
-  }, [jobScoreResult, careerProfileFitRevision]);
+  }, [careerProfileFitRevision]);
 
   const handleQuestionnairePreviewPatch = useCallback(
     async (patch) => {
@@ -1671,27 +1672,31 @@ export default function SimplifyJobDescriptionPage() {
   }, []);
 
   useEffect(() => {
-    setSoftSkillOverrides({});
+    queueMicrotask(() => {
+      setSoftSkillOverrides({});
+    });
   }, [jobScoreCacheSyncKey]);
 
   useEffect(() => {
     const sr = simplifiedResultRef.current;
     if (!jobScoreCacheSyncKey || !sr || !hasRenderableSimplifiedOutput(sr)) return;
     const cached = readPersistedJobScore();
-    if (!cached) {
-      setJobScoreResult(null);
-      setJobScoreOccupationName("");
-      return;
-    }
-    if (!isJobScoreCacheValid(cached, sr)) {
-      clearPersistedJobScore();
-      setJobScoreResult(null);
-      setJobScoreOccupationName("");
-      return;
-    }
-    setJobScoreResult(cached.result);
-    setJobScoreOccupationName(cached.occupationName || "");
-    setJobScoreError("");
+    queueMicrotask(() => {
+      if (!cached) {
+        setJobScoreResult(null);
+        setJobScoreOccupationName("");
+        return;
+      }
+      if (!isJobScoreCacheValid(cached, sr)) {
+        clearPersistedJobScore();
+        setJobScoreResult(null);
+        setJobScoreOccupationName("");
+        return;
+      }
+      setJobScoreResult(cached.result);
+      setJobScoreOccupationName(cached.occupationName || "");
+      setJobScoreError("");
+    });
   }, [jobScoreCacheSyncKey]);
 
   useEffect(() => {
@@ -1710,7 +1715,9 @@ export default function SimplifyJobDescriptionPage() {
 
   useEffect(() => {
     if (!historyDrawerOpen) return;
-    setJobScoreHistory(readJobScoreHistory());
+    queueMicrotask(() => {
+      setJobScoreHistory(readJobScoreHistory());
+    });
   }, [historyDrawerOpen, jobScoreResult]);
 
   useEffect(() => {
@@ -1726,8 +1733,10 @@ export default function SimplifyJobDescriptionPage() {
 
   useEffect(() => {
     if (inputMode !== "file") {
-      fileDropDepthRef.current = 0;
-      setFileDropActive(false);
+      queueMicrotask(() => {
+        fileDropDepthRef.current = 0;
+        setFileDropActive(false);
+      });
     }
   }, [inputMode]);
 
@@ -2084,7 +2093,6 @@ export default function SimplifyJobDescriptionPage() {
                   onSaveJobScore={handleSaveJobScore}
                   onSkillProfileChange={handleSkillProfileChange}
                   jobScoreBusy={jobScoreBusy}
-                  jobFitFeatures={simplifiedResult?.job_fit_features ?? null}
                 />
               ) : null}
             </div>
