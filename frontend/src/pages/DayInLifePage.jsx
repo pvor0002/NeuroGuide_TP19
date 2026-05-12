@@ -1,32 +1,55 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import DayInLifeTimeline from "../components/DayInLifeTimeline.jsx";
 import { fetchDayInLife } from "../services/dayInLifeApi.js";
 
 const ENERGY_LABELS = {
-  high:   { label: “High focus required”, colour: “#dc2626”, bg: “#fff5f5”, pillBg: “#fee2e2” },
-  medium: { label: “Medium energy”,       colour: “#d97706”, bg: “#fffbf0”, pillBg: “#fef3c7” },
-  low:    { label: “Low energy”,          colour: “#16a34a”, bg: “#f4fdf6”, pillBg: “#dcfce7” },
-  break:  { label: “Break”,               colour: “#3b82f6”, bg: “#eff6ff”, pillBg: “#dbeafe” },
+  high:   { label: "High focus required", colour: "#dc2626", bg: "#fff5f5", pillBg: "#fee2e2" },
+  medium: { label: "Medium energy",       colour: "#d97706", bg: "#fffbf0", pillBg: "#fef3c7" },
+  low:    { label: "Low energy",          colour: "#16a34a", bg: "#f4fdf6", pillBg: "#dcfce7" },
+  break:  { label: "Break",               colour: "#3b82f6", bg: "#eff6ff", pillBg: "#dbeafe" },
 };
 
+const LAST_PARAMS_KEY = "dil_last_params";
+
+function _cacheKey(job, adhd) {
+  return `dil_cache_${job}|${adhd}`;
+}
+function _cacheGet(job, adhd) {
+  try {
+    const raw = sessionStorage.getItem(_cacheKey(job, adhd));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function _cacheSet(job, adhd, timeline) {
+  try { sessionStorage.setItem(_cacheKey(job, adhd), JSON.stringify(timeline)); } catch {}
+}
+function _saveLastParams(job, adhd) {
+  try { sessionStorage.setItem(LAST_PARAMS_KEY, JSON.stringify({ job_title: job, adhd_type: adhd })); } catch {}
+}
+function _loadLastParams() {
+  try {
+    const raw = sessionStorage.getItem(LAST_PARAMS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 function formatAdhdLabel(raw) {
-  const s = String(raw || “”)
+  const s = String(raw || "")
     .trim()
     .toLowerCase();
-  if (s === “hyperactive” || s === “hyperactive-impulsive”) return “Hyperactive”;
-  if (s === “inattentive”) return “Inattentive”;
-  if (s === “combined”) return “Combined”;
-  if (!raw) return “”;
+  if (s === "hyperactive" || s === "hyperactive-impulsive") return "Hyperactive";
+  if (s === "inattentive") return "Inattentive";
+  if (s === "combined") return "Combined";
+  if (!raw) return "";
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
-/** Matches Profile Wizard / career profile “Previous step” control (`profile-app.css`). */
+/** Matches Profile Wizard / career profile "Previous step" control (`profile-app.css`). */
 function CareerProfileBackLink({ onClick, label }) {
   return (
-    <div className=”q-profile-prev-top day-in-life-back”>
-      <button type=”button” className=”button ghost q-profile-prev-btn q-profile-prev-btn--matrix” onClick={onClick}>
-        <span className=”q-profile-prev-icon” aria-hidden=”true”>
+    <div className="q-profile-prev-top day-in-life-back">
+      <button type="button" className="button ghost q-profile-prev-btn q-profile-prev-btn--matrix" onClick={onClick}>
+        <span className="q-profile-prev-icon" aria-hidden="true">
           ←
         </span>
         {label}
@@ -48,8 +71,10 @@ export default function DayInLifePage() {
   const [searchParams] = useSearchParams();
 
   const st = location.state ?? {};
-  const job_title = String(st.job_title ?? searchParams.get("job_title") ?? "").trim();
-  const adhd_type = String(st.adhd_type ?? searchParams.get("adhd_type") ?? "").trim();
+  // Resolve job_title / adhd_type from state → URL params → last-session fallback
+  const _last = (!st.job_title && !searchParams.get("job_title")) ? _loadLastParams() : null;
+  const job_title = String(st.job_title ?? searchParams.get("job_title") ?? _last?.job_title ?? "").trim();
+  const adhd_type = String(st.adhd_type ?? searchParams.get("adhd_type") ?? _last?.adhd_type ?? "").trim();
 
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -58,15 +83,28 @@ export default function DayInLifePage() {
   useEffect(() => {
     if (!job_title || !adhd_type) return;
     let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setLoading(true);
+
+    // Persist params so returning to the page without state/URL still works
+    _saveLastParams(job_title, adhd_type);
+
+    // Check session cache first — same job+ADHD type returns the same timeline
+    const cached = _cacheGet(job_title, adhd_type);
+    if (cached) {
+      setTimeline(cached);
+      setLoading(false);
       setError(null);
-      setTimeline(null);
-    });
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setTimeline(null);
     fetchDayInLife(job_title, adhd_type)
       .then((data) => {
-        if (!cancelled) setTimeline(data.timeline);
+        if (!cancelled) {
+          _cacheSet(job_title, adhd_type, data.timeline);
+          setTimeline(data.timeline);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err.message);

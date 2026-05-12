@@ -202,17 +202,29 @@ def generate_day_in_life_with_gemini(
             detail="Gemini response did not include a timeline.",
         )
 
+    _valid_energy = {"low", "medium", "high", "break"}
+
+    def _coerce_str(val: Any, *, join: str = " ") -> str:
+        if isinstance(val, list):
+            return join.join(str(v) for v in val if v)
+        return str(val) if val is not None else ""
+
     timeline: list[TimeBlock] = []
     for block in raw_timeline:
         if not isinstance(block, dict):
             continue
+        energy = _coerce_str(block.get("energy_level")).strip().lower() or "medium"
+        if energy not in _valid_energy:
+            energy = "medium"
+        adhd_tip_raw = block.get("adhd_tip")
+        adhd_tip = _coerce_str(adhd_tip_raw).strip() if adhd_tip_raw else None
         timeline.append(
             TimeBlock(
-                time=str(block.get("time") or "").strip(),
-                task=str(block.get("task") or "").strip(),
-                description=str(block.get("description") or "").strip(),
-                energy_level=str(block.get("energy_level") or "medium").strip(),
-                adhd_tip=block.get("adhd_tip") or None,
+                time=_coerce_str(block.get("time")).strip(),
+                task=_coerce_str(block.get("task")).strip(),
+                description=_coerce_str(block.get("description"), join=" ").strip(),
+                energy_level=energy,
+                adhd_tip=adhd_tip or None,
             )
         )
 
@@ -226,6 +238,6 @@ def generate_day_in_life_with_gemini(
     return DayInLifeResponse(
         job_title=job_title,
         adhd_type=adhd_type,
-        data_source="gemini",
+        data_source="gemini_fallback",
         timeline=timeline,
     )
