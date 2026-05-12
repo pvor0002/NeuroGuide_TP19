@@ -768,7 +768,6 @@ export default function JobScoreCard({
   onSaveJobScore,
   onSkillProfileChange,
   jobScoreBusy = false,
-  jobFitFeatures = null,
   ariaHeadingId = "jsc-inline-heading",
   /** When true, omit the inline “Start preparing for interview” link (e.g. modal provides its own CTA). */
   hideInterviewPrepCta = false,
@@ -854,14 +853,6 @@ export default function JobScoreCard({
 
   const canDnD = typeof onSkillProfileChange === "function";
 
-  const geminiFit = result?.factor_breakdown?.gemini_job_fit;
-  const normalizedJobFit = useMemo(() => {
-    const norm = geminiFit?.normalized;
-    if (norm && typeof norm === "object" && Object.keys(norm).length > 0) return norm;
-    if (jobFitFeatures && typeof jobFitFeatures === "object") return jobFitFeatures;
-    return {};
-  }, [geminiFit, jobFitFeatures]);
-
   const handleDrop = ({ skill, action, fromZone, toZone }) => {
     if (!canDnD || jobScoreBusy) return;
     const softZone = String(fromZone || "").startsWith("soft_") && String(toZone || "").startsWith("soft_");
@@ -908,9 +899,6 @@ export default function JobScoreCard({
   const scoreBand = !hasResult ? null : scorePct >= 71 ? "high" : scorePct >= 41 ? "mid" : "low";
   const confidencePct = hasResult ? Math.round((result.match_confidence ?? 0) * 100) : 0;
   const donutLoading = Boolean(jobScoreBusy);
-
-  const strengths = (result?.key_strengths || []).map((s) => String(s).trim()).filter(Boolean);
-  const challenges = (result?.key_challenges || []).map((s) => String(s).trim()).filter(Boolean);
 
   const adhdWorkStylePct = workStylePct;
 
