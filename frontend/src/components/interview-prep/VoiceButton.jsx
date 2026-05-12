@@ -60,7 +60,7 @@ export default function VoiceButton({ onTranscript, disabled }) {
   if (!supported) {
     return (
       <p className="ip-voice-fallback" role="status">
-        Voice not supported in this browser — type your ideas below.
+        Voice not supported in this browser. Type your ideas below.
       </p>
     );
   }

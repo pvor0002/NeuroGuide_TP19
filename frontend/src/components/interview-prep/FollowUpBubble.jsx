@@ -4,7 +4,7 @@ import { ZONES } from "./StarGrid.jsx";
 const PROMPTS = {
   situation: "What was the situation or main constraint? Just a sentence is fine.",
   action: "What did you personally do in that moment?",
-  result: "What was the outcome — even roughly or in plain words?",
+  result: "What was the outcome, even roughly or in plain words?",
   learning: "What did you learn or what would you do next time?",
 };
 

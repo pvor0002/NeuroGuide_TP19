@@ -255,7 +255,7 @@ export default function SettingsPage() {
       refreshState();
       return;
     }
-    setActionMessage("Consent accepted — your local data is synced to secure storage.");
+    setActionMessage("Consent accepted. Your local data is synced to secure storage.");
     refreshState();
   };
 
@@ -496,7 +496,7 @@ export default function SettingsPage() {
           {activeSection === "credentials" ? (
             <section className="settings-card" aria-label="Pass key">
               <p className="settings-card-sub">
-                Your pass key is your recovery code. Keep it safe — we can&apos;t reset what we never knew.
+                Your pass key is your recovery code. Keep it safe. We can&apos;t reset what we never knew.
               </p>
 
               {credentials?.passKey ? (

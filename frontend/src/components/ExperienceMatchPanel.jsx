@@ -23,7 +23,7 @@ export function ExperienceMatchPanel({ experienceFit }) {
     if (typeof req !== "number") {
       bodyCopy =
         status === "good"
-          ? "This posting didn’t spell out a fixed years-of-experience bar—we still weigh skills and fit."
+          ? "This posting didn’t spell out a fixed years-of-experience bar. We still weigh skills and fit."
           : "";
     } else if (status === "good") {
       bodyCopy = "Your experience band looks workable for what this posting asks.";

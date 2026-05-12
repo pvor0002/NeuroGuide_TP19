@@ -196,7 +196,7 @@ export default function HomePage() {
                 <em>completely lost?</em>
               </h1>
               <p className="home-hero-lead--split">
-                NeuroGuide simplifies the jargon, shows how well you fit, and guides your interview prep — one clear step at a time.
+                NeuroGuide simplifies the jargon, shows how well you fit, and guides your interview prep, one clear step at a time.
               </p>
               <ul className="home-hero-chips" aria-label="What NeuroGuide offers">
                 <li>

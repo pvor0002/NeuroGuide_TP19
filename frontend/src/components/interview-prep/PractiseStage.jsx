@@ -46,49 +46,114 @@ export default function PractiseStage({
   const label = useMemo(() => readinessLabel(readinessPercent), [readinessLabel, readinessPercent]);
 
   return (
-    <section className="ip-stage ip-card ip-stage--compact" aria-labelledby="ip-stage-practise-title">
-      <h2 id="ip-stage-practise-title" className="ip-card-title ip-card-title--soft">
-        Practise
-      </h2>
-      <p className="ip-confidence ip-confidence--soft ip-confidence--tight">Strong material — we’re just shaping how you say it.</p>
+    <section className="ip-stage ip-practise" aria-labelledby="ip-stage-practise-title">
 
-      <blockquote className="ip-quote">{selectedQuestion}</blockquote>
-
-      <AnswerEditor
-        answerDraft={answerDraft}
-        onAnswerChange={onAnswerChange}
-        onReshapeSuccess={() => onBumpReadiness(12)}
-      />
-
-      <ReadinessBar value={readinessPercent} labelText={label} />
-
-      <div className="ip-practise-actions">
-        <button type="button" className="ip-btn ip-btn--primary ip-btn--xl" onClick={playing ? stopSpeaking : speak}>
-          {playing ? (
-            <>
-              <span className="ip-wave" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-                <span />
-              </span>
-              Stop playback
-            </>
-          ) : (
-            <>
-              <span aria-hidden="true">🎤</span> Practise aloud
-            </>
-          )}
-        </button>
+      {/* Full-width question banner */}
+      <div className="ip-practise-q-banner">
+        <span className="ip-practise-q-eyebrow">Practise your answer</span>
+        <h2 id="ip-stage-practise-title" className="ip-practise-q-text">{selectedQuestion}</h2>
       </div>
 
-      <footer className="ip-footer-actions ip-footer-actions--split">
-        <button type="button" className="ip-btn ip-btn--quiet" onClick={onBack}>
+      {/* Two-column: editor left, tools right */}
+      <div className="ip-practise-layout">
+
+        {/* Left — answer editor */}
+        <div className="ip-practise-editor-col">
+          <AnswerEditor
+            answerDraft={answerDraft}
+            onAnswerChange={onAnswerChange}
+            onReshapeSuccess={() => onBumpReadiness(12)}
+          />
+        </div>
+
+        {/* Right — tools panel: speak+readiness left, cheat sheet right */}
+        <div className="ip-practise-tools-col">
+
+          {/* Left sub-col: speak + readiness */}
+          <div className="ip-practise-tools-left">
+            {/* Hear it card */}
+            <div className="ip-practise-speak-card">
+              <p className="ip-practise-speak-label">
+                <span aria-hidden="true">🎤</span> Hear how it sounds
+              </p>
+              <button
+                type="button"
+                className={`ip-practise-speak-btn ${playing ? "ip-practise-speak-btn--active" : ""}`}
+                onClick={playing ? stopSpeaking : speak}
+                disabled={!answerDraft.trim()}
+              >
+                {playing ? (
+                  <>
+                    <span className="ip-wave" aria-hidden="true">
+                      <span /><span /><span /><span />
+                    </span>
+                    Stop
+                  </>
+                ) : (
+                  "Read aloud"
+                )}
+              </button>
+              <p className="ip-practise-speak-tip">
+                Hearing your answer out loud reveals exactly what to tighten up.
+              </p>
+            </div>
+
+            {/* Readiness card */}
+            <div className="ip-practise-readiness-card">
+              <ReadinessBar value={readinessPercent} labelText={label} />
+            </div>
+          </div>
+
+          {/* Right sub-col: cheat sheet */}
+          <div className="ip-practise-tips-card ip-practise-tools-right">
+            <p className="ip-practise-tips-title">STAR cheat sheet</p>
+            <ul className="ip-practise-cheatsheet">
+              <li>
+                <span className="ip-cs-zone ip-cs-zone--s">S</span>
+                <span className="ip-cs-body">
+                  <strong>Situation</strong>
+                  <span>Where, when, what was the challenge? Keep it to 1–2 sentences.</span>
+                </span>
+              </li>
+              <li>
+                <span className="ip-cs-zone ip-cs-zone--t">T</span>
+                <span className="ip-cs-body">
+                  <strong>Task</strong>
+                  <span>What was your specific responsibility or goal in that moment?</span>
+                </span>
+              </li>
+              <li>
+                <span className="ip-cs-zone ip-cs-zone--a">A</span>
+                <span className="ip-cs-body">
+                  <strong>Action</strong>
+                  <span>Say "I did…" not "we did…". Name your exact steps.</span>
+                </span>
+              </li>
+              <li>
+                <span className="ip-cs-zone ip-cs-zone--r">R</span>
+                <span className="ip-cs-body">
+                  <strong>Result</strong>
+                  <span>Numbers help — %, time saved, what improved. Even rough is fine.</span>
+                </span>
+              </li>
+            </ul>
+            <div className="ip-cs-reminders">
+              <p>⏱ Aim for under 2 min when spoken</p>
+              <p>🎯 One clear story per question</p>
+              <p>💬 Plain words beat jargon every time</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <footer className="ip-stage-footer">
+        <button type="button" className="ip-btn ip-btn--ghost" onClick={onBack}>
           ← Back
         </button>
-        <div className="ip-footer-actions__cluster">
+        <div className="ip-stage-footer__right">
           <button type="button" className="ip-btn ip-btn--secondary" onClick={onSave}>
-            Save this answer
+            Save answer
           </button>
           <button type="button" className="ip-btn ip-btn--primary" onClick={onNextQuestion}>
             Next question →

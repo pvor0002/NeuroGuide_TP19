@@ -1,7 +1,7 @@
 export default function DumpZone({ cards, onRemove }) {
   return (
     <div className="ip-dump-zone">
-      <p className="ip-dump-zone__label">Just talk it out — anything goes</p>
+      <p className="ip-dump-zone__label">Just talk it out, anything goes</p>
       <p className="ip-placeholder-hint">Try: &quot;the time I had to deal with a difficult deadline…&quot;</p>
       <div className="ip-dump-cards">
         {cards.length === 0 ? (

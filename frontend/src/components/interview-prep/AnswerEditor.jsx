@@ -5,7 +5,7 @@ const ACTIONS = [
   { key: "shorter", label: "✂️ Shorter", instruction: "Rewrite shorter while keeping STAR ideas and true facts. Plain spoken English." },
   { key: "clearer", label: "👁 Clearer", instruction: "Rewrite for clarity and ease when spoken aloud. Short sentences." },
   { key: "detail", label: "➕ More detail", instruction: "Add helpful detail and specificity without inventing facts." },
-  { key: "sound", label: "🎤 Sound like me", instruction: "Rewrite to sound natural and conversational — warm, human, not corporate jargon." },
+  { key: "sound", label: "🎤 Sound like me", instruction: "Rewrite to sound natural and conversational, warm, human, not corporate jargon." },
 ];
 
 export default function AnswerEditor({
