@@ -506,28 +506,97 @@
    Dump zone
    ========================================================================= */
 
-.ip-dump-zone {
-  padding: 1rem 1.1rem;
+/* Brain dump — chat-style input */
+.ip-dump-entry {
   border-radius: var(--ip-radius);
-  border: 1.5px dashed rgba(125, 211, 252, 0.5);
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 60%, #f0f9ff 100%);
+  border: 1.5px solid #1a1714;
+  background: #fff;
+  box-shadow: var(--ip-shadow-sm);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ip-dump-entry:focus-within {
+  border-color: #1a1714;
+  box-shadow: 0 0 0 3px rgba(26, 23, 20, 0.08);
+}
+
+.ip-dump-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1rem 1.1rem 0.5rem;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.93rem;
+  color: var(--ip-ink);
+  line-height: 1.65;
+  resize: none;
   min-height: 7rem;
+  outline: none;
+}
+.ip-dump-textarea::placeholder {
+  color: #c4b5a8;
+  font-style: italic;
+}
+.ip-dump-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Bottom toolbar — mic on left, send button on right */
+.ip-dump-entry-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem 0.6rem;
+  border-top: 1px solid var(--ip-line);
+  background: #faf8f5;
+}
+
+/* Send button — round, accent-filled */
+.ip-dump-send-btn {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--ip-accent);
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+.ip-dump-send-btn:hover:not(:disabled) {
+  background: #7a5c4d;
+}
+.ip-dump-send-btn:active:not(:disabled) {
+  transform: scale(0.93);
+}
+.ip-dump-send-btn:disabled {
+  background: #d6cec9;
+  cursor: not-allowed;
+}
+
+/* Chips zone — appears below once ideas exist */
+.ip-dump-zone {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--ip-radius-sm);
+  border: 1px solid #e2e0de;
+  background: #fff;
 }
 
 .ip-dump-zone__label {
-  margin: 0 0 0.25rem;
-  font-size: 0.72rem;
+  margin: 0 0 0.65rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #0369a1;
-}
-
-.ip-placeholder-hint {
-  margin: 0 0 0.85rem;
-  font-size: 0.84rem;
-  color: #c4b5a8;
-  font-style: italic;
+  color: #9e978f;
 }
 
 .ip-dump-cards {
@@ -543,27 +612,21 @@
   color: #c4b5a8;
 }
 
-/* Pastel chip colours — cycle through 5 soft tints */
+/* Idea chips — clean professional neutral */
 .ip-dump-chip {
   display: inline-flex;
   align-items: flex-start;
   gap: 0.3rem;
   max-width: 100%;
-  padding: 0.4rem 0.55rem 0.4rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
+  padding: 0.4rem 0.55rem 0.4rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e2e0de;
   font-size: 0.86rem;
   line-height: 1.4;
   color: var(--ip-ink);
-  box-shadow: 0 1px 4px rgba(45, 41, 38, 0.07);
-  background: #fef9f0;
-  border-color: rgba(184, 149, 106, 0.25);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(45, 41, 38, 0.06);
 }
-.ip-dump-chip:nth-child(5n+1) { background: #fef9f0; border-color: rgba(184,149,106,0.25); }
-.ip-dump-chip:nth-child(5n+2) { background: #eff6ff; border-color: rgba(147,197,253,0.5); }
-.ip-dump-chip:nth-child(5n+3) { background: #f0fdf4; border-color: rgba(134,239,172,0.5); }
-.ip-dump-chip:nth-child(5n+4) { background: #fdf4ff; border-color: rgba(216,180,254,0.5); }
-.ip-dump-chip:nth-child(5n+5) { background: #fff7ed; border-color: rgba(253,186,116,0.45); }
 
 .ip-dump-chip__text { flex: 1; min-width: 0; }
 .ip-dump-chip__x {
@@ -583,13 +646,6 @@
   background: rgba(200, 72, 72, 0.1);
 }
 
-.ip-dump-input-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  margin-top: 0.85rem;
-}
 
 /* =========================================================================
    Voice button
