@@ -162,7 +162,7 @@ export default function SpeechCoach({ question, answerDraft, onBumpReadiness }) 
             </p>
           )}
           <p className="ip-speech-coach-tip">
-            Say your answer out loud — get instant feedback on your STAR structure.
+            Say your answer out loud and get instant feedback on your STAR structure. Aim to finish within <mark className="ip-sc-highlight">2 minutes</mark>.
           </p>
         </>
       )}
