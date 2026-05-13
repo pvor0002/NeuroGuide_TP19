@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { coachSpeechAnswer, liveSimplifyEnabled } from "../../services/interviewPrepApi.js";
+import { coachSpeechAnswer } from "../../services/interviewPrepApi.js";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -100,27 +100,42 @@ export default function SpeechCoach({ question, answerDraft, onBumpReadiness }) 
   useEffect(() => {
     if (phase !== "recording_ended") return;
     const text = finalRef.current.trim();
-    if (!text) {
-      // Could be genuine silence or a no-speech error — give a clear prompt
-      setErrorMsg("No speech was captured. Check that your microphone is allowed in the browser, then try again.");
-      setPhase("error");
-      return;
-    }
-    setTranscript(text);
-    setPhase("loading");
+    const q = question;
+    const draft = answerDraft || "";
+    let cancelled = false;
 
-    coachSpeechAnswer(question, text, answerDraft || "")
-      .then((data) => {
-        setFeedback(data);
-        setPhase("done");
-        if (data.readiness_bump > 0) {
-          onBumpReadiness?.(data.readiness_bump);
-        }
-      })
-      .catch((err) => {
-        setErrorMsg(err.message || "Could not get feedback. Please try again.");
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      if (!text) {
+        // Could be genuine silence or a no-speech error — give a clear prompt
+        setErrorMsg(
+          "No speech was captured. Check that your microphone is allowed in the browser, then try again."
+        );
         setPhase("error");
-      });
+        return;
+      }
+      setTranscript(text);
+      setPhase("loading");
+
+      coachSpeechAnswer(q, text, draft)
+        .then((data) => {
+          if (cancelled) return;
+          setFeedback(data);
+          setPhase("done");
+          if (data.readiness_bump > 0) {
+            onBumpReadiness?.(data.readiness_bump);
+          }
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setErrorMsg(err.message || "Could not get feedback. Please try again.");
+          setPhase("error");
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [phase, question, answerDraft, onBumpReadiness]);
 
   /* Reset */
@@ -158,7 +173,7 @@ export default function SpeechCoach({ question, answerDraft, onBumpReadiness }) 
             </button>
           ) : (
             <p className="ip-sc-unsupported">
-              Speech recognition isn't supported in this browser. Try Chrome or Edge.
+              {"Speech recognition isn't supported in this browser. Try Chrome or Edge."}
             </p>
           )}
           <p className="ip-speech-coach-tip">
@@ -273,7 +288,7 @@ export default function SpeechCoach({ question, answerDraft, onBumpReadiness }) 
               <p className="ip-sc-section-title">🗣 Filler words spotted</p>
               <div className="ip-sc-filler-chips">
                 {feedback.filler_words.map((w, i) => (
-                  <span key={i} className="ip-sc-filler-chip">"{w}"</span>
+                  <span key={i} className="ip-sc-filler-chip">{`"${w}"`}</span>
                 ))}
               </div>
             </div>
