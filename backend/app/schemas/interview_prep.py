@@ -27,3 +27,27 @@ class ReshapeRequest(BaseModel):
 
 class ReshapeResponse(BaseModel):
     text: str
+
+
+# ── Speech Coach ──────────────────────────────────────────────────────────────
+
+class SpeechCoachRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+    written_answer: str = Field(default="", max_length=50_000)
+    spoken_transcript: str = Field(..., min_length=1, max_length=50_000)
+
+
+class StarCoverage(BaseModel):
+    situation: int = Field(0, ge=0, le=100)
+    task: int = Field(0, ge=0, le=100)
+    action: int = Field(0, ge=0, le=100)
+    result: int = Field(0, ge=0, le=100)
+
+
+class SpeechCoachResponse(BaseModel):
+    star_coverage: StarCoverage
+    strengths: list[str] = Field(default_factory=list)
+    improvements: list[str] = Field(default_factory=list)
+    filler_words: list[str] = Field(default_factory=list)
+    readiness_bump: int = Field(0, ge=0, le=20)
+    summary: str = ""

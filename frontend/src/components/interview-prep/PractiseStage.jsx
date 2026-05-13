@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AnswerEditor from "./AnswerEditor.jsx";
 import ReadinessBar from "./ReadinessBar.jsx";
+import SpeechCoach from "./SpeechCoach.jsx";
 
 export default function PractiseStage({
   selectedQuestion,
@@ -145,6 +146,15 @@ export default function PractiseStage({
           </div>
 
         </div>
+      </div>
+
+      {/* Full-width speech coach — sits between the editor and the footer */}
+      <div className="ip-practise-coach-row">
+        <SpeechCoach
+          question={selectedQuestion}
+          answerDraft={answerDraft}
+          onBumpReadiness={onBumpReadiness}
+        />
       </div>
 
       <footer className="ip-stage-footer">

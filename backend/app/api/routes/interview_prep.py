@@ -6,10 +6,17 @@ from app.core.config import Settings, get_settings
 from app.schemas.interview_prep import (
     ReshapeRequest,
     ReshapeResponse,
+    SpeechCoachRequest,
+    SpeechCoachResponse,
+    StarCoverage,
     StarSortRequest,
     StarSortResponse,
 )
-from app.services.gemini_interview_prep import reshape_answer_with_gemini, star_sort_cards_with_gemini
+from app.services.gemini_interview_prep import (
+    coach_spoken_answer_with_gemini,
+    reshape_answer_with_gemini,
+    star_sort_cards_with_gemini,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,3 +61,32 @@ def reshape_endpoint(
         raise HTTPException(status_code=502, detail=f"Reshape failed: {exc!s}") from exc
 
     return ReshapeResponse(text=text)
+
+
+@router.post("/speech-coach", response_model=SpeechCoachResponse)
+@router.post("/speech-coach/", response_model=SpeechCoachResponse)
+def speech_coach_endpoint(
+    body: SpeechCoachRequest,
+    settings: Settings = Depends(get_settings),
+) -> SpeechCoachResponse:
+    try:
+        result = coach_spoken_answer_with_gemini(
+            question=body.question.strip(),
+            spoken_transcript=body.spoken_transcript.strip(),
+            written_answer=body.written_answer.strip(),
+            settings=settings,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[interview-prep/speech-coach] unexpected: %s", exc)
+        raise HTTPException(status_code=502, detail=f"Speech coach failed: {exc!s}") from exc
+
+    return SpeechCoachResponse(
+        star_coverage=StarCoverage(**result["star_coverage"]),
+        strengths=result["strengths"],
+        improvements=result["improvements"],
+        filler_words=result["filler_words"],
+        readiness_bump=result["readiness_bump"],
+        summary=result["summary"],
+    )
