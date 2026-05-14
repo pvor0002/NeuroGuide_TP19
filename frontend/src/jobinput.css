@@ -4663,8 +4663,7 @@ a.btn.btn-primary:hover {
     #ead6cc 68%,
     #f6f0eb 100%
   );
-  animation: simplify-snapshot-attention 3.2s ease-in-out infinite;
-  will-change: transform, box-shadow;
+  will-change: auto;
 }
 
 .simplify-snapshot-bar::before {
@@ -5107,24 +5106,24 @@ a.btn.btn-primary:hover {
   --sp-chip-fg: #6e3228;
 }
 
-/* Balanced — violet accent, still peach-friendly */
+/* Combined — forest green accent */
 .sp-profile--combined {
-  --sp-accent: #7e54c4;
-  --sp-accent-mid: #9a74d9;
-  --sp-accent-light: #efe8fb;
-  --sp-accent-pale: #f9f6ff;
-  --sp-title: #4f3585;
-  --sp-num-bg: rgba(169, 140, 230, 0.45);
-  --sp-num-fg: #3d2970;
-  --sp-check: #7e54c4;
-  --sp-tag-bg: rgba(126, 84, 196, 0.1);
-  --sp-tag-border: rgba(126, 84, 196, 0.26);
-  --sp-tag-fg: #4f3585;
-  --sp-dot: #9a74d9;
-  --sp-flow-bg: #4f3585;
-  --sp-chip-bg: rgba(126, 84, 196, 0.09);
-  --sp-chip-border: rgba(126, 84, 196, 0.26);
-  --sp-chip-fg: #4f3585;
+  --sp-accent: #2d7a4f;
+  --sp-accent-mid: #3d9e68;
+  --sp-accent-light: #e0f2ea;
+  --sp-accent-pale: #f0faf4;
+  --sp-title: #1b4d33;
+  --sp-num-bg: rgba(45, 122, 79, 0.4);
+  --sp-num-fg: #163d28;
+  --sp-check: #2d7a4f;
+  --sp-tag-bg: rgba(45, 122, 79, 0.1);
+  --sp-tag-border: rgba(45, 122, 79, 0.28);
+  --sp-tag-fg: #1b4d33;
+  --sp-dot: #3d9e68;
+  --sp-flow-bg: #1b4d33;
+  --sp-chip-bg: rgba(45, 122, 79, 0.09);
+  --sp-chip-border: rgba(45, 122, 79, 0.26);
+  --sp-chip-fg: #1b4d33;
 }
 
 .sp-profile {
@@ -5209,9 +5208,8 @@ a.btn.btn-primary:hover {
   line-height: 1.55;
 }
 
-/* Job title + hook: forest green emphasis (not profile blue / violet). */
-.sp-profile--inattentive .sp-summary-lines,
-.sp-profile--combined .sp-summary-lines {
+/* Job title + hook: forest green emphasis — inattentive */
+.sp-profile--inattentive .sp-summary-lines {
   background: linear-gradient(
     135deg,
     #edf5f0 0%,
@@ -5221,14 +5219,46 @@ a.btn.btn-primary:hover {
   border-top-color: #2d6a40;
 }
 
-.sp-profile--inattentive .sp-summary-line--main,
-.sp-profile--combined .sp-summary-line--main {
+.sp-profile--inattentive .sp-summary-line--main {
   color: #1b4332;
 }
 
-.sp-profile--inattentive .sp-summary-line--hook,
-.sp-profile--combined .sp-summary-line--hook {
+.sp-profile--inattentive .sp-summary-line--hook {
   color: #4d5750;
+}
+
+/* Job title + hook: combined — green base with amber + teal hints */
+.sp-profile--combined .sp-summary-lines {
+  background: linear-gradient(
+    135deg,
+    #e8f5ee 0%,
+    #edf7f2 28%,
+    #fdf6e3 62%,
+    #e8f4f0 100%
+  );
+  border-top-color: #2d7a4f;
+  border-top-width: 3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sp-profile--combined .sp-summary-lines::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #2d7a4f 0%, #3d9e68 40%, #f0a500 75%, #2d7a4f 100%);
+  border-radius: 3px 3px 0 0;
+}
+
+.sp-profile--combined .sp-summary-line--main {
+  color: #1b4d33;
+}
+
+.sp-profile--combined .sp-summary-line--hook {
+  color: #3d6650;
 }
 
 /* ── Numbered list (what you'll do, simple steps) ── */
@@ -5975,13 +6005,13 @@ a.btn.btn-primary:hover {
 }
 
 .simplify-snapshot-bar--hyperactive {
-  --snap-accent: rgba(230, 150, 120, 0.22);
-  border-color: rgba(210, 160, 135, 0.5);
+  animation: simplify-snapshot-attention 3.2s ease-in-out infinite;
+  will-change: transform, box-shadow;
 }
 
 .simplify-snapshot-bar--combined {
-  --snap-accent: rgba(190, 165, 200, 0.15);
-  border-color: rgba(195, 170, 185, 0.42);
+  --snap-accent: rgba(45, 122, 79, 0.18);
+  border-color: rgba(45, 122, 79, 0.38);
 }
 
 /* Hyperactive headline banner */

@@ -41,9 +41,9 @@ const AI_QUESTIONS_KEY = "neuroguide.interviewPrep.aiQuestions.v1";
 
 // ─── Profile definitions ────────────────────────────────────────────────────
 const PROFILE_META = {
-  inattentive: { label: "Calm & Clear",  desc: "Structured, low-overload" },
-  hyperactive: { label: "High Energy",   desc: "Action-oriented, fast" },
-  combined:    { label: "Balanced",       desc: "Structure + engagement" },
+  inattentive: { label: "Inattentive",  desc: "Structured, low-overload" },
+  hyperactive: { label: "Hyperactive-Impulsive",  desc: "Action-oriented, fast" },
+  combined:    { label: "Combined",     desc: "Structure + engagement" },
 };
 
 const CAREER_PROFILE_STORAGE_KEY = "neuroguide.careerProfile.react.v2";
@@ -909,7 +909,7 @@ function ProfileLabel({ profileKey }) {
   );
 }
 
-// ─── Calm & Clear (Inattentive) ──────────────────────────────────────────────
+// ─── Inattentive ─────────────────────────────────────────────────────────────
 const INATTENTIVE_TABS = [
   { key: "what_you_do", label: "What you'll do", icon: "briefcase" },
   { key: "skills_you_learn", label: "Skills you'll learn", icon: "clipboard" },
@@ -992,7 +992,7 @@ function ProfileInattentive({ data }) {
   );
 }
 
-// ─── High Energy (Hyperactive) ───────────────────────────────────────────────
+// ─── Hyperactive ─────────────────────────────────────────────────────────────
 function ProfileHyperactive({ data }) {
   if (!data) return null;
   return (
@@ -1066,7 +1066,7 @@ function ProfileHyperactive({ data }) {
   );
 }
 
-// ─── Balanced (Combined) ─────────────────────────────────────────────────────
+// ─── Combined ────────────────────────────────────────────────────────────────
 function ProfileCombined({ data }) {
   if (!data) return null;
   return (
