@@ -1,7 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "handle": "filesystem" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/((?!assets/|images/|dmp_code_snippets/)(?![^/]+\\.[^/]+$).*)",
+      "destination": "/index.html"
+    }
   ]
 }
