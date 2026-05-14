@@ -180,24 +180,23 @@ export default function HomePage() {
           decoding="async"
           fetchPriority="high"
         />
-        <div className="home-hero-copy">
+        <div className="home-hero-split-shell">
+          <div className="home-hero-copy">
             <div className="home-hero-copy-card">
-              <p className="home-hero-pill">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                </svg>
-                Built for ADHD minds in IT careers
-              </p>
-              <h1 id="home-hero-title" className="home-hero-title--split">
-                Ever read a job
-                <br />
-                description and felt
-                <br />
-                <em>completely lost?</em>
-              </h1>
-              <p className="home-hero-lead--split">
-                NeuroGuide simplifies the jargon, shows how well you fit, and guides your interview prep, one clear step at a time.
-              </p>
+              <div className="home-hero-stack">
+                <p className="home-hero-pill">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                  </svg>
+                  Built for ADHD minds in IT careers
+                </p>
+                <h1 id="home-hero-title" className="home-hero-title--split">
+                  Ever read a job description and felt <em>completely lost?</em>
+                </h1>
+                <p className="home-hero-lead--split">
+                  NeuroGuide turns dense postings into plain language, a personal fit score, and guided interview prep—one calm step at a time.
+                </p>
+              </div>
               <ul className="home-hero-chips" aria-label="What NeuroGuide offers">
                 <li>
                   <span className="home-hero-chip">
@@ -207,7 +206,7 @@ export default function HomePage() {
                       <line x1="16" y1="13" x2="8" y2="13" />
                       <line x1="16" y1="17" x2="8" y2="17" />
                     </svg>
-                    Simplified Job Descriptions
+                    Simplified job descriptions
                   </span>
                 </li>
                 <li>
@@ -217,7 +216,7 @@ export default function HomePage() {
                       <line x1="12" y1="20" x2="12" y2="4" />
                       <line x1="6" y1="20" x2="6" y2="14" />
                     </svg>
-                    Personal Fit Score
+                    Personal fit score
                   </span>
                 </li>
                 <li className="home-hero-chips-row-break">
@@ -228,19 +227,35 @@ export default function HomePage() {
                       <line x1="12" y1="19" x2="12" y2="23" />
                       <line x1="8" y1="23" x2="16" y2="23" />
                     </svg>
-                    Interview Confidence Coaching
+                    Interview prep coaching
                   </span>
                 </li>
               </ul>
+              <div className="home-hero-cta-row">
+                <Link to="/simplify-job-description" className="home-hero-cta home-hero-cta--primary">
+                  Simplify a job post
+                </Link>
+                <Link to="/profile" className="home-hero-cta home-hero-cta--secondary">
+                  Build your profile
+                </Link>
+              </div>
               <a href="#home-main-start" className="home-hero-how-link">
                 See how it works
                 <span className="home-hero-how-arrow" aria-hidden="true">
                   ↓
                 </span>
               </a>
+              <p className="home-hero-trust">
+                <span className="home-hero-trust__stat">4 steps</span>
+                <span className="home-hero-trust__sep" aria-hidden="true">
+                  ·
+                </span>
+                From paste to fit score—pause anytime and pick up where you left off.
+              </p>
             </div>
           </div>
-        <div className="home-hero-visual">
+          <div className="home-hero-visual">
+            <div className="home-hero-visual-scrim" aria-hidden="true" />
             <div className="home-hero-brand-stack" aria-hidden="true">
               <HeroWordmarkIcon className="home-hero-brand-stack-icon" />
               <span className="home-hero-brand-stack-kicker">NEUROGUIDE</span>
@@ -250,6 +265,7 @@ export default function HomePage() {
               </p>
             </div>
           </div>
+        </div>
       </section>
 
       <section className="home-band home-band--how" id="home-main-start" aria-labelledby="home-how-title">
