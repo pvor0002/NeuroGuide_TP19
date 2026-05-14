@@ -234,7 +234,9 @@ export default function HomePage() {
               </ul>
               <a href="#home-main-start" className="home-hero-how-link">
                 See how it works
-                <span aria-hidden="true">→</span>
+                <span className="home-hero-how-arrow" aria-hidden="true">
+                  ↓
+                </span>
               </a>
             </div>
           </div>

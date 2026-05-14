@@ -898,6 +898,14 @@ a.btn.btn-primary:hover {
   color: #c8845a;
 }
 
+.home-hero-how-arrow {
+  display: inline-block;
+  font-size: 1.1em;
+  font-weight: 800;
+  line-height: 1;
+  transform: translateY(0.04em);
+}
+
 .home-hero-visual {
   position: relative;
   display: flex;

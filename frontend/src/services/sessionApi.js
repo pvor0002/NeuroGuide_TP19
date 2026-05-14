@@ -69,6 +69,11 @@ function authHeaders(credentials) {
   };
 }
 
+/** Same headers as ``fullSyncSession`` — reuse for other authenticated /pg routes. */
+export function buildSessionAuthHeaders(credentials) {
+  return authHeaders(credentials);
+}
+
 export function isCloudSessionApiAvailable() {
   if (import.meta.env.VITE_DISABLE_CLOUD_SESSION === "1") return false;
   /* Session API base comes from getApiBase() (Render fallback in prod, /api/v1 in dev). */

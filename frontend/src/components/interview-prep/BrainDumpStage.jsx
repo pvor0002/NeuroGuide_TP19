@@ -9,12 +9,19 @@ export default function BrainDumpStage({
   questions,
   selectedQuestion,
   onSelectQuestion,
+  removableCustomQuestionKeys,
+  onRemoveCustomQuestion,
+  onAddCustomQuestion,
+  customQuestionMaxChars = 480,
+  customQuestionsUsed = 0,
+  customQuestionsMax = 20,
   dumpCards,
   onDumpChange,
   onContinue,
   organising,
 }) {
   const [line, setLine] = useState("");
+  const [customLine, setCustomLine] = useState("");
 
   const addCard = useCallback(
     (text) => {
@@ -35,6 +42,16 @@ export default function BrainDumpStage({
     setLine("");
   }, [addCard, line]);
 
+  const canAddMoreCustom = customQuestionsUsed < customQuestionsMax;
+
+  const submitCustomQuestion = useCallback(() => {
+    if (!canAddMoreCustom || typeof onAddCustomQuestion !== "function") return;
+    const t = String(customLine || "").trim();
+    if (!t) return;
+    onAddCustomQuestion(t);
+    setCustomLine("");
+  }, [canAddMoreCustom, customLine, onAddCustomQuestion]);
+
   const listOk = useMemo(() => selectedQuestion && dumpCards.length >= 2, [dumpCards.length, selectedQuestion]);
 
   return (
@@ -50,7 +67,49 @@ export default function BrainDumpStage({
             <h2 className="ip-bd-section-title" id="ip-stage-dump-title">Pick a question</h2>
           </div>
           <p className="ip-bd-hint">Choose one to focus on. You can come back and try others.</p>
-          <QuestionSelector questions={questions} selectedQuestion={selectedQuestion} onSelect={onSelectQuestion} />
+          <QuestionSelector
+            questions={questions}
+            selectedQuestion={selectedQuestion}
+            onSelect={onSelectQuestion}
+            removableQuestionKeys={removableCustomQuestionKeys}
+            onRemove={onRemoveCustomQuestion}
+          />
+          <div className="ip-add-custom-q">
+            <label className="ip-add-custom-q__label" htmlFor="ip-custom-q-input">
+              Add your own question
+            </label>
+            <div className="ip-add-custom-q__row">
+              <input
+                id="ip-custom-q-input"
+                type="text"
+                className="ip-add-custom-q__input"
+                value={customLine}
+                maxLength={customQuestionMaxChars}
+                placeholder="e.g. Why this team?"
+                disabled={!canAddMoreCustom}
+                onChange={(e) => setCustomLine(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitCustomQuestion();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="ip-btn ip-btn--secondary ip-add-custom-q__btn"
+                onClick={submitCustomQuestion}
+                disabled={!customLine.trim() || !canAddMoreCustom}
+              >
+                Add
+              </button>
+            </div>
+            <p className="ip-bd-hint ip-add-custom-q__meta">
+              {canAddMoreCustom
+                ? `Saved with this job (${customQuestionsUsed}/${customQuestionsMax} custom). Same list as the suggested questions above.`
+                : `You have reached the limit of ${customQuestionsMax} custom questions for this job.`}
+            </p>
+          </div>
         </div>
 
         {/* Divider */}
