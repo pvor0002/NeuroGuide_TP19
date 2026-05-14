@@ -477,6 +477,36 @@
   gap: 0.45rem;
 }
 
+/* ── Question skeleton (while AI generates) ─────────────────────────────── */
+.ip-q-skeleton {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: var(--color-surface, #f9f6f3);
+  border: 1px solid var(--color-border, #e8e0d8);
+}
+
+.ip-q-skeleton__bar {
+  display: block;
+  height: 0.75rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #e8e0d8 25%, #f2ede8 50%, #e8e0d8 75%);
+  background-size: 200% 100%;
+  animation: ip-skeleton-shimmer 1.4s infinite;
+}
+
+@keyframes ip-skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.ip-q-loading-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #9b8b7e);
+  text-align: center;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
 .ip-q-row {
   display: flex;
   align-items: stretch;

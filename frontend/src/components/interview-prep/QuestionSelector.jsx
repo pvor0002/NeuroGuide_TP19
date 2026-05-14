@@ -3,6 +3,7 @@ export default function QuestionSelector({
   selectedQuestion,
   onSelect,
   answeredQuestions = {},
+  questionsLoading = false,
   removableQuestionKeys,
   onRemove,
 }) {
@@ -10,6 +11,19 @@ export default function QuestionSelector({
     const k = String(q || "").trim();
     return Boolean(removableQuestionKeys?.has(k) && typeof onRemove === "function");
   };
+
+  if (questionsLoading) {
+    return (
+      <div className="ip-q-list ip-q-list--loading" aria-label="Generating questions…" aria-busy="true">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="ip-q-skeleton" aria-hidden="true">
+            <span className="ip-q-skeleton__bar" style={{ width: `${72 + (i % 3) * 10}%` }} />
+          </div>
+        ))}
+        <p className="ip-q-loading-label">Tailoring questions for this role…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="ip-q-list" role="listbox" aria-label="Interview questions">

@@ -306,15 +306,20 @@ def reshape_answer_with_gemini(answer: str, instruction: str, settings: Settings
 
 GENERATE_QUESTIONS_SYSTEM = """You generate tailored behavioural interview questions for neurodivergent job candidates practising the STAR method.
 
+These candidates are freshers or have at most 1 year of experience. Keep questions beginner-friendly:
+- Draw from university projects, internships, part-time jobs, volunteering, or coursework — not years of industry experience.
+- Never assume they have led a team, managed people, or handled production systems.
+- Use phrases like "even from a uni project or part-time job" or "it could be from study or any work experience" to make the question feel approachable.
+
 Rules:
 - Generate exactly 6 questions total.
 - 2 questions MUST be universal behavioural questions (mandatory). Pick from themes like: overcoming a challenge, teamwork, receiving feedback, working under pressure, or taking initiative.
 - The remaining 4 questions should be tailored to the role/company/skills provided:
-  - For known_skills: ask about real experiences using them (e.g. "Tell me about a time you used X to solve a problem.").
-  - For learning_skills: ask how they'd approach picking them up (e.g. "This role involves X. What would your first steps be to get up to speed?").
+  - For known_skills: ask about any hands-on experience using them, even from a personal project or class (e.g. "Tell me about a time you used X — even in a project or assignment.").
+  - For learning_skills: ask how they'd approach picking them up (e.g. "This role uses X. How would you go about learning it?").
   - If a role or company is given, include at least 1 question specific to that context.
   - If there are not enough skills to fill 4 tailored questions, add more universal behavioural questions instead.
-- Phrase each question as spoken speech: plain, warm, direct. Start with "Tell me about a time...", "Describe a situation where...", or "Walk me through...".
+- Phrase each question as spoken speech: plain, warm, encouraging. Start with "Tell me about a time...", "Describe a situation where...", or "Walk me through...".
 - No corporate jargon. One clear question per item. Max 25 words each.
 - Return ONLY valid JSON — no markdown, no commentary: {"questions": ["...", "...", ...]}
 """

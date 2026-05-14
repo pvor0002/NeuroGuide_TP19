@@ -31,6 +31,7 @@ const AI_QUESTIONS_KEY = "neuroguide.interviewPrep.aiQuestions.v1";
 const MAX_CUSTOM_QUESTIONS = 10;
 const MAX_CUSTOM_QUESTION_CHARS = 480;
 
+//The page checks if it has already generated questions for this exact job before
 function loadAiQuestionsFromCache(fingerprint) {
   if (!fingerprint || typeof window === "undefined") return null;
   const map = safeParse(window.localStorage.getItem(AI_QUESTIONS_KEY));
@@ -339,7 +340,7 @@ function InterviewPrepContent({ initial }) {
   const [readinessPercent, setReadinessPercent] = useState(40);
   const [organising, setOrganising] = useState(false);
   const [customQuestions, setCustomQuestions] = useState(() => initial.customQuestions || []);
-  // Tracks which questions have saved content so QuestionSelector can show a ✓ badge.
+  // Tracks which questions have saved content so QuestionSelector can show a ticked badge.
   // Derived from bundlesRef on mount and refreshed whenever the user switches questions.
   const [answeredQuestions, setAnsweredQuestions] = useState(() => {
     const out = {};
@@ -354,6 +355,11 @@ function InterviewPrepContent({ initial }) {
   const [aiQuestions, setAiQuestions] = useState(() => initial.aiQuestions ?? null);
   const aiQuestionsRef = useRef(initial.aiQuestions ?? null);
   const jobFingerprint = initial.jobFingerprint;
+  // True while waiting for Gemini to return questions (only when no cache exists).
+  // False once questions arrive, generation fails, or API is disabled — falls back to templates.
+  const [aiQuestionsLoading, setAiQuestionsLoading] = useState(
+    () => initial.aiQuestions === null && liveSimplifyEnabled,
+  );
 
   useEffect(() => {
     aiQuestionsRef.current = aiQuestions;
@@ -364,10 +370,12 @@ function InterviewPrepContent({ initial }) {
     return readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
   }, []);
 
-  // Use AI questions when available; fall back to template-based list while loading.
+  // Use AI questions when available.
+  // While loading: return empty so QuestionSelector shows a skeleton (not stale templates).
+  // Only fall back to templates if generation actually failed (loading done, still no questions).
   const baseQuestions = useMemo(
-    () => aiQuestions ?? buildQuestionList(jobContext, profileSkillSet),
-    [aiQuestions, jobContext, profileSkillSet],
+    () => aiQuestions ?? (aiQuestionsLoading ? [] : buildQuestionList(jobContext, profileSkillSet)),
+    [aiQuestions, aiQuestionsLoading, jobContext, profileSkillSet],
   );
 
   // Combines baseQuestions (AI generated) with customQuestions (ones you added yourself) into one final list. This is what gets shown in the question selector.
@@ -488,6 +496,7 @@ function InterviewPrepContent({ initial }) {
           if (cloudQs.length > 0) {
             aiQuestionsRef.current = cloudQs;
             setAiQuestions(cloudQs);
+            setAiQuestionsLoading(false);
             saveAiQuestionsToCache(fp, cloudQs);
           }
         }
@@ -530,7 +539,10 @@ function InterviewPrepContent({ initial }) {
   // Generate AI questions on first visit for this job (when not in localStorage or DB cache).
   useEffect(() => {
     if (aiQuestions !== null) return; // already have questions — cached or from cloud
-    if (!liveSimplifyEnabled) return; // API disabled
+    if (!liveSimplifyEnabled) {
+      setAiQuestionsLoading(false); // API disabled — fall back to templates immediately
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -544,11 +556,15 @@ function InterviewPrepContent({ initial }) {
           learning_skills: learningSkills,
           simplified_snapshot: jobContext.simplifiedSnapshot || null,
         });
-        if (cancelled || !Array.isArray(result.questions) || !result.questions.length) return;
-        setAiQuestions(result.questions);
-        saveAiQuestionsToCache(jobFingerprint, result.questions);
+        if (cancelled) return;
+        if (Array.isArray(result.questions) && result.questions.length) {
+          setAiQuestions(result.questions);
+          saveAiQuestionsToCache(jobFingerprint, result.questions);
+        }
       } catch {
-        // Silently fall back to template questions — no error shown to user.
+        // Gemini failed — fall back to templates silently.
+      } finally {
+        if (!cancelled) setAiQuestionsLoading(false);
       }
     })();
     return () => {
@@ -859,6 +875,7 @@ function InterviewPrepContent({ initial }) {
               selectedQuestion={resolvedQuestion}
               onSelectQuestion={handleSelectQuestion}
               answeredQuestions={answeredQuestions}
+              questionsLoading={aiQuestionsLoading}
               removableCustomQuestionKeys={customQuestionKeys}
               onRemoveCustomQuestion={removeCustomQuestion}
               onAddCustomQuestion={addCustomQuestion}

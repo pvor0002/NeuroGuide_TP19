@@ -28,7 +28,16 @@ import {
 } from "../utils/jobScorePersistence.js";
 import { registerCloudAccountFromLocalState } from "../utils/cloudSync.js";
 import { isCloudSessionApiAvailable } from "../services/sessionApi.js";
+import { generateInterviewQuestions, liveSimplifyEnabled } from "../services/interviewPrepApi.js";
+import {
+  deriveInterviewPrepJobFingerprint,
+  readProfileSkillSet,
+  simplifiedSnapshotHasContent,
+  skillMatchesProfile,
+} from "../utils/interviewPrepHelpers.js";
 import jobMatchConversationUrl from "../../../data/images/job-match-conversation.png";
+
+const AI_QUESTIONS_KEY = "neuroguide.interviewPrep.aiQuestions.v1";
 
 // ─── Profile definitions ────────────────────────────────────────────────────
 const PROFILE_META = {
@@ -1467,6 +1476,48 @@ export default function SimplifyJobDescriptionPage() {
     simplifyEnabled,
   } = useJobDescriptionSimplification();
 
+  // Pre-generate interview questions in the background as soon as simplify succeeds.
+  // Runs in parallel with the user reading the simplified result — so by the time
+  // they click "Interview Prep", the questions are already cached in localStorage.
+  useEffect(() => {
+    if (!simplifiedResult || !liveSimplifyEnabled) return;
+    if (!simplifiedSnapshotHasContent(simplifiedResult)) return;
+
+    const { jobTitle, companyName } = parseJobTitleAndCompany(simplifiedResult.basic_info ?? "");
+    const role = String(simplifiedResult.job_title ?? "").trim() || jobTitle || "";
+    const company = companyName || "";
+    const stamp = simplifiedResult._ng_simp_ver ?? null;
+    const fp = deriveInterviewPrepJobFingerprint({ role, company, simplifiedVerStamp: stamp });
+
+    // Already have questions cached for this exact job — skip
+    try {
+      const map = JSON.parse(window.localStorage.getItem(AI_QUESTIONS_KEY) || "null");
+      if (map && Array.isArray(map[fp]) && map[fp].length > 0) return;
+    } catch { /* ignore */ }
+
+    const profileSkillSet = readProfileSkillSet(window.localStorage.getItem(CAREER_PROFILE_STORAGE_KEY));
+    const skills = Array.isArray(simplifiedResult.extracted_skills) ? simplifiedResult.extracted_skills : [];
+    const knownSkills = skills.filter((s) => skillMatchesProfile(s, profileSkillSet));
+    const learningSkills = skills.filter((s) => !skillMatchesProfile(s, profileSkillSet));
+
+    generateInterviewQuestions({
+      role,
+      company,
+      known_skills: knownSkills,
+      learning_skills: learningSkills,
+      simplified_snapshot: simplifiedResult,
+    })
+      .then((result) => {
+        if (!Array.isArray(result.questions) || !result.questions.length) return;
+        try {
+          const existing = JSON.parse(window.localStorage.getItem(AI_QUESTIONS_KEY) || "{}") || {};
+          existing[fp] = result.questions;
+          window.localStorage.setItem(AI_QUESTIONS_KEY, JSON.stringify(existing));
+        } catch { /* ignore */ }
+      })
+      .catch(() => { /* silently ignored — Interview Prep will generate if still needed */ });
+  }, [simplifiedResult]);
+
   const fileInputRef = useRef(null);
   const fileDropDepthRef = useRef(0);
   const outputRef = useRef(null);
@@ -1567,11 +1618,27 @@ export default function SimplifyJobDescriptionPage() {
     [simplifiedResult, savedProfileKey, activeProfile, inputMode, text, fileExtractedText, softSkillOverrides],
   );
 
+  // Clears cached AI questions for the current job so Interview Prep regenerates
+  // with the updated skill set after the user drags/removes skills.
+  const bustAiQuestionsCache = useCallback(() => {
+    try {
+      const { jobTitle, companyName } = parseJobTitleAndCompany(simplifiedResult?.basic_info ?? "");
+      const role = String(simplifiedResult?.job_title ?? "").trim() || jobTitle || "";
+      const company = companyName || "";
+      const stamp = simplifiedResult?._ng_simp_ver ?? null;
+      const fp = deriveInterviewPrepJobFingerprint({ role, company, simplifiedVerStamp: stamp });
+      const map = JSON.parse(window.localStorage.getItem(AI_QUESTIONS_KEY) || "{}") || {};
+      delete map[fp];
+      window.localStorage.setItem(AI_QUESTIONS_KEY, JSON.stringify(map));
+    } catch { /* ignore */ }
+  }, [simplifiedResult]);
+
   const handleSkillProfileChange = useCallback(
     ({ skill, action, fromZone, toZone, softOverrideKey, softOverrideLevel }) => {
       const softZone = String(fromZone || "").startsWith("soft_") && String(toZone || "").startsWith("soft_");
       if (softZone && softOverrideKey && (softOverrideLevel === "high" || softOverrideLevel === "medium" || softOverrideLevel === "low")) {
         setSoftSkillOverrides((prev) => ({ ...prev, [softOverrideKey]: softOverrideLevel }));
+        bustAiQuestionsCache();
         void runJobScoreForSkills({ appendHistory: false });
         return;
       }
@@ -1600,9 +1667,10 @@ export default function SimplifyJobDescriptionPage() {
       }
       const profile = readCareerProfileForJobScore();
       if (!profile?.answers) return;
+      bustAiQuestionsCache();
       void runJobScoreForSkills({ appendHistory: false });
     },
-    [runJobScoreForSkills],
+    [runJobScoreForSkills, bustAiQuestionsCache],
   );
 
   const handleSaveJobScore = useCallback(() => {

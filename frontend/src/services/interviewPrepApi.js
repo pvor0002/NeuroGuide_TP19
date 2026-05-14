@@ -75,7 +75,7 @@ export async function coachSpeechAnswer(question, spokenTranscript, writtenAnswe
   }
   return readJsonOrText(res);
 }
-
+//HTTP request hits the backend gemini_interview_prep.py      
 /**
  * @param {{ role: string, company: string, known_skills: string[], learning_skills: string[], simplified_snapshot: object|null }} payload
  * @returns {Promise<{ questions: string[] }>}

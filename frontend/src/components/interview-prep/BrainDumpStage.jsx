@@ -10,12 +10,13 @@ export default function BrainDumpStage({
   selectedQuestion,
   onSelectQuestion,
   answeredQuestions = {},
+  questionsLoading = false,
   removableCustomQuestionKeys,
   onRemoveCustomQuestion,
   onAddCustomQuestion,
   customQuestionMaxChars = 480,
   customQuestionsUsed = 0,
-  customQuestionsMax = 20,
+  customQuestionsMax = 10,
   dumpCards,
   onDumpChange,
   onContinue,
@@ -73,6 +74,7 @@ export default function BrainDumpStage({
             selectedQuestion={selectedQuestion}
             onSelect={onSelectQuestion}
             answeredQuestions={answeredQuestions}
+            questionsLoading={questionsLoading}
             removableQuestionKeys={removableCustomQuestionKeys}
             onRemove={onRemoveCustomQuestion}
           />
