@@ -55,6 +55,28 @@ export async function starSortInterview(question, cards) {
 }
 
 /**
+ * @param {string} question
+ * @param {string} spokenTranscript
+ * @param {string} [writtenAnswer]
+ */
+export async function coachSpeechAnswer(question, spokenTranscript, writtenAnswer = "") {
+  const res = await fetch(`${API_BASE}/interview-prep/speech-coach`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question,
+      spoken_transcript: spokenTranscript,
+      written_answer: writtenAnswer,
+    }),
+  });
+  if (!res.ok) {
+    const err = await readJsonOrText(res);
+    throw new Error(apiFailureMessage(res, err) || `Speech coach failed (${res.status}).`);
+  }
+  return readJsonOrText(res);
+}
+
+/**
  * @param {string} answer
  * @param {string} instruction
  */

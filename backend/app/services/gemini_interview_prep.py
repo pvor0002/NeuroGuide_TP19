@@ -36,6 +36,33 @@ not corporate jargon. Preserve facts the candidate stated; do not invent employe
 
 Return ONLY JSON: {"text":"..."} where "text" is the full rewritten answer."""
 
+SPEECH_COACH_SYSTEM = """You are a friendly, encouraging speech coach for neurodivergent job candidates
+practising interview answers out loud.
+
+Analyse the spoken transcript of a STAR interview answer. Be specific and actionable — never vague.
+
+Return ONLY JSON (no markdown fences):
+{
+  "star_coverage": {
+    "situation": <0–100 how well the Situation was addressed>,
+    "task": <0–100 how well the Task/goal was stated>,
+    "action": <0–100 how well personal Actions were described>,
+    "result": <0–100 how well concrete Results were given>
+  },
+  "strengths": ["1–2 specific things the candidate did well"],
+  "improvements": ["1–2 specific, actionable suggestions (start with a verb)"],
+  "filler_words": ["any filler words/phrases detected e.g. 'um', 'like', 'you know'; empty list if none"],
+  "readiness_bump": <integer 5–15: 5=basic attempt, 10=solid answer, 15=excellent>,
+  "summary": "<one warm encouraging sentence>"
+}
+
+Rules:
+- Treat this as spoken speech — ignore punctuation and minor repetitions.
+- If the written_answer is provided, note gaps between what was written vs spoken.
+- Never invent facts the candidate didn't mention.
+- Keep strengths and improvements to plain spoken English, max 20 words each.
+"""
+
 _JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*", re.I)
 
 
@@ -258,3 +285,84 @@ def reshape_answer_with_gemini(answer: str, instruction: str, settings: Settings
     if not text:
         raise HTTPException(status_code=502, detail="Model returned empty text.")
     return text
+
+
+def coach_spoken_answer_with_gemini(
+    question: str,
+    spoken_transcript: str,
+    written_answer: str,
+    settings: Settings,
+) -> dict[str, Any]:
+    if not settings.gemini_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini API is not configured. Set GEMINI_API_KEY in the backend environment.",
+        )
+
+    parts = [
+        f"Question: {question.strip()}",
+        f"Spoken transcript: {spoken_transcript.strip()}",
+    ]
+    if written_answer.strip():
+        parts.append(f"Written answer (for reference): {written_answer.strip()}")
+    parts.append("Return only the JSON object.")
+    user_prompt = "\n\n".join(parts)
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+    model_chain = _gemini_model_fallback_chain(settings.gemini_model)
+    response = None
+    last_exc: BaseException | None = None
+    for idx, model_name in enumerate(model_chain):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SPEECH_COACH_SYSTEM,
+                    response_mime_type="application/json",
+                ),
+            )
+            break
+        except Exception as exc:
+            last_exc = exc
+            if _gemini_error_should_fallback_to_next_model(exc) and idx < len(model_chain) - 1:
+                if _is_transient_gemini_capacity_error(exc):
+                    time.sleep(min(2.0, 0.4 + idx * 0.35))
+                continue
+            raise HTTPException(status_code=502, detail=f"Gemini request failed: {exc!s}") from exc
+
+    if response is None:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Gemini request failed: {last_exc!s}" if last_exc else "Gemini request failed.",
+        )
+
+    raw = _extract_text_from_gemini_response(response)
+    if not raw:
+        raise HTTPException(status_code=502, detail="Gemini returned no usable text.")
+
+    try:
+        data = _parse_json_loose(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=502, detail="Could not parse speech coach response.") from exc
+
+    def clamp(v: Any, lo: int = 0, hi: int = 100) -> int:
+        try:
+            return max(lo, min(hi, int(v)))
+        except (TypeError, ValueError):
+            return lo
+
+    coverage_raw = data.get("star_coverage") or {}
+    return {
+        "star_coverage": {
+            "situation": clamp(coverage_raw.get("situation", 0)),
+            "task": clamp(coverage_raw.get("task", 0)),
+            "action": clamp(coverage_raw.get("action", 0)),
+            "result": clamp(coverage_raw.get("result", 0)),
+        },
+        "strengths": [str(s) for s in (data.get("strengths") or []) if s][:2],
+        "improvements": [str(s) for s in (data.get("improvements") or []) if s][:2],
+        "filler_words": [str(s) for s in (data.get("filler_words") or []) if s][:8],
+        "readiness_bump": clamp(data.get("readiness_bump", 10), 0, 20),
+        "summary": str(data.get("summary") or "").strip(),
+    }

@@ -25,7 +25,10 @@ export default function BrainDumpStage({
     [dumpCards, onDumpChange],
   );
 
-  const onVoice = useCallback((transcript) => addCard(transcript), [addCard]);
+  // Voice fills the textarea so the user can review and edit before adding
+  const onVoice = useCallback((transcript) => {
+    setLine((prev) => prev ? `${prev} ${transcript}` : transcript);
+  }, []);
 
   const onSubmitLine = useCallback(() => {
     addCard(line);
@@ -61,34 +64,40 @@ export default function BrainDumpStage({
           </div>
           <p className="ip-bd-hint">Anything that comes to mind, messy is fine. Add as many ideas as you like.</p>
 
+          {/* Chat-style input */}
+          <div className="ip-dump-entry">
+            <label className="ip-visually-hidden" htmlFor="ip-dump-line">Add an idea</label>
+            <textarea
+              id="ip-dump-line"
+              className="ip-dump-textarea"
+              rows={4}
+              value={line}
+              onChange={(e) => setLine(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSubmitLine(); }
+              }}
+              placeholder={`Think out loud. A project, a moment, a problem you solved. Anything that comes to mind.\n\nTry: "fixed a bug before a big launch" or "helped a teammate through a tough deadline"`}
+              disabled={!selectedQuestion}
+            />
+            <div className="ip-dump-entry-bar">
+              <VoiceButton onTranscript={onVoice} disabled={!selectedQuestion} />
+              <button
+                type="button"
+                className="ip-dump-send-btn"
+                onClick={onSubmitLine}
+                disabled={!line.trim() || !selectedQuestion}
+                aria-label="Add idea"
+              >
+                ↑
+              </button>
+            </div>
+          </div>
+
+          {/* Chips — appear below as ideas are added */}
           <DumpZone
             cards={dumpCards}
             onRemove={(id) => onDumpChange(dumpCards.filter((c) => c.id !== id))}
           />
-
-          <div className="ip-dump-input-row">
-            <label className="ip-visually-hidden" htmlFor="ip-dump-line">Add an idea</label>
-            <input
-              id="ip-dump-line"
-              className="ip-input ip-input--grow"
-              value={line}
-              onChange={(e) => setLine(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); onSubmitLine(); }
-              }}
-              placeholder="Type an idea, then Enter…"
-              disabled={!selectedQuestion}
-            />
-            <button
-              type="button"
-              className="ip-btn ip-btn--add"
-              onClick={onSubmitLine}
-              disabled={!line.trim() || !selectedQuestion}
-            >
-              Add
-            </button>
-            <VoiceButton onTranscript={onVoice} disabled={!selectedQuestion} />
-          </div>
 
           {!selectedQuestion && (
             <p className="ip-bd-nudge">← Pick a question first to start adding ideas.</p>

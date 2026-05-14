@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AnswerEditor from "./AnswerEditor.jsx";
 import ReadinessBar from "./ReadinessBar.jsx";
+import SpeechCoach from "./SpeechCoach.jsx";
 
 export default function PractiseStage({
   selectedQuestion,
@@ -112,39 +113,48 @@ export default function PractiseStage({
                 <span className="ip-cs-zone ip-cs-zone--s">S</span>
                 <span className="ip-cs-body">
                   <strong>Situation</strong>
-                  <span>Where, when, what was the challenge? Keep it to 1–2 sentences.</span>
+                  <span>Set the scene in 1–2 sentences</span>
                 </span>
               </li>
               <li>
                 <span className="ip-cs-zone ip-cs-zone--t">T</span>
                 <span className="ip-cs-body">
                   <strong>Task</strong>
-                  <span>What was your specific responsibility or goal in that moment?</span>
+                  <span>Your specific role or goal</span>
                 </span>
               </li>
               <li>
                 <span className="ip-cs-zone ip-cs-zone--a">A</span>
                 <span className="ip-cs-body">
                   <strong>Action</strong>
-                  <span>{'Say "I did…" not "we did…". Name your exact steps.'}</span>
+                  <span>{'Say "I did…" then name each step'}</span>
                 </span>
               </li>
               <li>
                 <span className="ip-cs-zone ip-cs-zone--r">R</span>
                 <span className="ip-cs-body">
                   <strong>Result</strong>
-                  <span>Numbers help — %, time saved, what improved. Even rough is fine.</span>
+                  <span>Numbers or concrete impact</span>
                 </span>
               </li>
             </ul>
             <div className="ip-cs-reminders">
-              <p>⏱ Aim for under 2 min when spoken</p>
-              <p>🎯 One clear story per question</p>
-              <p>💬 Plain words beat jargon every time</p>
+              <span className="ip-cs-reminder ip-cs-reminder--time">⏱ Under 2 min</span>
+              <span className="ip-cs-reminder ip-cs-reminder--story">🎯 One story only</span>
+              <span className="ip-cs-reminder ip-cs-reminder--words">💬 Plain words win</span>
             </div>
           </div>
 
         </div>
+      </div>
+
+      {/* Full-width speech coach — sits between the editor and the footer */}
+      <div className="ip-practise-coach-row">
+        <SpeechCoach
+          question={selectedQuestion}
+          answerDraft={answerDraft}
+          onBumpReadiness={onBumpReadiness}
+        />
       </div>
 
       <footer className="ip-stage-footer">
