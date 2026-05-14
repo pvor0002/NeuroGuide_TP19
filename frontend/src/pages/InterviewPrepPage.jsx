@@ -4,6 +4,7 @@ import StageTabs from "../components/interview-prep/StageTabs.jsx";
 import BrainDumpStage from "../components/interview-prep/BrainDumpStage.jsx";
 import OrganiseStage from "../components/interview-prep/OrganiseStage.jsx";
 import PractiseStage from "../components/interview-prep/PractiseStage.jsx";
+import SavedAnswerReview from "../components/interview-prep/SavedAnswerReview.jsx";
 import JobExperienceHub from "../components/experience-hub/JobExperienceHub.jsx";
 import { liveSimplifyEnabled, starSortInterview } from "../services/interviewPrepApi.js";
 import { fetchInterviewPrepProgress, putInterviewPrepProgress } from "../services/interviewPrepProgressApi.js";
@@ -81,6 +82,15 @@ function mergeSavedAnswersByQuestion(local, remote) {
   return [...by.values()].sort((a, b) => Number(b.savedAt || 0) - Number(a.savedAt || 0)).slice(0, 40);
 }
 
+/** Prefer bundle finalization; fall back to saved-answers list (same question key). */
+function finalizedTextForQuestion(normBundle, savedAnswersList, questionTrimmed) {
+  const qt = String(questionTrimmed || "").trim();
+  const fromB = String(normBundle?.finalizedAnswer || "").trim();
+  if (fromB) return fromB;
+  const row = (savedAnswersList || []).find((x) => String(x.question || "").trim() === qt);
+  return String(row?.answer || "").trim();
+}
+
 function emptyZones() {
   return { situation: [], action: [], result: [], learning: [] };
 }
@@ -113,11 +123,19 @@ function defaultJobContext() {
   };
 }
 
-/** Old 4-step flow → 3 tabs (job context step removed). */
+/**
+ * Map persisted stage to the current 3-tab model.
+ * Modern saves use 1–3 directly. Legacy 4-tab flow used 4+ for later steps (downshift once).
+ */
 function migrateLegacyStage(stored) {
   if (typeof stored !== "number" || Number.isNaN(stored)) return 1;
-  if (stored <= 2) return 1;
-  return Math.min(3, stored - 1);
+  if (stored <= 3) return Math.min(3, Math.max(1, stored));
+  return Math.min(3, Math.max(1, stored - 1));
+}
+
+/** UI-only stage 4 (saved-answer review) is stored in bundles as 3 so STAR data stays valid. */
+function persistableStage(stage) {
+  return stage === 4 ? 3 : stage;
 }
 
 function zonesHaveCards(z) {
@@ -219,15 +237,21 @@ function loadInterviewPrepBootstrap() {
     ? org.customQuestions.map((s) => String(s || "").trim()).filter(Boolean).slice(0, MAX_CUSTOM_QUESTIONS)
     : [];
 
+  const savedList = mergeSavedAnswersByQuestion([], Array.isArray(saved) ? saved : []);
+  const bundleForSel = sel ? normalizeQuestionBundle(bundles[sel] || null) : null;
+  const savedReviewText =
+    bundleForSel && sel ? finalizedTextForQuestion(bundleForSel, savedList, String(sel).trim()) : "";
+  const initialStage = savedReviewText ? 4 : wb.stage;
+
   return {
-    stage: migrateLegacyStage(org?.stage),
+    stage: initialStage,
     jobContext: mergedJob,
     bundles,
     selectedQuestion: sel,
     dumpCards: wb.dumpCards,
     starZones: wb.starZones,
-    answerDraft: wb.answerDraft,
-    savedAnswers: mergeSavedAnswersByQuestion([], Array.isArray(saved) ? saved : []),
+    answerDraft: savedReviewText ? String(bundleForSel.answerDraft || "").trim() || savedReviewText : wb.answerDraft,
+    savedAnswers: savedList,
     usedFallbackSort: wb.usedFallbackSort,
     customQuestions: customQs,
   };
@@ -419,26 +443,30 @@ function InterviewPrepContent({ initial }) {
     if (!allQuestions.length) return;
     if (selectedQuestion && allQuestions.includes(selectedQuestion)) return;
     const pick = allQuestions[0];
-    const wb = workspaceFromBundle(bundlesRef.current[pick]);
+    const incoming = bundlesRef.current[pick] || defaultQuestionBundle();
+    const norm = normalizeQuestionBundle(incoming);
+    const wb = workspaceFromBundle(incoming);
+    const ft = finalizedTextForQuestion(norm, savedAnswersRef.current, String(pick).trim());
     queueMicrotask(() => {
       setSelectedQuestion(pick);
       setDumpCards(wb.dumpCards);
       setStarZones(wb.starZones);
-      setAnswerDraft(wb.answerDraft);
-      setStage(wb.stage);
+      setAnswerDraft(ft ? String(norm.answerDraft || "").trim() || ft : wb.answerDraft);
+      setStage(ft ? 4 : wb.stage);
       setUsedFallbackSort(wb.usedFallbackSort);
     });
-  }, [allQuestions, selectedQuestion]);
+  }, [allQuestions, selectedQuestion, savedAnswers]);
 
   useEffect(() => {
     if (!selectedQuestion || !allQuestions.includes(selectedQuestion)) return;
     const prev = bundlesRef.current[selectedQuestion] || defaultQuestionBundle();
+    const st = persistableStage(stage);
     bundlesRef.current[selectedQuestion] = normalizeQuestionBundle({
       ...prev,
       dumpCards,
       starZones,
       answerDraft,
-      stage,
+      stage: st,
       usedFallbackSort,
       draftUpdatedAt: Date.now(),
     });
@@ -467,19 +495,24 @@ function InterviewPrepContent({ initial }) {
         const merged = mergeQuestionBundlesFromServer(bundlesRef.current, serverBundles, qs);
         bundlesRef.current = merged;
         const remoteSaved = Array.isArray(prog.savedAnswers) ? prog.savedAnswers : null;
+        const mergedForSavedLookup = remoteSaved?.length
+          ? mergeSavedAnswersByQuestion(savedAnswersRef.current, remoteSaved)
+          : [...(savedAnswersRef.current || [])];
         if (remoteSaved?.length) {
           setSavedAnswers((prev) => mergeSavedAnswersByQuestion(prev, remoteSaved));
         }
         const aq =
           typeof prog.activeQuestion === "string" && qs.includes(prog.activeQuestion) ? prog.activeQuestion : null;
         if (aq) {
-          const wb = workspaceFromBundle(merged[aq]);
+          const norm = normalizeQuestionBundle(merged[aq] || defaultQuestionBundle());
+          const wb = workspaceFromBundle(merged[aq] || null);
+          const ft = finalizedTextForQuestion(norm, mergedForSavedLookup, aq);
           queueMicrotask(() => {
             setSelectedQuestion(aq);
             setDumpCards(wb.dumpCards);
             setStarZones(wb.starZones);
-            setAnswerDraft(wb.answerDraft);
-            setStage(wb.stage);
+            setAnswerDraft(ft ? String(norm.answerDraft || "").trim() || ft : wb.answerDraft);
+            setStage(ft ? 4 : wb.stage);
             setUsedFallbackSort(wb.usedFallbackSort);
           });
         }
@@ -493,8 +526,16 @@ function InterviewPrepContent({ initial }) {
     };
   }, [jobContext, persistOrgLocal]);
 
-  const canOrganise = dumpCards.length >= 1 || zonesHaveCards(starZones);
-  const canPractise = Boolean(answerDraft?.trim()) || stage === 3;
+  const canOrganise = dumpCards.length >= 2 || zonesHaveCards(starZones);
+  const canPractise = Boolean(answerDraft?.trim()) || stage === 3 || stage === 4;
+
+  const savedReviewDisplayText = useMemo(() => {
+    if (stage !== 4 || !resolvedQuestion) return "";
+    const qt = String(resolvedQuestion).trim();
+    const fromList = String(savedAnswers.find((x) => String(x.question || "").trim() === qt)?.answer || "").trim();
+    if (fromList) return fromList;
+    return String(answerDraft || "").trim();
+  }, [stage, resolvedQuestion, savedAnswers, answerDraft]);
 
   useEffect(() => {
     window.localStorage.setItem(JOB_CTX_KEY, JSON.stringify(jobContext));
@@ -523,12 +564,13 @@ function InterviewPrepContent({ initial }) {
     (q) => {
       if (!q || !allQuestions.includes(q)) return;
       const prev = bundlesRef.current[q] || defaultQuestionBundle();
+      const st = persistableStage(stage);
       bundlesRef.current[q] = normalizeQuestionBundle({
         ...prev,
         dumpCards,
         starZones,
         answerDraft,
-        stage,
+        stage: st,
         usedFallbackSort,
         draftUpdatedAt: Date.now(),
       });
@@ -552,12 +594,22 @@ function InterviewPrepContent({ initial }) {
       });
       setSelectedQuestion(q);
       const incoming = bundlesRef.current[q] || defaultQuestionBundle();
+      const norm = normalizeQuestionBundle(incoming);
       const wb = workspaceFromBundle(incoming);
-      setDumpCards(wb.dumpCards);
-      setStarZones(wb.starZones);
-      setAnswerDraft(wb.answerDraft);
-      setStage(wb.stage);
-      setUsedFallbackSort(wb.usedFallbackSort);
+      const ft = finalizedTextForQuestion(norm, savedAnswersRef.current, String(q).trim());
+      if (ft) {
+        setStage(4);
+        setDumpCards(wb.dumpCards);
+        setStarZones(wb.starZones);
+        setAnswerDraft(String(norm.answerDraft || "").trim() || ft);
+        setUsedFallbackSort(wb.usedFallbackSort);
+      } else {
+        setDumpCards(wb.dumpCards);
+        setStarZones(wb.starZones);
+        setAnswerDraft(wb.answerDraft);
+        setStage(wb.stage);
+        setUsedFallbackSort(wb.usedFallbackSort);
+      }
       setReadinessPercent(40);
       persistOrgLocal(q);
       void pushCloudProgress();
@@ -608,11 +660,15 @@ function InterviewPrepContent({ initial }) {
       if (wasSelected) {
         if (pick) {
           setSelectedQuestion(pick);
-          const wb = workspaceFromBundle(bundlesRef.current[pick] || defaultQuestionBundle());
+          const incoming = bundlesRef.current[pick] || defaultQuestionBundle();
+          const norm = normalizeQuestionBundle(incoming);
+          const wb = workspaceFromBundle(incoming);
+          const savedAfterFilter = (savedAnswersRef.current || []).filter((x) => String(x.question || "").trim() !== t);
+          const ft = finalizedTextForQuestion(norm, savedAfterFilter, String(pick).trim());
           setDumpCards(wb.dumpCards);
           setStarZones(wb.starZones);
-          setAnswerDraft(wb.answerDraft);
-          setStage(wb.stage);
+          setAnswerDraft(ft ? String(norm.answerDraft || "").trim() || ft : wb.answerDraft);
+          setStage(ft ? 4 : wb.stage);
           setUsedFallbackSort(wb.usedFallbackSort);
         } else {
           setSelectedQuestion(null);
@@ -681,7 +737,7 @@ function InterviewPrepContent({ initial }) {
       dumpCards,
       starZones,
       answerDraft,
-      stage,
+      stage: persistableStage(stage),
       usedFallbackSort,
       draftUpdatedAt: now,
       finalizedAnswer: answerDraft,
@@ -727,16 +783,30 @@ function InterviewPrepContent({ initial }) {
     persistOrgLocal(qFlush || null);
     setSelectedQuestion(next);
     const incoming = bundlesRef.current[next] || defaultQuestionBundle();
+    const norm = normalizeQuestionBundle(incoming);
     const wb = workspaceFromBundle(incoming);
-    setDumpCards(wb.dumpCards);
-    setStarZones(wb.starZones);
-    setAnswerDraft(wb.answerDraft);
-    setUsedFallbackSort(wb.usedFallbackSort);
+    const ft = finalizedTextForQuestion(norm, savedAnswersRef.current, String(next).trim());
+    if (ft) {
+      setStage(4);
+      setDumpCards(wb.dumpCards);
+      setStarZones(wb.starZones);
+      setAnswerDraft(String(norm.answerDraft || "").trim() || ft);
+      setUsedFallbackSort(wb.usedFallbackSort);
+    } else {
+      setDumpCards(wb.dumpCards);
+      setStarZones(wb.starZones);
+      setAnswerDraft(wb.answerDraft);
+      setUsedFallbackSort(wb.usedFallbackSort);
+      setStage(1);
+    }
     setReadinessPercent(40);
-    setStage(1);
     persistOrgLocal(next);
     void pushCloudProgress();
   }, [allQuestions, resolvedQuestion, selectedQuestion, flushBundleForQuestion, persistOrgLocal, pushCloudProgress]);
+
+  const handleEditSavedAnswer = useCallback(() => {
+    setStage(1);
+  }, []);
 
   const readinessLabelFn = useCallback((p) => readinessLabelFor(p), []);
 
@@ -788,13 +858,35 @@ function InterviewPrepContent({ initial }) {
             </div>
           )}
 
-          <div className="ip-hero-tabs">
-            <StageTabs stage={stage} onSelect={setStage} canOrganise={canOrganise} canPractise={canPractise} />
-          </div>
+          {stage !== 4 ? (
+            <div className="ip-hero-tabs">
+              <StageTabs stage={stage} onSelect={setStage} canOrganise={canOrganise} canPractise={canPractise} />
+            </div>
+          ) : (
+            <p className="ip-hero-saved-review-hint" role="status">
+              Reviewing your saved answer — use <strong>Edit answer</strong> to change brain dump or STAR steps.
+            </p>
+          )}
         </div>
       </header>
 
       <main id="ip-main-content" className="ip-page-main">
+        {stage === 4 && resolvedQuestion ? (
+          <section
+            role="tabpanel"
+            id="ip-tab-panel-saved"
+            aria-label="Saved answer for this question"
+            className="ip-tab-panel"
+          >
+            <SavedAnswerReview
+              question={resolvedQuestion}
+              answerText={savedReviewDisplayText}
+              onEditAnswer={handleEditSavedAnswer}
+              onNextQuestion={nextQuestion}
+            />
+          </section>
+        ) : null}
+
         {stage === 1 ? (
           <section role="tabpanel" id="ip-tab-panel-1" aria-labelledby="ip-tab-1" className="ip-tab-panel">
             <BrainDumpStage
