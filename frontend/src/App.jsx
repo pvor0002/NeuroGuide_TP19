@@ -11,13 +11,6 @@ function routerBasename() {
   return b.endsWith("/") ? b.slice(0, -1) : b;
 }
 
-/** Matches Vite `base` (import.meta.env.BASE_URL, trailing slash). */
-function routerBasename() {
-  const b = import.meta.env.BASE_URL ?? "/";
-  if (b === "/" || b === "") return undefined;
-  return b.endsWith("/") ? b.slice(0, -1) : b;
-}
-
 export default function App() {
   return (
     <BrowserRouter basename={routerBasename()}>
