@@ -71,7 +71,24 @@ def _parse_json_loose(text: str) -> dict[str, Any]:
     if t.startswith("```"):
         t = _JSON_FENCE_RE.sub("", t)
         t = re.sub(r"\s*```$", "", t)
-    return json.loads(t)
+    # Fast path — clean response.
+    try:
+        return json.loads(t)
+    except json.JSONDecodeError:
+        pass
+    # Gemini sometimes appends a thought_signature or extra text after the JSON object.
+    # Walk the string to find the first complete top-level JSON object and parse only that.
+    brace = t.find("{")
+    if brace != -1:
+        depth = 0
+        for i, ch in enumerate(t[brace:], brace):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return json.loads(t[brace : i + 1])
+    raise json.JSONDecodeError("No valid JSON object found in response", t, 0)
 
 
 def _extract_text_from_gemini_response(response: Any) -> str:
@@ -285,6 +302,102 @@ def reshape_answer_with_gemini(answer: str, instruction: str, settings: Settings
     if not text:
         raise HTTPException(status_code=502, detail="Model returned empty text.")
     return text
+
+
+GENERATE_QUESTIONS_SYSTEM = """You generate tailored behavioural interview questions for neurodivergent job candidates practising the STAR method.
+
+Rules:
+- Generate exactly 6 questions total.
+- 2 questions MUST be universal behavioural questions (mandatory). Pick from themes like: overcoming a challenge, teamwork, receiving feedback, working under pressure, or taking initiative.
+- The remaining 4 questions should be tailored to the role/company/skills provided:
+  - For known_skills: ask about real experiences using them (e.g. "Tell me about a time you used X to solve a problem.").
+  - For learning_skills: ask how they'd approach picking them up (e.g. "This role involves X. What would your first steps be to get up to speed?").
+  - If a role or company is given, include at least 1 question specific to that context.
+  - If there are not enough skills to fill 4 tailored questions, add more universal behavioural questions instead.
+- Phrase each question as spoken speech: plain, warm, direct. Start with "Tell me about a time...", "Describe a situation where...", or "Walk me through...".
+- No corporate jargon. One clear question per item. Max 25 words each.
+- Return ONLY valid JSON — no markdown, no commentary: {"questions": ["...", "...", ...]}
+"""
+
+
+def generate_interview_questions_with_gemini(
+    role: str,
+    company: str,
+    known_skills: list[str],
+    learning_skills: list[str],
+    simplified_snapshot: dict | None,
+    settings: "Settings",
+) -> list[str]:
+    from app.core.config import Settings  # noqa: F401 — type hint only at module level
+
+    if not settings.gemini_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini API is not configured. Set GEMINI_API_KEY in the backend environment.",
+        )
+
+    parts: list[str] = []
+    if role:
+        parts.append(f"Role: {role.strip()}")
+    if company:
+        parts.append(f"Company: {company.strip()}")
+    if known_skills:
+        parts.append(f"Candidate already knows: {', '.join(known_skills[:10])}")
+    if learning_skills:
+        parts.append(f"Candidate is still learning: {', '.join(learning_skills[:10])}")
+    if simplified_snapshot and isinstance(simplified_snapshot, dict):
+        summary = simplified_snapshot.get("summary") or simplified_snapshot.get("role_summary") or ""
+        if summary:
+            parts.append(f"Job summary: {str(summary).strip()[:600]}")
+
+    if not parts:
+        parts.append("Generic role — generate universal behavioural questions.")
+
+    user_prompt = "\n".join(parts) + "\n\nReturn only the JSON object."
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+    model_chain = _gemini_model_fallback_chain(settings.gemini_model)
+    response = None
+    last_exc: BaseException | None = None
+    for idx, model_name in enumerate(model_chain):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=GENERATE_QUESTIONS_SYSTEM,
+                    response_mime_type="application/json",
+                ),
+            )
+            break
+        except Exception as exc:
+            last_exc = exc
+            if _gemini_error_should_fallback_to_next_model(exc) and idx < len(model_chain) - 1:
+                if _is_transient_gemini_capacity_error(exc):
+                    time.sleep(min(2.0, 0.4 + idx * 0.35))
+                continue
+            raise HTTPException(status_code=502, detail=f"Gemini request failed: {exc!s}") from exc
+
+    if response is None:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Gemini request failed: {last_exc!s}" if last_exc else "Gemini request failed.",
+        )
+
+    raw = _extract_text_from_gemini_response(response)
+    if not raw:
+        raise HTTPException(status_code=502, detail="Gemini returned no usable text.")
+
+    try:
+        data = _parse_json_loose(raw)
+    except json.JSONDecodeError as exc:
+        logger.warning("[InterviewPrep] GenerateQuestions JSON parse failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Could not parse generated questions response.") from exc
+
+    questions = [str(q).strip() for q in (data.get("questions") or []) if str(q).strip()]
+    if not questions:
+        raise HTTPException(status_code=502, detail="Model returned no questions.")
+    return questions[:6]
 
 
 def coach_spoken_answer_with_gemini(

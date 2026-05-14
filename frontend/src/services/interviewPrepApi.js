@@ -77,6 +77,23 @@ export async function coachSpeechAnswer(question, spokenTranscript, writtenAnswe
 }
 
 /**
+ * @param {{ role: string, company: string, known_skills: string[], learning_skills: string[], simplified_snapshot: object|null }} payload
+ * @returns {Promise<{ questions: string[] }>}
+ */
+export async function generateInterviewQuestions(payload) {
+  const res = await fetch(`${API_BASE}/interview-prep/generate-questions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await readJsonOrText(res);
+    throw new Error(apiFailureMessage(res, err) || `Question generation failed (${res.status}).`);
+  }
+  return readJsonOrText(res);
+}
+
+/**
  * @param {string} answer
  * @param {string} instruction
  */

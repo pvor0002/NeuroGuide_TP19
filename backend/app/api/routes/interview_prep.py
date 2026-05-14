@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.config import Settings, get_settings
 from app.schemas.interview_prep import (
+    GenerateQuestionsRequest,
+    GenerateQuestionsResponse,
     ReshapeRequest,
     ReshapeResponse,
     SpeechCoachRequest,
@@ -14,6 +16,7 @@ from app.schemas.interview_prep import (
 )
 from app.services.gemini_interview_prep import (
     coach_spoken_answer_with_gemini,
+    generate_interview_questions_with_gemini,
     reshape_answer_with_gemini,
     star_sort_cards_with_gemini,
 )
@@ -21,6 +24,30 @@ from app.services.gemini_interview_prep import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/interview-prep", tags=["interview-prep"])
+
+
+@router.post("/generate-questions", response_model=GenerateQuestionsResponse)
+@router.post("/generate-questions/", response_model=GenerateQuestionsResponse)
+def generate_questions_endpoint(
+    body: GenerateQuestionsRequest,
+    settings: Settings = Depends(get_settings),
+) -> GenerateQuestionsResponse:
+    try:
+        questions = generate_interview_questions_with_gemini(
+            role=body.role.strip(),
+            company=body.company.strip(),
+            known_skills=[s.strip() for s in body.known_skills if s.strip()],
+            learning_skills=[s.strip() for s in body.learning_skills if s.strip()],
+            simplified_snapshot=body.simplified_snapshot,
+            settings=settings,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[interview-prep/generate-questions] unexpected: %s", exc)
+        raise HTTPException(status_code=502, detail=f"Question generation failed: {exc!s}") from exc
+
+    return GenerateQuestionsResponse(questions=questions)
 
 
 @router.post("/star-sort", response_model=StarSortResponse)

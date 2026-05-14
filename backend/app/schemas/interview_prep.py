@@ -1,5 +1,7 @@
 """Schemas for Interview Prep helper endpoints (STAR sort, answer reshape)."""
 
+from typing import Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -51,3 +53,17 @@ class SpeechCoachResponse(BaseModel):
     filler_words: list[str] = Field(default_factory=list)
     readiness_bump: int = Field(0, ge=0, le=20)
     summary: str = ""
+
+
+# ── Generate Questions ────────────────────────────────────────────────────────
+
+class GenerateQuestionsRequest(BaseModel):
+    role: str = Field(default="", max_length=500)
+    company: str = Field(default="", max_length=500)
+    known_skills: List[str] = Field(default_factory=list, max_length=20)
+    learning_skills: List[str] = Field(default_factory=list, max_length=20)
+    simplified_snapshot: Optional[Dict] = Field(default=None)
+
+
+class GenerateQuestionsResponse(BaseModel):
+    questions: List[str]

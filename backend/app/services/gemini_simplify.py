@@ -237,7 +237,24 @@ def _parse_json_loose(text: str) -> dict[str, Any]:
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
-    return json.loads(text)
+    # Fast path — clean response.
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    # Gemini sometimes appends a thought_signature or extra text after the JSON object.
+    # Walk the string to find the first complete top-level JSON object and parse only that.
+    brace = text.find("{")
+    if brace != -1:
+        depth = 0
+        for i, ch in enumerate(text[brace:], brace):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return json.loads(text[brace : i + 1])
+    raise json.JSONDecodeError("No valid JSON object found in response", text, 0)
 
 
 def _extract_text_from_gemini_response(response: Any) -> str:

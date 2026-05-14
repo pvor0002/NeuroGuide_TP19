@@ -5,7 +5,7 @@ import BrainDumpStage from "../components/interview-prep/BrainDumpStage.jsx";
 import OrganiseStage from "../components/interview-prep/OrganiseStage.jsx";
 import PractiseStage from "../components/interview-prep/PractiseStage.jsx";
 import JobExperienceHub from "../components/experience-hub/JobExperienceHub.jsx";
-import { liveSimplifyEnabled, starSortInterview } from "../services/interviewPrepApi.js";
+import { generateInterviewQuestions, liveSimplifyEnabled, starSortInterview } from "../services/interviewPrepApi.js";
 import { fetchInterviewPrepProgress, putInterviewPrepProgress } from "../services/interviewPrepProgressApi.js";
 import { hasCloudSessionCredentials, readCredentials } from "../utils/cloudSync.js";
 import {
@@ -26,8 +26,27 @@ const JOB_CTX_KEY = "neuroguide.interviewPrep.jobContext.v1";
 const ORG_KEY = "neuroguide.interviewPrep.organised.v1";
 const SAVED_KEY = "neuroguide.interviewPrep.savedAnswers.v3";
 const PROFILE_KEY = "neuroguide.careerProfile.react.v2";
-const MAX_CUSTOM_QUESTIONS = 20;
+// AI-generated questions cached per job fingerprint: { [fingerprint]: string[] }
+const AI_QUESTIONS_KEY = "neuroguide.interviewPrep.aiQuestions.v1";
+const MAX_CUSTOM_QUESTIONS = 10;
 const MAX_CUSTOM_QUESTION_CHARS = 480;
+
+function loadAiQuestionsFromCache(fingerprint) {
+  if (!fingerprint || typeof window === "undefined") return null;
+  const map = safeParse(window.localStorage.getItem(AI_QUESTIONS_KEY));
+  if (!map || typeof map !== "object") return null;
+  const qs = map[fingerprint];
+  return Array.isArray(qs) && qs.length > 0 ? qs : null;
+}
+
+function saveAiQuestionsToCache(fingerprint, questions) {
+  if (!fingerprint || typeof window === "undefined" || !Array.isArray(questions) || !questions.length) return;
+  try {
+    const existing = safeParse(window.localStorage.getItem(AI_QUESTIONS_KEY)) || {};
+    existing[fingerprint] = questions;
+    window.localStorage.setItem(AI_QUESTIONS_KEY, JSON.stringify(existing));
+  } catch { /* ignore */ }
+}
 
 function mergeCustomQuestionLists(local, remote) {
   const seen = new Set();
@@ -113,11 +132,10 @@ function defaultJobContext() {
   };
 }
 
-/** Old 4-step flow → 3 tabs (job context step removed). */
+
 function migrateLegacyStage(stored) {
   if (typeof stored !== "number" || Number.isNaN(stored)) return 1;
-  if (stored <= 2) return 1;
-  return Math.min(3, stored - 1);
+  return Math.min(3, Math.max(1, stored));
 }
 
 function zonesHaveCards(z) {
@@ -209,15 +227,21 @@ function loadInterviewPrepBootstrap() {
   const mergedJob = mergeJobContextFromSources(jc, fromSimplify);
   const { bundles, activeQuestion } = migrateOrgToBundles(org);
   const sel = typeof activeQuestion === "string" ? activeQuestion : null;
+  //If the active question was known, unpack its saved data into usable state. If not, give me a blank workspace.
   const wb = workspaceFromBundle(sel ? bundles[sel] : null);
 
   const customQs = Array.isArray(org?.customQuestions)
     ? org.customQuestions.map((s) => String(s || "").trim()).filter(Boolean).slice(0, MAX_CUSTOM_QUESTIONS)
     : [];
 
+  // Load AI-generated questions from localStorage cache (keyed by job fingerprint).
+  const fp = deriveInterviewPrepJobFingerprint(mergedJob);
+  const aiQuestions = loadAiQuestionsFromCache(fp);
+
   return {
     stage: migrateLegacyStage(org?.stage),
     jobContext: mergedJob,
+    jobFingerprint: fp,
     bundles,
     selectedQuestion: sel,
     dumpCards: wb.dumpCards,
@@ -226,6 +250,7 @@ function loadInterviewPrepBootstrap() {
     savedAnswers: mergeSavedAnswersByQuestion([], Array.isArray(saved) ? saved : []),
     usedFallbackSort: wb.usedFallbackSort,
     customQuestions: customQs,
+    aiQuestions,
   };
 }
 
@@ -269,9 +294,11 @@ function buildQuestionList(jobContext, profileSkillSet) {
   });
 
   const universal = [
-    "Tell me about a challenge you overcame.",
-    "What are you most proud of professionally?",
-    "Tell me about a time you worked with others.",
+    "Tell me about a time you faced a difficult problem at work. How did you solve it?",
+    "Describe a situation where things didn't go to plan. What did you do?",
+    "Tell me about a time you had to make a decision with limited information.",
+    "Tell me about a time you received critical feedback. How did you respond?",
+    "Describe a situation where you had to quickly learn something new.",
     "Why do you want this role?",
     "Tell me about yourself.",
   ];
@@ -323,18 +350,33 @@ function InterviewPrepContent({ initial }) {
     return out;
   });
 
+  // AI-generated questions for this job (null = not yet loaded / generating)
+  const [aiQuestions, setAiQuestions] = useState(() => initial.aiQuestions ?? null);
+  const aiQuestionsRef = useRef(initial.aiQuestions ?? null);
+  const jobFingerprint = initial.jobFingerprint;
+
+  useEffect(() => {
+    aiQuestionsRef.current = aiQuestions;
+  }, [aiQuestions]);
+
   const profileSkillSet = useMemo(() => {
     if (typeof window === "undefined") return new Set();
     return readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
   }, []);
 
-  const baseQuestions = useMemo(() => buildQuestionList(jobContext, profileSkillSet), [jobContext, profileSkillSet]);
+  // Use AI questions when available; fall back to template-based list while loading.
+  const baseQuestions = useMemo(
+    () => aiQuestions ?? buildQuestionList(jobContext, profileSkillSet),
+    [aiQuestions, jobContext, profileSkillSet],
+  );
 
+  // Combines baseQuestions (AI generated) with customQuestions (ones you added yourself) into one final list. This is what gets shown in the question selector.
   const allQuestions = useMemo(
     () => combineQuestionLists(baseQuestions, customQuestions),
     [baseQuestions, customQuestions],
   );
-
+//It checks if your selected question still in the list? If yes, 
+// use it. If no, quietly fall back to the first question in the new list.
   const resolvedQuestion = useMemo(() => {
     if (!allQuestions.length) return null;
     if (selectedQuestion && allQuestions.includes(selectedQuestion)) return selectedQuestion;
@@ -353,8 +395,6 @@ function InterviewPrepContent({ initial }) {
     customQuestionsRef.current = customQuestions;
   }, [customQuestions]);
 
-  const cloudSaveTimerRef = useRef(null);
-
   const persistOrgLocal = useCallback((activeQ) => {
     if (typeof window === "undefined") return;
     try {
@@ -371,16 +411,17 @@ function InterviewPrepContent({ initial }) {
       /* ignore */
     }
   }, []);
-
+//save to database
+//Only runs if you're logged in
   const pushCloudProgress = useCallback(async () => {
     if (!hasCloudSessionCredentials()) return;
     const cred = readCredentials();
     if (!cred?.userId || !cred?.passKey) return;
     const fp = deriveInterviewPrepJobFingerprint(jobContext);
-    const iq = combineQuestionLists(
-      buildQuestionList(jobContext, readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY))),
-      customQuestionsRef.current,
-    );
+    // Prefer AI-generated questions for storage; fall back to template list.
+    const base = aiQuestionsRef.current
+      ?? buildQuestionList(jobContext, readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY)));
+    const iq = combineQuestionLists(base, customQuestionsRef.current);
     try {
       await putInterviewPrepProgress(cred, {
         job_fingerprint: fp,
@@ -396,17 +437,9 @@ function InterviewPrepContent({ initial }) {
         },
       });
     } catch {
-      /* non-fatal: user may be offline or table missing */
+    
     }
   }, [jobContext]);
-
-  const scheduleCloudSave = useCallback(() => {
-    if (cloudSaveTimerRef.current) window.clearTimeout(cloudSaveTimerRef.current);
-    cloudSaveTimerRef.current = window.setTimeout(() => {
-      cloudSaveTimerRef.current = null;
-      void pushCloudProgress();
-    }, 900);
-  }, [pushCloudProgress]);
 
   useEffect(() => {
     if (!allQuestions.length) return;
@@ -436,8 +469,7 @@ function InterviewPrepContent({ initial }) {
       draftUpdatedAt: Date.now(),
     });
     persistOrgLocal(selectedQuestion);
-    scheduleCloudSave();
-  }, [dumpCards, starZones, answerDraft, stage, usedFallbackSort, selectedQuestion, allQuestions, persistOrgLocal, scheduleCloudSave]);
+  }, [dumpCards, starZones, answerDraft, stage, usedFallbackSort, selectedQuestion, allQuestions, persistOrgLocal]);
 
   useEffect(() => {
     let cancelled = false;
@@ -450,6 +482,15 @@ function InterviewPrepContent({ initial }) {
       try {
         const row = await fetchInterviewPrepProgress(cred, fp);
         if (!row || cancelled) return;
+        // If the DB has AI-generated questions cached from a previous save, use them.
+        if (Array.isArray(row.interview_questions) && row.interview_questions.length > 0 && !aiQuestionsRef.current) {
+          const cloudQs = row.interview_questions.filter(Boolean);
+          if (cloudQs.length > 0) {
+            aiQuestionsRef.current = cloudQs;
+            setAiQuestions(cloudQs);
+            saveAiQuestionsToCache(fp, cloudQs);
+          }
+        }
         const prog = row.progress && typeof row.progress === "object" ? row.progress : {};
         const remoteCustom = Array.isArray(prog.customQuestions) ? prog.customQuestions : [];
         const mergedCustom = mergeCustomQuestionLists(customQuestionsRef.current, remoteCustom);
@@ -486,6 +527,35 @@ function InterviewPrepContent({ initial }) {
     };
   }, [jobContext, persistOrgLocal]);
 
+  // Generate AI questions on first visit for this job (when not in localStorage or DB cache).
+  useEffect(() => {
+    if (aiQuestions !== null) return; // already have questions — cached or from cloud
+    if (!liveSimplifyEnabled) return; // API disabled
+    let cancelled = false;
+    (async () => {
+      try {
+        const skills = normalizedSkills(jobContext);
+        const knownSkills = skills.filter((s) => skillMatchesProfile(s, profileSkillSet));
+        const learningSkills = skills.filter((s) => !skillMatchesProfile(s, profileSkillSet));
+        const result = await generateInterviewQuestions({
+          role: jobContext.role || "",
+          company: jobContext.company || "",
+          known_skills: knownSkills,
+          learning_skills: learningSkills,
+          simplified_snapshot: jobContext.simplifiedSnapshot || null,
+        });
+        if (cancelled || !Array.isArray(result.questions) || !result.questions.length) return;
+        setAiQuestions(result.questions);
+        saveAiQuestionsToCache(jobFingerprint, result.questions);
+      } catch {
+        // Silently fall back to template questions — no error shown to user.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [aiQuestions, jobContext, profileSkillSet, jobFingerprint]);
+
   const canOrganise = dumpCards.length >= 1 || zonesHaveCards(starZones);
   const canPractise = Boolean(answerDraft?.trim()) || stage === 3;
 
@@ -496,13 +566,11 @@ function InterviewPrepContent({ initial }) {
   useEffect(() => {
     savedAnswersRef.current = savedAnswers;
     window.localStorage.setItem(SAVED_KEY, JSON.stringify(savedAnswers));
-    scheduleCloudSave();
-  }, [savedAnswers, scheduleCloudSave]);
+  }, [savedAnswers]);
 
   useEffect(() => {
     persistOrgLocal(selectedQuestionRef.current);
-    scheduleCloudSave();
-  }, [customQuestions, persistOrgLocal, scheduleCloudSave]);
+  }, [customQuestions, persistOrgLocal]);
 
   useEffect(() => {
     if (stage !== 3) return;
@@ -553,9 +621,8 @@ function InterviewPrepContent({ initial }) {
       setUsedFallbackSort(wb.usedFallbackSort);
       setReadinessPercent(40);
       persistOrgLocal(q);
-      void pushCloudProgress();
     },
-    [allQuestions, selectedQuestion, flushBundleForQuestion, persistOrgLocal, pushCloudProgress],
+    [allQuestions, selectedQuestion, flushBundleForQuestion, persistOrgLocal],
   );
 
   const addCustomQuestion = useCallback(
@@ -579,9 +646,8 @@ function InterviewPrepContent({ initial }) {
       setUsedFallbackSort(false);
       setReadinessPercent(40);
       persistOrgLocal(t);
-      void pushCloudProgress();
     },
-    [jobContext, profileSkillSet, flushBundleForQuestion, persistOrgLocal, pushCloudProgress],
+    [jobContext, profileSkillSet, flushBundleForQuestion, persistOrgLocal],
   );
 
   const removeCustomQuestion = useCallback(
@@ -618,9 +684,8 @@ function InterviewPrepContent({ initial }) {
         setReadinessPercent(40);
       }
       persistOrgLocal(pick);
-      void pushCloudProgress();
     },
-    [baseQuestions, flushBundleForQuestion, persistOrgLocal, pushCloudProgress],
+    [baseQuestions, flushBundleForQuestion, persistOrgLocal],
   );
 
   const runOrganise = useCallback(async () => {
@@ -728,8 +793,7 @@ function InterviewPrepContent({ initial }) {
     setReadinessPercent(40);
     setStage(1);
     persistOrgLocal(next);
-    void pushCloudProgress();
-  }, [allQuestions, resolvedQuestion, selectedQuestion, flushBundleForQuestion, persistOrgLocal, pushCloudProgress]);
+  }, [allQuestions, resolvedQuestion, selectedQuestion, flushBundleForQuestion, persistOrgLocal]);
 
   const readinessLabelFn = useCallback((p) => readinessLabelFor(p), []);
 
