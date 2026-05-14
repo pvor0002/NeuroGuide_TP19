@@ -8,6 +8,7 @@ from app.api.routes.postgres_data import router as postgres_data_router
 from app.api.routes.profiles import router as profiles_router
 from app.api.routes.session import router as session_router
 from app.api.routes.job_score import router as job_score_router, router2 as job_score_router2
+from app.api.routes.day_in_life import router as day_in_life_router
 from app.api.routes.day_in_life_storage import router as day_in_life_storage_router
 
 api_router = APIRouter()
