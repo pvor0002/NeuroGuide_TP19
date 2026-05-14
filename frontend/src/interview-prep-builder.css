@@ -967,6 +967,47 @@
   letter-spacing: -0.01em;
 }
 
+.ip-hero-saved-review-hint {
+  margin: 0.35rem 0 0;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #3d3834;
+  background: rgba(125, 147, 101, 0.1);
+  border-radius: var(--ip-radius);
+  border: 1px solid rgba(107, 132, 84, 0.25);
+}
+
+/* Saved-answer review (returning to a question with a finalized save) */
+.ip-saved-review-body {
+  max-width: 52rem;
+}
+.ip-saved-review-card {
+  padding: 1.15rem 1.25rem;
+  border-radius: var(--ip-radius);
+  border: 1.5px solid rgba(45, 41, 38, 0.12);
+  background: #fff;
+  box-shadow: var(--ip-shadow-sm);
+  margin-bottom: 1.5rem;
+}
+.ip-saved-review-text {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  color: var(--ip-ink);
+}
+.ip-saved-review-empty {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #5c5650;
+}
+.ip-saved-review-footer {
+  margin-top: 0.25rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 /* Two-column practise layout: editor | tools */
 .ip-practise-layout {
   display: grid;
