@@ -4,9 +4,16 @@ import HomePage from "./pages/HomePage.jsx";
 import ProfileWizardPage from "./pages/ProfileWizardPage.jsx";
 import SimplifyJobDescriptionPage from "./pages/SimplifyJobDescriptionPage.jsx";
 
+/** Matches Vite `base` (import.meta.env.BASE_URL, trailing slash). */
+function routerBasename() {
+  const b = import.meta.env.BASE_URL ?? "/";
+  if (b === "/" || b === "") return undefined;
+  return b.endsWith("/") ? b.slice(0, -1) : b;
+}
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename()}>
       <Routes>
         <Route element={<MarketingLayout />}>
           <Route path="/" element={<HomePage />} />
