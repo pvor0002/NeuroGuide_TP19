@@ -28,6 +28,13 @@ export default function SpeechCoach({ question, answerDraft, onBumpReadiness }) 
   const [errorMsg, setErrorMsg]       = useState("");
   const recognitionRef                = useRef(null);
   const finalRef                      = useRef("");          // accumulates final segments
+  // Prevents the API call from being cancelled by the phase→"loading" re-render.
+  // React's useEffect cleanup fires whenever dependencies change (including phase),
+  // so a plain `let cancelled` closure variable gets set to true the moment
+  // setPhase("loading") triggers a re-render — before the fetch resolves.
+  // Using a ref means the flag survives across re-renders and is only reset
+  // deliberately (on reset() or a new recording).
+  const submittedRef                  = useRef(false);
 
   const SpeechRecognition = getSpeechRecognition();
   const supported = Boolean(SpeechRecognition);
@@ -96,51 +103,60 @@ export default function SpeechCoach({ question, answerDraft, onBumpReadiness }) 
     // Do NOT call setPhase here — wait for onend so finalRef is fully flushed
   }, [stopRecognition]);
 
-  /* Submit transcript for feedback once recording ends */
+  /* Submit transcript for feedback once recording ends.
+   *
+   * Why submittedRef instead of a `let cancelled` closure variable:
+   * Calling setPhase("loading") inside this effect causes React to re-render,
+   * which triggers the effect cleanup, which would set `cancelled = true` — right
+   * before the fetch resolves. The API would return 200 but setFeedback would
+   * never be called and the UI would hang on the loading spinner forever.
+   *
+   * submittedRef persists across re-renders, so once we mark the call as submitted
+   * the guard at the top prevents re-entry, and the .then() / .catch() handlers
+   * are free to update state without being cancelled mid-flight.
+   */
   useEffect(() => {
     if (phase !== "recording_ended") return;
+    if (submittedRef.current) return; // already submitted — phase just re-triggered the effect
+
     const text = finalRef.current.trim();
     const q = question;
     const draft = answerDraft || "";
-    let cancelled = false;
 
-    Promise.resolve().then(() => {
-      if (cancelled) return;
-      if (!text) {
-        // Could be genuine silence or a no-speech error — give a clear prompt
-        setErrorMsg(
-          "No speech was captured. Check that your microphone is allowed in the browser, then try again."
-        );
+    if (!text) {
+      setErrorMsg(
+        "No speech was captured. Check that your microphone is allowed in the browser, then try again."
+      );
+      setPhase("error");
+      return;
+    }
+
+    // Mark as submitted before any state updates to block re-entry
+    submittedRef.current = true;
+    setTranscript(text);
+    setPhase("loading");
+
+    coachSpeechAnswer(q, text, draft)
+      .then((data) => {
+        setFeedback(data);
+        setPhase("done");
+        if (data.readiness_bump > 0) {
+          onBumpReadiness?.(data.readiness_bump);
+        }
+      })
+      .catch((err) => {
+        setErrorMsg(err.message || "Could not get feedback. Please try again.");
         setPhase("error");
-        return;
-      }
-      setTranscript(text);
-      setPhase("loading");
-
-      coachSpeechAnswer(q, text, draft)
-        .then((data) => {
-          if (cancelled) return;
-          setFeedback(data);
-          setPhase("done");
-          if (data.readiness_bump > 0) {
-            onBumpReadiness?.(data.readiness_bump);
-          }
-        })
-        .catch((err) => {
-          if (cancelled) return;
-          setErrorMsg(err.message || "Could not get feedback. Please try again.");
-          setPhase("error");
-        });
-    });
-
-    return () => {
-      cancelled = true;
-    };
+      })
+      .finally(() => {
+        submittedRef.current = false;
+      });
   }, [phase, question, answerDraft, onBumpReadiness]);
 
   /* Reset */
   const reset = useCallback(() => {
     stopRecognition();
+    submittedRef.current = false;
     setPhase("idle");
     setTranscript("");
     setInterim("");
