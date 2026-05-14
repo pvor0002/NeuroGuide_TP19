@@ -17,9 +17,16 @@ function LegacySavedResultsRedirect() {
   return <Navigate to={`/saved-insights/${t}`} replace />;
 }
 
+/** Matches Vite `base` (import.meta.env.BASE_URL, trailing slash). */
+function routerBasename() {
+  const b = import.meta.env.BASE_URL ?? "/";
+  if (b === "/" || b === "") return undefined;
+  return b.endsWith("/") ? b.slice(0, -1) : b;
+}
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename()}>
       <Routes>
         {/* path="/" layout so nested routes resolve (RR v7); index = home */}
         <Route path="/" element={<MarketingLayout />}>
