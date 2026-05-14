@@ -124,6 +124,16 @@ function zonesHaveCards(z) {
   return Object.values(z || {}).some((arr) => Array.isArray(arr) && arr.length > 0);
 }
 
+/** Text shown on Brain dump when revisiting a question with a Practise / saved answer. */
+function formulatedSpeechText(q, bundleNorm, savedList) {
+  const n = normalizeQuestionBundle(bundleNorm || null);
+  const fromBundle = String(n.finalizedAnswer || n.answerDraft || "").trim();
+  if (fromBundle) return fromBundle;
+  const qn = String(q || "").trim();
+  const row = (savedList || []).find((x) => String(x.question || "").trim() === qn);
+  return String(row?.answer || "").trim();
+}
+
 /**
  * Migrate localStorage org blob to per-question bundles (v2).
  * @param {Record<string, unknown> | null} org
@@ -178,10 +188,12 @@ function mergeJobContextFromSources(stored, fromSimplify) {
 
 function workspaceFromBundle(b) {
   const n = normalizeQuestionBundle(b);
+  const draft = String(n.answerDraft || "").trim();
+  const finalized = String(n.finalizedAnswer || "").trim();
   return {
     dumpCards: n.dumpCards,
     starZones: n.starZones,
-    answerDraft: n.answerDraft,
+    answerDraft: draft || finalized,
     stage: migrateLegacyStage(n.stage),
     usedFallbackSort: n.usedFallbackSort,
   };
@@ -318,6 +330,8 @@ function InterviewPrepContent({ initial }) {
   const [readinessPercent, setReadinessPercent] = useState(40);
   const [organising, setOrganising] = useState(false);
   const [customQuestions, setCustomQuestions] = useState(() => initial.customQuestions || []);
+  /** When true, Brain dump shows the composer for a question that already has formulated speech. */
+  const [brainDumpEditingRevisit, setBrainDumpEditingRevisit] = useState(false);
   // Tracks which questions have saved content — shown as ✓ badges in QuestionSelector.
   // Derived from bundlesRef on mount; refreshed when the user switches questions.
   const [answeredQuestions, setAnsweredQuestions] = useState(() => {
@@ -419,13 +433,22 @@ function InterviewPrepContent({ initial }) {
     if (!allQuestions.length) return;
     if (selectedQuestion && allQuestions.includes(selectedQuestion)) return;
     const pick = allQuestions[0];
-    const wb = workspaceFromBundle(bundlesRef.current[pick]);
+    const incoming = bundlesRef.current[pick] || defaultQuestionBundle();
+    const incomingNorm = normalizeQuestionBundle(incoming);
+    const wb = workspaceFromBundle(incoming);
+    const speech = formulatedSpeechText(pick, incomingNorm, savedAnswersRef.current);
+    const hasFormulatedSpeech = Boolean(speech);
     queueMicrotask(() => {
       setSelectedQuestion(pick);
       setDumpCards(wb.dumpCards);
       setStarZones(wb.starZones);
-      setAnswerDraft(wb.answerDraft);
-      setStage(wb.stage);
+      setAnswerDraft(String(wb.answerDraft || "").trim() || speech || "");
+      setBrainDumpEditingRevisit(false);
+      if (hasFormulatedSpeech) {
+        setStage(1);
+      } else {
+        setStage(wb.stage);
+      }
       setUsedFallbackSort(wb.usedFallbackSort);
     });
   }, [allQuestions, selectedQuestion]);
@@ -473,13 +496,25 @@ function InterviewPrepContent({ initial }) {
         const aq =
           typeof prog.activeQuestion === "string" && qs.includes(prog.activeQuestion) ? prog.activeQuestion : null;
         if (aq) {
-          const wb = workspaceFromBundle(merged[aq]);
+          const incoming = merged[aq] || defaultQuestionBundle();
+          const incomingNorm = normalizeQuestionBundle(incoming);
+          const wb = workspaceFromBundle(incoming);
+          const remoteMergedSaved = remoteSaved?.length
+            ? mergeSavedAnswersByQuestion(savedAnswersRef.current || [], remoteSaved)
+            : savedAnswersRef.current || [];
+          const speech = formulatedSpeechText(aq, incomingNorm, remoteMergedSaved);
+          const hasFormulatedSpeech = Boolean(speech);
           queueMicrotask(() => {
             setSelectedQuestion(aq);
             setDumpCards(wb.dumpCards);
             setStarZones(wb.starZones);
-            setAnswerDraft(wb.answerDraft);
-            setStage(wb.stage);
+            setAnswerDraft(String(wb.answerDraft || "").trim() || speech || "");
+            setBrainDumpEditingRevisit(false);
+            if (hasFormulatedSpeech) {
+              setStage(1);
+            } else {
+              setStage(wb.stage);
+            }
             setUsedFallbackSort(wb.usedFallbackSort);
           });
         }
@@ -495,6 +530,15 @@ function InterviewPrepContent({ initial }) {
 
   const canOrganise = dumpCards.length >= 1 || zonesHaveCards(starZones);
   const canPractise = Boolean(answerDraft?.trim()) || stage === 3;
+
+  const revisitSpeechText = useMemo(() => {
+    const fromState = String(answerDraft || "").trim();
+    if (fromState) return fromState;
+    return formulatedSpeechText(resolvedQuestion, bundlesRef.current[resolvedQuestion], savedAnswers);
+  }, [resolvedQuestion, savedAnswers, answerDraft]);
+
+  const showBrainDumpRevisitReadOnly =
+    stage === 1 && Boolean(revisitSpeechText.trim()) && !brainDumpEditingRevisit;
 
   useEffect(() => {
     window.localStorage.setItem(JOB_CTX_KEY, JSON.stringify(jobContext));
@@ -552,11 +596,19 @@ function InterviewPrepContent({ initial }) {
       });
       setSelectedQuestion(q);
       const incoming = bundlesRef.current[q] || defaultQuestionBundle();
+      const incomingNorm = normalizeQuestionBundle(incoming);
       const wb = workspaceFromBundle(incoming);
+      const speech = formulatedSpeechText(q, incomingNorm, savedAnswersRef.current);
+      const hasFormulatedSpeech = Boolean(speech);
       setDumpCards(wb.dumpCards);
       setStarZones(wb.starZones);
-      setAnswerDraft(wb.answerDraft);
-      setStage(wb.stage);
+      setAnswerDraft(String(wb.answerDraft || "").trim() || speech || "");
+      setBrainDumpEditingRevisit(false);
+      if (hasFormulatedSpeech) {
+        setStage(1);
+      } else {
+        setStage(wb.stage);
+      }
       setUsedFallbackSort(wb.usedFallbackSort);
       setReadinessPercent(40);
       persistOrgLocal(q);
@@ -585,6 +637,7 @@ function InterviewPrepContent({ initial }) {
       setStage(1);
       setUsedFallbackSort(false);
       setReadinessPercent(40);
+      setBrainDumpEditingRevisit(false);
       persistOrgLocal(t);
       void pushCloudProgress();
     },
@@ -608,11 +661,20 @@ function InterviewPrepContent({ initial }) {
       if (wasSelected) {
         if (pick) {
           setSelectedQuestion(pick);
-          const wb = workspaceFromBundle(bundlesRef.current[pick] || defaultQuestionBundle());
+          const incoming = bundlesRef.current[pick] || defaultQuestionBundle();
+          const incomingNorm = normalizeQuestionBundle(incoming);
+          const wb = workspaceFromBundle(incoming);
+          const speech = formulatedSpeechText(pick, incomingNorm, savedAnswersRef.current);
+          const hasFormulatedSpeech = Boolean(speech);
           setDumpCards(wb.dumpCards);
           setStarZones(wb.starZones);
-          setAnswerDraft(wb.answerDraft);
-          setStage(wb.stage);
+          setAnswerDraft(String(wb.answerDraft || "").trim() || speech || "");
+          setBrainDumpEditingRevisit(false);
+          if (hasFormulatedSpeech) {
+            setStage(1);
+          } else {
+            setStage(wb.stage);
+          }
           setUsedFallbackSort(wb.usedFallbackSort);
         } else {
           setSelectedQuestion(null);
@@ -621,6 +683,7 @@ function InterviewPrepContent({ initial }) {
           setAnswerDraft("");
           setStage(1);
           setUsedFallbackSort(false);
+          setBrainDumpEditingRevisit(false);
         }
         setReadinessPercent(40);
       }
@@ -727,10 +790,13 @@ function InterviewPrepContent({ initial }) {
     persistOrgLocal(qFlush || null);
     setSelectedQuestion(next);
     const incoming = bundlesRef.current[next] || defaultQuestionBundle();
+    const incomingNorm = normalizeQuestionBundle(incoming);
     const wb = workspaceFromBundle(incoming);
+    const speech = formulatedSpeechText(next, incomingNorm, savedAnswersRef.current);
     setDumpCards(wb.dumpCards);
     setStarZones(wb.starZones);
-    setAnswerDraft(wb.answerDraft);
+    setAnswerDraft(String(wb.answerDraft || "").trim() || speech || "");
+    setBrainDumpEditingRevisit(false);
     setUsedFallbackSort(wb.usedFallbackSort);
     setReadinessPercent(40);
     setStage(1);
@@ -812,6 +878,9 @@ function InterviewPrepContent({ initial }) {
               onDumpChange={setDumpCards}
               onContinue={() => runOrganise()}
               organising={organising}
+              revisitReadOnly={showBrainDumpRevisitReadOnly}
+              revisitSpeechText={revisitSpeechText}
+              onStartEditRevisit={() => setBrainDumpEditingRevisit(true)}
             />
           </section>
         ) : null}
