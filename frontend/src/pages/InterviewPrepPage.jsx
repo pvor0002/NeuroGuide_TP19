@@ -142,6 +142,16 @@ function zonesHaveCards(z) {
   return Object.values(z || {}).some((arr) => Array.isArray(arr) && arr.length > 0);
 }
 
+/** Text shown on Brain dump when revisiting a question with a Practise / saved answer. */
+function formulatedSpeechText(q, bundleNorm, savedList) {
+  const n = normalizeQuestionBundle(bundleNorm || null);
+  const fromBundle = String(n.finalizedAnswer || n.answerDraft || "").trim();
+  if (fromBundle) return fromBundle;
+  const qn = String(q || "").trim();
+  const row = (savedList || []).find((x) => String(x.question || "").trim() === qn);
+  return String(row?.answer || "").trim();
+}
+
 /**
  * Migrate localStorage org blob to per-question bundles (v2).
  * @param {Record<string, unknown> | null} org
@@ -196,10 +206,12 @@ function mergeJobContextFromSources(stored, fromSimplify) {
 
 function workspaceFromBundle(b) {
   const n = normalizeQuestionBundle(b);
+  const draft = String(n.answerDraft || "").trim();
+  const finalized = String(n.finalizedAnswer || "").trim();
   return {
     dumpCards: n.dumpCards,
     starZones: n.starZones,
-    answerDraft: n.answerDraft,
+    answerDraft: draft || finalized,
     stage: migrateLegacyStage(n.stage),
     usedFallbackSort: n.usedFallbackSort,
   };
@@ -342,6 +354,8 @@ function InterviewPrepContent({ initial }) {
   const [readinessPercent, setReadinessPercent] = useState(40);
   const [organising, setOrganising] = useState(false);
   const [customQuestions, setCustomQuestions] = useState(() => initial.customQuestions || []);
+  /** When true, Brain dump shows the composer for a question that already has formulated speech. */
+  const [brainDumpEditingRevisit, setBrainDumpEditingRevisit] = useState(false);
   // Tracks which questions have saved content — shown as ✓ badges in QuestionSelector.
   // Derived from bundlesRef on mount; refreshed when the user switches questions.
   const [answeredQuestions, setAnsweredQuestions] = useState(() => {
@@ -537,6 +551,15 @@ function InterviewPrepContent({ initial }) {
     return String(answerDraft || "").trim();
   }, [stage, resolvedQuestion, savedAnswers, answerDraft]);
 
+  const revisitSpeechText = useMemo(() => {
+    const fromState = String(answerDraft || "").trim();
+    if (fromState) return fromState;
+    return formulatedSpeechText(resolvedQuestion, bundlesRef.current[resolvedQuestion], savedAnswers);
+  }, [resolvedQuestion, savedAnswers, answerDraft]);
+
+  const showBrainDumpRevisitReadOnly =
+    stage === 1 && Boolean(revisitSpeechText.trim()) && !brainDumpEditingRevisit;
+
   useEffect(() => {
     window.localStorage.setItem(JOB_CTX_KEY, JSON.stringify(jobContext));
   }, [jobContext]);
@@ -637,6 +660,7 @@ function InterviewPrepContent({ initial }) {
       setStage(1);
       setUsedFallbackSort(false);
       setReadinessPercent(40);
+      setBrainDumpEditingRevisit(false);
       persistOrgLocal(t);
       void pushCloudProgress();
     },
@@ -677,6 +701,7 @@ function InterviewPrepContent({ initial }) {
           setAnswerDraft("");
           setStage(1);
           setUsedFallbackSort(false);
+          setBrainDumpEditingRevisit(false);
         }
         setReadinessPercent(40);
       }
@@ -904,6 +929,9 @@ function InterviewPrepContent({ initial }) {
               onDumpChange={setDumpCards}
               onContinue={() => runOrganise()}
               organising={organising}
+              revisitReadOnly={showBrainDumpRevisitReadOnly}
+              revisitSpeechText={revisitSpeechText}
+              onStartEditRevisit={() => setBrainDumpEditingRevisit(true)}
             />
           </section>
         ) : null}

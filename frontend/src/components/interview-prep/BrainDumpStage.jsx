@@ -43,6 +43,9 @@ export default function BrainDumpStage({
   onDumpChange,
   onContinue,
   organising,
+  revisitReadOnly = false,
+  revisitSpeechText = "",
+  onStartEditRevisit,
 }) {
   // Local state: the current value of the textarea input
   const [line, setLine] = useState("");
@@ -178,10 +181,33 @@ export default function BrainDumpStage({
             <span className="ip-bd-step-badge">2</span>
             <h2 className="ip-bd-section-title">Brain dump</h2>
           </div>
-          <p className="ip-bd-hint">Anything that comes to mind, messy is fine. Add as many ideas as you like.</p>
+          {revisitReadOnly ? (
+            <>
+              <p className="ip-bd-hint">
+                You already have a formulated answer for this question. Edit to add ideas and rebuild your speech.
+              </p>
+              <div className="ip-revisit-panel">
+                <p className="ip-revisit-panel__label">Your formulated answer</p>
+                <div className="ip-revisit-speech" role="region" aria-label="Formulated interview answer">
+                  {revisitSpeechText}
+                </div>
+                <button
+                  type="button"
+                  className="ip-btn ip-btn--secondary ip-revisit-edit-btn"
+                  onClick={() => {
+                    if (typeof onStartEditRevisit === "function") onStartEditRevisit();
+                  }}
+                >
+                  Edit ideas and answer
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="ip-bd-hint">Anything that comes to mind, messy is fine. Add as many ideas as you like.</p>
 
-          {/* ── Chat-style input ── */}
-          <div className="ip-dump-entry">
+              {/* ── Chat-style input ── */}
+              <div className="ip-dump-entry">
             <label className="ip-visually-hidden" htmlFor="ip-dump-line">Add an idea</label>
             <textarea
               id="ip-dump-line"
@@ -245,6 +271,8 @@ export default function BrainDumpStage({
           {!selectedQuestion && (
             <p className="ip-bd-nudge">← Pick a question first to start adding ideas.</p>
           )}
+            </>
+          )}
         </div>
       </div>
 
@@ -255,12 +283,12 @@ export default function BrainDumpStage({
         </Link>
         <div className="ip-stage-footer__right">
           {/* Helper hint shown when the user has started but not yet added enough cards */}
-          {dumpCards.length === 0 && (
+          {dumpCards.length === 0 && !revisitReadOnly && (
             <span className="ip-stage-footer__hint">Add at least one idea to continue</span>
           )}
           {/*
             "Organise my ideas" — triggers AI STAR sort in InterviewPrepPage.
-            Disabled until listOk (question selected + 2+ cards).
+            Disabled until listOk (question selected + at least one idea card).
             "organising" prop is true while the API call is in flight.
           */}
           <button

@@ -618,6 +618,38 @@
   margin-bottom: 0;
 }
 
+/* Revisit saved question — read-only formulated answer + edit */
+.ip-revisit-panel {
+  margin-top: 0.35rem;
+}
+.ip-revisit-panel__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ip-ink-muted, #57534e);
+  margin: 0 0 0.5rem;
+}
+.ip-revisit-speech {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 1rem 1.1rem;
+  border-radius: var(--ip-radius);
+  border: 1.5px solid var(--ip-line, #e7e0d9);
+  background: #fff;
+  box-shadow: var(--ip-shadow-sm);
+  font-size: 0.93rem;
+  line-height: 1.65;
+  color: var(--ip-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: min(50vh, 22rem);
+  overflow-y: auto;
+}
+.ip-revisit-edit-btn {
+  margin-top: 0.85rem;
+}
+
 /* =========================================================================
    Dump zone
    ========================================================================= */
