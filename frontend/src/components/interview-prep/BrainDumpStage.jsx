@@ -9,7 +9,7 @@
  *      (a) Typing in the textarea and pressing Enter or clicking the send button
  *      (b) Speaking via the VoiceButton, which populates the textarea for editing
  *  - Display saved ideas as chips in the DumpZone below the input
- *  - Gate the "Organise my ideas" button until at least 2 cards exist
+ *  - Gate the "Organise my ideas" button until at least 1 card exists
  *
  * Props:
  *  - questions        {string[]}   All available interview questions
@@ -32,6 +32,7 @@ export default function BrainDumpStage({
   questions,
   selectedQuestion,
   onSelectQuestion,
+  answeredQuestions = {},
   dumpCards,
   onDumpChange,
   onContinue,
@@ -92,10 +93,10 @@ export default function BrainDumpStage({
 
   /**
    * listOk — controls whether the "Organise my ideas" button is enabled.
-   * Requires: a question is selected AND at least 2 cards exist.
+   * Requires: a question is selected AND at least 1 card exists.
    */
   const listOk = useMemo(() => {
-    const ok = selectedQuestion && dumpCards.length >= 2;
+    const ok = selectedQuestion && dumpCards.length >= 1;
     console.log("[BrainDump] listOk:", ok, `(question: "${selectedQuestion}", cards: ${dumpCards.length})`);
     return ok;
   }, [dumpCards.length, selectedQuestion]);
@@ -123,6 +124,7 @@ export default function BrainDumpStage({
             questions={questions}
             selectedQuestion={selectedQuestion}
             onSelect={onSelectQuestion}
+            answeredQuestions={answeredQuestions}
           />
         </div>
 
@@ -212,8 +214,8 @@ export default function BrainDumpStage({
         </Link>
         <div className="ip-stage-footer__right">
           {/* Helper hint shown when the user has started but not yet added enough cards */}
-          {dumpCards.length > 0 && dumpCards.length < 2 && (
-            <span className="ip-stage-footer__hint">Add at least one more idea to continue</span>
+          {dumpCards.length === 0 && (
+            <span className="ip-stage-footer__hint">Add at least one idea to continue</span>
           )}
           {/*
             "Organise my ideas" — triggers AI STAR sort in InterviewPrepPage.

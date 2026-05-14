@@ -91,6 +91,7 @@ function loadInterviewPrepBootstrap() {
       answerDraft: "",
       savedAnswers: [],
       usedFallbackSort: false,
+      questionHistory: {},
     };
   }
   //Your role, company, and skills from the job posting
@@ -113,6 +114,8 @@ function loadInterviewPrepBootstrap() {
     savedAnswers: Array.isArray(saved) ? saved : [],
     //Whether AI sorting failed and the basic sort was used instead
     usedFallbackSort: Boolean(org?.usedFallbackSort),
+    // Per-question history: { [questionText]: { dumpCards, starZones, answerDraft, stage } }
+    questionHistory: org?.questionHistory && typeof org.questionHistory === "object" ? org.questionHistory : {},
   };
 }
 
@@ -197,6 +200,8 @@ export default function InterviewPrepPage() {
   const [usedFallbackSort, setUsedFallbackSort] = useState(() => initial.usedFallbackSort);
   const [readinessPercent, setReadinessPercent] = useState(40);
   const [organising, setOrganising] = useState(false);
+  // Stores full state per question so switching back restores cards, zones, and answer
+  const [questionHistory, setQuestionHistory] = useState(() => initial.questionHistory);
 
   //Your profile skill set from the profile page
   const profileSkillSet = useMemo(() => {
@@ -212,7 +217,7 @@ export default function InterviewPrepPage() {
     return questions[0];
   }, [questions, selectedQuestion]);
 
-  const canOrganise = dumpCards.length >= 2 || zonesHaveCards(starZones);
+  const canOrganise = dumpCards.length >= 1 || zonesHaveCards(starZones);
   const canPractise = Boolean(answerDraft?.trim()) || stage === 3;
 
   useEffect(() => {
@@ -229,9 +234,10 @@ export default function InterviewPrepPage() {
         stage,
         usedFallbackSort,
         answerDraft,
+        questionHistory,
       }),
     );
-  }, [starZones, dumpCards, selectedQuestion, stage, usedFallbackSort, answerDraft]);
+  }, [starZones, dumpCards, selectedQuestion, stage, usedFallbackSort, answerDraft, questionHistory]);
 
   useEffect(() => {
     window.localStorage.setItem(SAVED_KEY, JSON.stringify(savedAnswers));
@@ -298,18 +304,66 @@ export default function InterviewPrepPage() {
     setSavedAnswers((prev) => [entry, ...prev].slice(0, 40));
   }, [answerDraft, jobContext.company, jobContext.role, resolvedQuestion]);
 
+  /** Saves the current question's full state into questionHistory. */
+  const saveCurrentToHistory = useCallback(() => {
+    if (!resolvedQuestion) return;
+    if (!dumpCards.length && !answerDraft) return; // nothing worth saving
+    setQuestionHistory((prev) => ({
+      ...prev,
+      [resolvedQuestion]: { dumpCards, starZones, answerDraft, stage },
+    }));
+  }, [resolvedQuestion, dumpCards, starZones, answerDraft, stage]);
+
+  /**
+   * handleSelectQuestion — called when the user clicks a question in the list.
+   * Saves the current question's state, then either restores the selected
+   * question's previous state (if it exists) or starts fresh.
+   */
+  const handleSelectQuestion = useCallback((q) => {
+    if (q === resolvedQuestion) return;
+    saveCurrentToHistory();
+    const hist = questionHistory[q];
+    if (hist) {
+      setDumpCards(hist.dumpCards || []);
+      setStarZones(hist.starZones || emptyZones());
+      setAnswerDraft(hist.answerDraft || "");
+      setUsedFallbackSort(false);
+      setReadinessPercent(hist.stage === 3 ? 60 : 40);
+      setStage(hist.stage || 1);
+    } else {
+      setDumpCards([]);
+      setStarZones(emptyZones());
+      setAnswerDraft("");
+      setUsedFallbackSort(false);
+      setReadinessPercent(40);
+      setStage(1);
+    }
+    setSelectedQuestion(q);
+  }, [resolvedQuestion, questionHistory, saveCurrentToHistory]);
+
   const nextQuestion = useCallback(() => {
+    saveCurrentToHistory();
     const qs = questions;
     const idx = Math.max(0, qs.indexOf(resolvedQuestion));
     const next = qs[(idx + 1) % qs.length] || qs[0];
+    const hist = questionHistory[next];
+    if (hist) {
+      setDumpCards(hist.dumpCards || []);
+      setStarZones(hist.starZones || emptyZones());
+      setAnswerDraft(hist.answerDraft || "");
+      setUsedFallbackSort(false);
+      setReadinessPercent(hist.stage === 3 ? 60 : 40);
+      setStage(hist.stage || 1);
+    } else {
+      setDumpCards([]);
+      setStarZones(emptyZones());
+      setAnswerDraft("");
+      setUsedFallbackSort(false);
+      setReadinessPercent(40);
+      setStage(1);
+    }
     setSelectedQuestion(next);
-    setDumpCards([]);
-    setStarZones(emptyZones());
-    setAnswerDraft("");
-    setUsedFallbackSort(false);
-    setReadinessPercent(40);
-    setStage(1);
-  }, [questions, resolvedQuestion]);
+  }, [questions, resolvedQuestion, questionHistory, saveCurrentToHistory]);
 
   const readinessLabelFn = useCallback((p) => readinessLabelFor(p), []);
 
@@ -378,7 +432,8 @@ export default function InterviewPrepPage() {
             <BrainDumpStage
               questions={questions}
               selectedQuestion={resolvedQuestion}
-              onSelectQuestion={setSelectedQuestion}
+              onSelectQuestion={handleSelectQuestion}
+              answeredQuestions={questionHistory}
               dumpCards={dumpCards}
               onDumpChange={setDumpCards}
               onContinue={() => runOrganise()}
@@ -397,7 +452,7 @@ export default function InterviewPrepPage() {
               usedFallbackSort={usedFallbackSort}
               onContinue={goBuildAnswer}
               onBack={() => setStage(1)}
-              needsStarSort={dumpCards.length >= 2 && !zonesHaveCards(starZones)}
+              needsStarSort={dumpCards.length >= 1 && !zonesHaveCards(starZones)}
               onSortNow={() => runOrganise()}
               organising={organising}
             />
