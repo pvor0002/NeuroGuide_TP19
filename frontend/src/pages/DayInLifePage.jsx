@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import JobExperienceHub from "../components/experience-hub/JobExperienceHub.jsx";
 import { fetchDayInLife } from "../services/dayInLifeApi.js";
+import { putDayInLifeSession } from "../services/dayInLifeSessionsApi.js";
+import { DayInLifeCardIcon } from "../components/DayInLifeCardIcon.jsx";
+import { dilIconVariantForBlock } from "../components/dayInLifeCardIconPick.js";
+import { recordDayInLifeRecent } from "../utils/dayInLifeRecents.js";
+import { dilCacheGet, dilCacheSet } from "../utils/dayInLifeCache.js";
+import { getDefaultAdhdSlugForDayInLife } from "../utils/experienceHubProfile.js";
+import { hasCloudSessionCredentials, readCredentials } from "../utils/cloudSync.js";
 
 const ENERGY_LABELS = {
   high:   { label: "High focus required", colour: "#dc2626", bg: "#fff5f5", pillBg: "#fee2e2" },
@@ -11,27 +19,11 @@ const ENERGY_LABELS = {
 
 const LAST_PARAMS_KEY = "dil_last_params";
 
-function _cacheKey(job, adhd) {
-  return `dil_cache_${job}|${adhd}`;
-}
-function _cacheGet(job, adhd) {
-  try {
-    const raw = sessionStorage.getItem(_cacheKey(job, adhd));
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-function _cacheSet(job, adhd, timeline) {
-  try {
-    sessionStorage.setItem(_cacheKey(job, adhd), JSON.stringify(timeline));
-  } catch {
-    // Ignore storage write failures (private mode/quota).
-  }
-}
 function _saveLastParams(job, adhd) {
   try {
     sessionStorage.setItem(LAST_PARAMS_KEY, JSON.stringify({ job_title: job, adhd_type: adhd }));
   } catch {
-    // Ignore storage write failures (private mode/quota).
+    /* ignore */
   }
 }
 function _loadLastParams() {
@@ -52,7 +44,6 @@ function formatAdhdLabel(raw) {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
-/** Matches Profile Wizard / career profile "Previous step" control (`profile-app.css`). */
 function CareerProfileBackLink({ onClick, label }) {
   return (
     <div className="q-profile-prev-top day-in-life-back">
@@ -66,7 +57,6 @@ function CareerProfileBackLink({ onClick, label }) {
   );
 }
 
-/** Splits "9:00 AM" → { hm: "9:00", period: "AM" } */
 function parseTime(t = "") {
   const m = t.match(/^(\d+:\d+)\s*(AM|PM)?/i);
   if (!m) return { hm: t, period: "" };
@@ -79,24 +69,29 @@ export default function DayInLifePage() {
   const [searchParams] = useSearchParams();
 
   const st = location.state ?? {};
-  // Resolve job_title / adhd_type from state → URL params → last-session fallback
   const _last = (!st.job_title && !searchParams.get("job_title")) ? _loadLastParams() : null;
-  const job_title = String(st.job_title ?? searchParams.get("job_title") ?? _last?.job_title ?? "").trim();
-  const adhd_type = String(st.adhd_type ?? searchParams.get("adhd_type") ?? _last?.adhd_type ?? "").trim();
+  const job_title_raw = String(st.job_title ?? searchParams.get("job_title") ?? _last?.job_title ?? "").trim();
+  const adhd_raw = String(st.adhd_type ?? searchParams.get("adhd_type") ?? _last?.adhd_type ?? "").trim();
+  const defaultAdhd = useMemo(() => getDefaultAdhdSlugForDayInLife(), []);
+  const job_title = job_title_raw;
+  const adhd_type = adhd_raw || (job_title ? defaultAdhd : "");
 
-  const cachedTimeline = useMemo(() => _cacheGet(job_title, adhd_type), [job_title, adhd_type]);
+  const cachedTimeline = useMemo(
+    () => (job_title && adhd_type ? dilCacheGet(job_title, adhd_type) : null),
+    [job_title, adhd_type],
+  );
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveMsg, setSaveMsg] = useState(null);
 
   useEffect(() => {
     if (!job_title || !adhd_type) return;
     let cancelled = false;
 
-    // Persist params so returning to the page without state/URL still works
     _saveLastParams(job_title, adhd_type);
 
-    // Check session cache first — same job+ADHD type returns the same timeline
     if (cachedTimeline) {
       return;
     }
@@ -110,7 +105,7 @@ export default function DayInLifePage() {
     fetchDayInLife(job_title, adhd_type)
       .then((data) => {
         if (!cancelled) {
-          _cacheSet(job_title, adhd_type, data.timeline);
+          dilCacheSet(job_title, adhd_type, data.timeline);
           setTimeline(data.timeline);
         }
       })
@@ -125,20 +120,45 @@ export default function DayInLifePage() {
     };
   }, [job_title, adhd_type, cachedTimeline]);
 
-  const adhdDisplay = formatAdhdLabel(adhd_type);
   const visibleTimeline = timeline ?? cachedTimeline;
 
-  // Guard: no job data
+  useEffect(() => {
+    if (!job_title || !adhd_type || !visibleTimeline || loading) return;
+    if (error) return;
+    recordDayInLifeRecent(job_title, adhd_type);
+  }, [job_title, adhd_type, visibleTimeline, loading, error]);
+
+  const saveToAccount = async () => {
+    if (!visibleTimeline?.length) return;
+    setSaveMsg(null);
+    if (!hasCloudSessionCredentials()) {
+      setSaveMsg("Sign in via Settings to save this day to your account.");
+      return;
+    }
+    setSaveBusy(true);
+    try {
+      await putDayInLifeSession(readCredentials(), {
+        job_title,
+        adhd_type,
+        timeline: visibleTimeline,
+      });
+      setSaveMsg("Saved to your account.");
+    } catch (e) {
+      setSaveMsg(e?.message || "Save failed.");
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
   if (!job_title) {
     return (
-      <div className="day-in-life-page">
-        <div className="day-in-life-no-data">
-          <CareerProfileBackLink label="Go back" onClick={() => navigate(-1)} />
-          <p>No job selected. Please go back and score a job first.</p>
-        </div>
-      </div>
+      <main className="day-in-life-page">
+        <JobExperienceHub mode="dil" />
+      </main>
     );
   }
+
+  const adhdDisplay = formatAdhdLabel(adhd_type);
 
   return (
     <main className="day-in-life-page">
@@ -153,9 +173,22 @@ export default function DayInLifePage() {
             <p className="dil-disclaimer">
               This is a general simulation and may not reflect your exact experience. Schedules, demands, and support vary widely by company, team, and role.
             </p>
-            <button type="button" className="simplify-hero-back" onClick={() => navigate(-1)}>
-              ← Back
-            </button>
+            <div className="dil-hero-actions">
+              <button type="button" className="simplify-hero-back" onClick={() => navigate(-1)}>
+                ← Back
+              </button>
+              {visibleTimeline && !loading ? (
+                <button
+                  type="button"
+                  className="dil-save-day-btn"
+                  onClick={() => void saveToAccount()}
+                  disabled={saveBusy}
+                >
+                  {saveBusy ? "Saving…" : "Save this day"}
+                </button>
+              ) : null}
+            </div>
+            {saveMsg ? <p className="dil-save-msg" role="status">{saveMsg}</p> : null}
           </div>
 
           <div className="day-in-life-legend">
@@ -190,27 +223,36 @@ export default function DayInLifePage() {
         </div>
       ) : null}
 
-      {/* Timeline */}
       {visibleTimeline && !loading && (
         <div className="day-in-life-timeline">
           {visibleTimeline.map((block, i) => {
             const energy = ENERGY_LABELS[block.energy_level] ?? ENERGY_LABELS.medium;
             const { hm, period } = parseTime(block.time);
+            const iconVariant = dilIconVariantForBlock(block, i);
             return (
-              <div key={i} className="timeline-block">
+              <div
+                key={i}
+                className="timeline-block"
+                style={{ "--dot-color": energy.colour }}
+              >
                 <div className="timeline-time">
                   <span className="timeline-time-hm">{hm}</span>
                   {period && <span className="timeline-time-period">{period}</span>}
                 </div>
+                <div className="timeline-rail" aria-hidden="true" />
                 <div
                   className="timeline-content"
                   style={{
-                    "--dot-color": energy.colour,
                     "--card-bg": energy.bg,
                   }}
                 >
-                  <p className="timeline-task">{block.task}</p>
-                  <p className="timeline-description">{block.description}</p>
+                  <div className="timeline-content-head">
+                    <DayInLifeCardIcon variant={iconVariant} />
+                    <div className="timeline-content-text">
+                      <p className="timeline-task">{block.task}</p>
+                      <p className="timeline-description">{block.description}</p>
+                    </div>
+                  </div>
                   <div className="timeline-footer">
                     <span
                       className="timeline-energy-badge"

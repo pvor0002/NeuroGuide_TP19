@@ -21,7 +21,7 @@ import { parseJobTitleAndCompany } from "./simplifiedJobExport.js";
  * Used to decide whether to load job context for the interview prep questions.
  * @param {unknown} snap
  */
-function simplifiedSnapshotHasContent(snap) {
+export function simplifiedSnapshotHasContent(snap) {
   if (!snap || typeof snap !== "object") return false;
   if (String(snap.summary ?? "").trim()) return true;
   if (String(snap.job_title ?? "").trim()) return true;
@@ -84,24 +84,56 @@ export function loadJobContextFromSimplifyHistory() {
     extractedFromApi: true,
     manualFallback: false,
     simplifiedVerStamp: stamp,
+    simplifiedSnapshot: snap,
   };
 }
 
 /**
- * heuristicStarSort
- *
- * Client-side fallback that assigns each dump card to a STAR zone
- * using keyword matching. Used when the Gemini API is unavailable
- * (liveSimplifyEnabled = false) or the API call fails.
- *
- * Priority order (first match wins):
- *  1. learning  — reflection/takeaway keywords
- *  2. result    — outcome/impact/metric keywords
- *  3. action    — "I did / I built / I led" keywords
- *  4. situation — context/setting keywords
- *  5. action    — default fallback for unmatched cards
- *
- * @param {Array<{ id: string, text: string }>} cards
+ * Build interview prep job context from a saved score row (Simplify flow).
+ * @param {unknown} row
+ * @returns {null | ReturnType<typeof loadJobContextFromSimplifyHistory>}
+ */
+export function jobContextFromSavedScoreRow(row) {
+  if (!row || typeof row !== "object") return null;
+  const snap = row.simplifiedSnapshot;
+  const stamp = row.simplifiedVerStamp ?? null;
+  if (!snap || !simplifiedSnapshotHasContent(snap)) return null;
+  const { jobTitle, companyName } = parseJobTitleAndCompany(snap.basic_info ?? "");
+  const role = String(snap.job_title ?? "").trim() || jobTitle || String(row.jobTitleDisplay ?? "").trim() || "";
+  const skills = Array.isArray(snap.extracted_skills)
+    ? snap.extracted_skills.map((s) => String(s || "").trim()).filter(Boolean)
+    : [];
+  return {
+    rawText: "",
+    role,
+    company: companyName,
+    skills,
+    skillsManual: "",
+    extractedFromApi: true,
+    manualFallback: false,
+    simplifiedVerStamp: stamp,
+    simplifiedSnapshot: snap,
+  };
+}
+
+/**
+ * Build interview prep job context from a cloud session summary row (`/pg/interview-prep/sessions`).
+ * @param {{ simplified_job?: object } | null} row
+ */
+export function jobContextFromInterviewSessionSummary(row) {
+  if (!row || typeof row !== "object") return null;
+  const snap = row.simplified_job;
+  if (!snap || typeof snap !== "object") return null;
+  return jobContextFromSavedScoreRow({
+    simplifiedSnapshot: snap,
+    simplifiedVerStamp: snap._ng_simp_ver ?? null,
+    jobTitleDisplay: "",
+  });
+}
+
+/**
+ * Client-side STAR sort when API is unavailable.
+ * @param {DumpCard[]} cards
  * @returns {{ situation: string[], action: string[], result: string[], learning: string[] }}
  */
 export function heuristicStarSort(cards) {
@@ -249,4 +281,89 @@ export function uid(prefix = "c") {
   const id = `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
   console.log("[interviewPrepHelpers] uid generated:", id);
   return id;
+}
+
+/** Stable key for linking interview prep to a simplified posting + role. */
+export function deriveInterviewPrepJobFingerprint(jobContext) {
+  const stamp = jobContext?.simplifiedVerStamp != null ? String(jobContext.simplifiedVerStamp) : "none";
+  const role = String(jobContext?.role || "").trim().toLowerCase().slice(0, 160);
+  const co = String(jobContext?.company || "").trim().toLowerCase().slice(0, 160);
+  return `${stamp}|${role}|${co}`;
+}
+
+export function defaultQuestionBundle() {
+  return {
+    dumpCards: [],
+    starZones: { situation: [], action: [], result: [], learning: [] },
+    answerDraft: "",
+    stage: 1,
+    usedFallbackSort: false,
+    draftUpdatedAt: 0,
+    finalizedAnswer: null,
+    finalizedAt: null,
+  };
+}
+
+/** Normalize bundle field names (camelCase) from server or older saves. */
+export function normalizeQuestionBundle(raw) {
+  const b = raw && typeof raw === "object" ? raw : {};
+  const sz = b.starZones || b.star_zones;
+  const zones =
+    sz && typeof sz === "object"
+      ? {
+          situation: Array.isArray(sz.situation) ? sz.situation : [],
+          action: Array.isArray(sz.action) ? sz.action : [],
+          result: Array.isArray(sz.result) ? sz.result : [],
+          learning: Array.isArray(sz.learning) ? sz.learning : [],
+        }
+      : defaultQuestionBundle().starZones;
+  return {
+    dumpCards: Array.isArray(b.dumpCards) ? b.dumpCards : Array.isArray(b.dump_cards) ? b.dump_cards : [],
+    starZones: zones,
+    answerDraft: String(b.answerDraft ?? b.answer_draft ?? ""),
+    stage: typeof b.stage === "number" && !Number.isNaN(b.stage) ? Math.min(3, Math.max(1, b.stage)) : 1,
+    usedFallbackSort: Boolean(b.usedFallbackSort ?? b.used_fallback_sort),
+    draftUpdatedAt: Number(b.draftUpdatedAt ?? b.draft_updated_at ?? 0) || 0,
+    finalizedAnswer:
+      b.finalizedAnswer != null
+        ? String(b.finalizedAnswer)
+        : b.finalized_answer != null
+          ? String(b.finalized_answer)
+          : null,
+    finalizedAt: Number(b.finalizedAt ?? b.finalized_at ?? 0) || null,
+  };
+}
+
+/**
+ * Merge per-question bundles from server into local; newer draft or finalized wins per field.
+ * @param {Record<string, object>} localBundles
+ * @param {Record<string, object>} serverBundles
+ * @param {string[]} questionOrder
+ */
+export function mergeQuestionBundlesFromServer(localBundles, serverBundles, questionOrder) {
+  const L = localBundles && typeof localBundles === "object" ? { ...localBundles } : {};
+  const S = serverBundles && typeof serverBundles === "object" ? serverBundles : {};
+  for (const q of questionOrder) {
+    const a = normalizeQuestionBundle(L[q]);
+    const b = normalizeQuestionBundle(S[q]);
+    if (!S[q]) continue;
+    if (!L[q]) {
+      L[q] = b;
+      continue;
+    }
+    const base = a.draftUpdatedAt >= b.draftUpdatedAt ? { ...a } : { ...b };
+    const fa = a.finalizedAt || 0;
+    const fb = b.finalizedAt || 0;
+    if (fb > fa) {
+      base.finalizedAnswer = b.finalizedAnswer;
+      base.finalizedAt = b.finalizedAt;
+    } else if (fa > fb) {
+      base.finalizedAnswer = a.finalizedAnswer;
+      base.finalizedAt = a.finalizedAt;
+    } else if (fb && fa && fb === fa) {
+      base.finalizedAnswer = (b.finalizedAnswer || "").length >= (a.finalizedAnswer || "").length ? b.finalizedAnswer : a.finalizedAnswer;
+    }
+    L[q] = normalizeQuestionBundle(base);
+  }
+  return L;
 }

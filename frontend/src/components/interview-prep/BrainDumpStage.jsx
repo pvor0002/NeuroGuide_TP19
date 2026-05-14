@@ -33,6 +33,12 @@ export default function BrainDumpStage({
   selectedQuestion,
   onSelectQuestion,
   answeredQuestions = {},
+  removableCustomQuestionKeys,
+  onRemoveCustomQuestion,
+  onAddCustomQuestion,
+  customQuestionMaxChars = 480,
+  customQuestionsUsed = 0,
+  customQuestionsMax = 20,
   dumpCards,
   onDumpChange,
   onContinue,
@@ -40,6 +46,7 @@ export default function BrainDumpStage({
 }) {
   // Local state: the current value of the textarea input
   const [line, setLine] = useState("");
+  const [customLine, setCustomLine] = useState("");
 
   /**
    * addCard — creates a new card object and appends it to the dumpCards array.
@@ -91,15 +98,17 @@ export default function BrainDumpStage({
     setLine("");
   }, [addCard, line]);
 
-  /**
-   * listOk — controls whether the "Organise my ideas" button is enabled.
-   * Requires: a question is selected AND at least 1 card exists.
-   */
-  const listOk = useMemo(() => {
-    const ok = selectedQuestion && dumpCards.length >= 1;
-    console.log("[BrainDump] listOk:", ok, `(question: "${selectedQuestion}", cards: ${dumpCards.length})`);
-    return ok;
-  }, [dumpCards.length, selectedQuestion]);
+  const canAddMoreCustom = customQuestionsUsed < customQuestionsMax;
+
+  const submitCustomQuestion = useCallback(() => {
+    if (!canAddMoreCustom || typeof onAddCustomQuestion !== "function") return;
+    const t = String(customLine || "").trim();
+    if (!t) return;
+    onAddCustomQuestion(t);
+    setCustomLine("");
+  }, [canAddMoreCustom, customLine, onAddCustomQuestion]);
+
+  const listOk = useMemo(() => selectedQuestion && dumpCards.length >= 1, [dumpCards.length, selectedQuestion]);
 
   return (
     <section className="ip-stage" aria-labelledby="ip-stage-dump-title">
@@ -114,18 +123,50 @@ export default function BrainDumpStage({
             <h2 className="ip-bd-section-title" id="ip-stage-dump-title">Pick a question</h2>
           </div>
           <p className="ip-bd-hint">Choose one to focus on. You can come back and try others.</p>
-
-          {/*
-            QuestionSelector renders the list of questions.
-            Selecting a question calls onSelectQuestion which updates
-            selectedQuestion in InterviewPrepPage state.
-          */}
           <QuestionSelector
             questions={questions}
             selectedQuestion={selectedQuestion}
             onSelect={onSelectQuestion}
             answeredQuestions={answeredQuestions}
+            removableQuestionKeys={removableCustomQuestionKeys}
+            onRemove={onRemoveCustomQuestion}
           />
+          <div className="ip-add-custom-q">
+            <label className="ip-add-custom-q__label" htmlFor="ip-custom-q-input">
+              Add your own question
+            </label>
+            <div className="ip-add-custom-q__row">
+              <input
+                id="ip-custom-q-input"
+                type="text"
+                className="ip-add-custom-q__input"
+                value={customLine}
+                maxLength={customQuestionMaxChars}
+                placeholder="e.g. Why this team?"
+                disabled={!canAddMoreCustom}
+                onChange={(e) => setCustomLine(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitCustomQuestion();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="ip-btn ip-btn--secondary ip-add-custom-q__btn"
+                onClick={submitCustomQuestion}
+                disabled={!customLine.trim() || !canAddMoreCustom}
+              >
+                Add
+              </button>
+            </div>
+            <p className="ip-bd-hint ip-add-custom-q__meta">
+              {canAddMoreCustom
+                ? `Saved with this job (${customQuestionsUsed}/${customQuestionsMax} custom). Same list as the suggested questions above.`
+                : `You have reached the limit of ${customQuestionsMax} custom questions for this job.`}
+            </p>
+          </div>
         </div>
 
         {/* Divider */}

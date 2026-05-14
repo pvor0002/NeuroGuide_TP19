@@ -15,7 +15,19 @@ export default function PractiseStage({
   onBack,
 }) {
   const [playing, setPlaying] = useState(false);
+  const [saveAck, setSaveAck] = useState(false);
+  const saveAckTimerRef = useRef(null);
   const utterRef = useRef(null);
+
+  const handleSave = useCallback(() => {
+    onSave?.();
+    setSaveAck(true);
+    if (saveAckTimerRef.current) window.clearTimeout(saveAckTimerRef.current);
+    saveAckTimerRef.current = window.setTimeout(() => {
+      saveAckTimerRef.current = null;
+      setSaveAck(false);
+    }, 3200);
+  }, [onSave]);
 
   const stopSpeaking = useCallback(() => {
     try {
@@ -29,6 +41,12 @@ export default function PractiseStage({
   useEffect(() => {
     return () => stopSpeaking();
   }, [stopSpeaking]);
+
+  useEffect(() => {
+    return () => {
+      if (saveAckTimerRef.current) window.clearTimeout(saveAckTimerRef.current);
+    };
+  }, []);
 
   const speak = useCallback(() => {
     const text = String(answerDraft || "").trim();
@@ -162,7 +180,12 @@ export default function PractiseStage({
           ← Back
         </button>
         <div className="ip-stage-footer__right">
-          <button type="button" className="ip-btn ip-btn--secondary" onClick={onSave}>
+          {saveAck ? (
+            <p className="ip-save-ack" role="status" aria-live="polite">
+              Answer saved
+            </p>
+          ) : null}
+          <button type="button" className="ip-btn ip-btn--secondary" onClick={handleSave}>
             Save answer
           </button>
           <button type="button" className="ip-btn ip-btn--primary" onClick={onNextQuestion}>
