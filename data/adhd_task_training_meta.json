@@ -1,0 +1,41 @@
+{
+  "source_rows": 10000,
+  "rows_after_clean": 10000,
+  "rows_dropped_clean": 0,
+  "duration_median_used": 65.0,
+  "interruptions_median_used": 2.0,
+  "normalized_columns": [
+    "estimated_duration",
+    "interruptions",
+    "energy_level",
+    "time_since_last_break",
+    "fatigue"
+  ],
+  "task_type_dummy_columns": [
+    "task_type_creative",
+    "task_type_deep",
+    "task_type_routine"
+  ],
+  "complexity_encoding": "numeric_1_5_to_low_med_high_1_3",
+  "output_csv": "data/adhd_task_training_wrangled.csv",
+  "scaler_path": "backend/app/models/ml/task_training_scaler.joblib",
+  "synthetic_adhd_injection": {
+    "enabled": true,
+    "templates_path": "data/adhd_profile_templates.json",
+    "synthetic_types_sampled": [
+      1,
+      2,
+      3
+    ],
+    "random_seed": 42,
+    "behavioural_feature_columns": [
+      "Anxiety_Depression_Levels",
+      "Daily_Activity_Hours",
+      "Difficulty_Organizing_Tasks",
+      "Focus_Score_Video",
+      "Sleep_Hours",
+      "hyperactivity_score",
+      "inattention_score"
+    ]
+  }
+}
