@@ -1,8 +1,24 @@
+/**
+ *
+ * Shared utility functions used across the Interview Prep feature.
+ *
+ * Exports used by the Brain Dump page:
+ *  - uid()                    — generates unique card IDs
+ *  - heuristicStarSort()      — client-side fallback STAR sort (no API needed)
+ *  - buildAnswerDraftFromStar() — builds the initial answer draft from sorted cards
+ *
+ * Other exports (used by other pages):
+ *  - loadJobContextFromSimplifyHistory()
+ *  - readProfileSkillSet()
+ *  - skillMatchesProfile()
+ */
+
 import { readJobScoreHistory } from "./jobScorePersistence.js";
 import { parseJobTitleAndCompany } from "./simplifiedJobExport.js";
 
 /**
- * Snapshot shape matches simplified job API / history row from Simplify Job Description.
+ * Checks whether a simplified job snapshot has meaningful content.
+ * Used to decide whether to load job context for the interview prep questions.
  * @param {unknown} snap
  */
 function simplifiedSnapshotHasContent(snap) {
@@ -18,8 +34,13 @@ function simplifiedSnapshotHasContent(snap) {
 const LAST_SIMPLIFIED_STORAGE_KEY = "neuroguide.simplifiedResult.v1";
 
 /**
- * Latest simplified job from score history (preferred) or last simplified result from Simplify page.
- * @returns {null | { rawText: string, role: string, company: string, skills: string[], skillsManual: string, extractedFromApi: boolean, manualFallback: boolean, simplifiedVerStamp: string | null }}
+ * loadJobContextFromSimplifyHistory
+ *
+ * Reads the most recent simplified job from score history (preferred) or
+ * falls back to localStorage. Used to pre-populate interview questions
+ * with job-specific context.
+ *
+ * @returns {null | object} Job context object or null if unavailable
  */
 export function loadJobContextFromSimplifyHistory() {
   const history = readJobScoreHistory();
@@ -27,6 +48,7 @@ export function loadJobContextFromSimplifyHistory() {
   let snap = row?.simplifiedSnapshot;
   let stamp = row?.simplifiedVerStamp ?? null;
 
+  // Fallback: check localStorage if history snapshot is empty/invalid
   if (!snap || !simplifiedSnapshotHasContent(snap)) {
     try {
       const raw = typeof window !== "undefined" ? window.localStorage.getItem(LAST_SIMPLIFIED_STORAGE_KEY) : null;
@@ -36,17 +58,22 @@ export function loadJobContextFromSimplifyHistory() {
         stamp = parsed._ng_simp_ver ?? stamp;
       }
     } catch {
-      /* ignore */
+      /* ignore storage errors */
     }
   }
 
-  if (!snap || !simplifiedSnapshotHasContent(snap)) return null;
+  if (!snap || !simplifiedSnapshotHasContent(snap)) {
+    console.log("[interviewPrepHelpers] loadJobContextFromSimplifyHistory: no usable job context found");
+    return null;
+  }
 
   const { jobTitle, companyName } = parseJobTitleAndCompany(snap.basic_info ?? "");
   const role = String(snap.job_title ?? "").trim() || jobTitle || String(row?.jobTitleDisplay ?? "").trim() || "";
   const skills = Array.isArray(snap.extracted_skills)
     ? snap.extracted_skills.map((s) => String(s).trim()).filter(Boolean)
     : [];
+
+  console.log("[interviewPrepHelpers] loadJobContextFromSimplifyHistory: loaded →", { role, company: companyName, skillCount: skills.length });
 
   return {
     rawText: "",
@@ -61,12 +88,25 @@ export function loadJobContextFromSimplifyHistory() {
 }
 
 /**
- * Client-side STAR sort when API is unavailable.
- * @param {DumpCard[]} cards
+ * heuristicStarSort
+ *
+ * Client-side fallback that assigns each dump card to a STAR zone
+ * using keyword matching. Used when the Gemini API is unavailable
+ * (liveSimplifyEnabled = false) or the API call fails.
+ *
+ * Priority order (first match wins):
+ *  1. learning  — reflection/takeaway keywords
+ *  2. result    — outcome/impact/metric keywords
+ *  3. action    — "I did / I built / I led" keywords
+ *  4. situation — context/setting keywords
+ *  5. action    — default fallback for unmatched cards
+ *
+ * @param {Array<{ id: string, text: string }>} cards
  * @returns {{ situation: string[], action: string[], result: string[], learning: string[] }}
  */
 export function heuristicStarSort(cards) {
-  /** @type {{ situation: string[], action: string[], result: string[], learning: string[] }} */
+  console.log("[interviewPrepHelpers] heuristicStarSort: sorting", cards.length, "cards");
+
   const zones = {
     situation: [],
     action: [],
@@ -76,49 +116,93 @@ export function heuristicStarSort(cards) {
 
   for (const c of cards) {
     const t = String(c.text || "").toLowerCase();
+    let assigned;
+
     if (/\b(learned|learning|takeaway|take-away|realised|realized|next time|would do differently|reflect)\b/i.test(t)) {
       zones.learning.push(c.id);
+      assigned = "learning";
     } else if (/\b(result|outcome|impact|metric|achieved|delivered|increased|reduced|saved|won|percent|%)\b/i.test(t)) {
       zones.result.push(c.id);
+      assigned = "result";
     } else if (
       /\b(i did|i built|i led|i owned|i implemented|i fixed|we decided|my role was|i collaborated|i coordinated)\b/i.test(t)
     ) {
       zones.action.push(c.id);
+      assigned = "action";
     } else if (
       /\b(when|context|situation|first|initially|challenge|deadline|pressure|at the time|before)\b/i.test(t)
     ) {
       zones.situation.push(c.id);
+      assigned = "situation";
     } else {
+      // Default: action zone for anything that doesn't match a specific pattern
       zones.action.push(c.id);
+      assigned = "action (default)";
     }
+
+    console.log(`[interviewPrepHelpers] heuristicStarSort: card "${c.id}" → ${assigned} | text: "${c.text}"`);
   }
+
+  console.log("[interviewPrepHelpers] heuristicStarSort: result →", zones);
   return zones;
 }
 
 /**
+ * buildAnswerDraftFromStar
+ *
+ * Assembles a plain-text answer draft from the sorted STAR zones.
+ * Called after the sort step to pre-populate the answer textarea
+ * in PractiseStage.
+ *
+ * Zone order: Situation → Action → Result → Learning
+ * Cards within each zone are joined with a space (order preserved from sort).
+ *
  * @param {{ situation: string[], action: string[], result: string[], learning: string[] }} starZones
- * @param {DumpCard[]} dumpCards
+ * @param {Array<{ id: string, text: string }>} dumpCards
  * @param {string} question
+ * @returns {string} Pre-filled answer draft, or "" if no cards are assigned
  */
 export function buildAnswerDraftFromStar(starZones, dumpCards, question) {
+  console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: building draft for question →", question);
+
+  // Build a lookup map from card id → text for quick access
   const byId = Object.fromEntries(dumpCards.map((c) => [c.id, c.text]));
   const parts = [];
+
   const pushZone = (label, keys) => {
     const texts = keys.map((id) => byId[id]).filter(Boolean);
-    if (texts.length === 0) return;
+    if (texts.length === 0) {
+      console.log(`[interviewPrepHelpers] buildAnswerDraftFromStar: zone "${label}" is empty — skipping`);
+      return;
+    }
+    console.log(`[interviewPrepHelpers] buildAnswerDraftFromStar: zone "${label}" →`, texts);
     parts.push(`${label}\n${texts.join(" ")}`);
   };
+
   pushZone("Situation", starZones.situation);
   pushZone("What I did", starZones.action);
   pushZone("Result", starZones.result);
   pushZone("What I learned", starZones.learning);
+
   const body = parts.join("\n\n");
-  if (!body.trim()) return "";
-  return `For the question “${question}”:\n\n${body}`;
+  if (!body.trim()) {
+    console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: no content — returning empty string");
+    return "";
+  }
+
+  const draft = `For the question "${question}":\n\n${body}`;
+  console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: draft built →", draft);
+  return draft;
 }
 
 /**
- * @param {string | undefined} raw
+ * readProfileSkillSet
+ *
+ * Parses the user's profile skills from a raw JSON string (from localStorage).
+ * Returns a lowercase Set used for skill matching in the question selector.
+ *
+ * @param {string | undefined} raw — raw JSON string from localStorage
+ * @returns {Set<string>}
  */
 export function readProfileSkillSet(raw) {
   try {
@@ -133,9 +217,13 @@ export function readProfileSkillSet(raw) {
 }
 
 /**
- * Case-insensitive overlap between tag and profile skills.
+ * skillMatchesProfile
+ *
+ * Returns true if a given tag string overlaps with a profile skill (case-insensitive,
+ * partial match allowed in either direction).
+ *
  * @param {string} tag
- * @param {Set<string>} profileLc
+ * @param {Set<string>} profileLc — lowercase profile skill set from readProfileSkillSet
  */
 export function skillMatchesProfile(tag, profileLc) {
   const t = String(tag || "").trim().toLowerCase();
@@ -147,6 +235,18 @@ export function skillMatchesProfile(tag, profileLc) {
   return false;
 }
 
+/**
+ * uid
+ *
+ * Generates a unique ID string for new dump cards.
+ * Format: "{prefix}_{random hex}_{timestamp hex}"
+ * Example: "d_3f7a2c1_18d4e6f"
+ *
+ * @param {string} prefix — short prefix to identify the type (e.g. "d" for dump card)
+ * @returns {string}
+ */
 export function uid(prefix = "c") {
-  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+  const id = `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+  console.log("[interviewPrepHelpers] uid generated:", id);
+  return id;
 }

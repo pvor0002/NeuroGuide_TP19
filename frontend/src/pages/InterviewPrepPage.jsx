@@ -1,3 +1,7 @@
+/* Stage 1 → Brain Dump (type your thoughts)
+Stage 2 → Organise (sort thoughts into STAR)
+Stage 3 → Practise (refine and speak your answer) */
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import StageTabs from "../components/interview-prep/StageTabs.jsx";
@@ -75,6 +79,7 @@ function mergeJobContextFromSources(stored, fromSimplify) {
   return base;
 }
 
+// Loads your interview prep data from local storage
 function loadInterviewPrepBootstrap() {
   if (typeof window === "undefined") {
     return {
@@ -88,10 +93,14 @@ function loadInterviewPrepBootstrap() {
       usedFallbackSort: false,
     };
   }
+  //Your role, company, and skills from the job posting
   const jc = safeParse(window.localStorage.getItem(JOB_CTX_KEY));
+  //Your organised thoughts into STAR format
   const org = safeParse(window.localStorage.getItem(ORG_KEY));
+  //Your saved answers
   const saved = loadSavedAnswers();
-  const fromSimplify = loadJobContextFromSimplifyHistory();
+  //Your job context from the job posting and the job posting itself
+  const fromSimplify = loadJobContextFromSimplifyHistory(); 
   const mergedJob = mergeJobContextFromSources(jc, fromSimplify);
 
   return {
@@ -102,6 +111,7 @@ function loadInterviewPrepBootstrap() {
     starZones: org?.starZones && typeof org.starZones === "object" ? org.starZones : emptyZones(),
     answerDraft: typeof org?.answerDraft === "string" ? org.answerDraft : "",
     savedAnswers: Array.isArray(saved) ? saved : [],
+    //Whether AI sorting failed and the basic sort was used instead
     usedFallbackSort: Boolean(org?.usedFallbackSort),
   };
 }
@@ -170,10 +180,14 @@ function readinessLabelFor(p) {
   return "Ready to go";
 }
 
+// Main Interview Prep Page component
 export default function InterviewPrepPage() {
+  // Loads your interview prep data from local storage
   const initial = useMemo(() => loadInterviewPrepBootstrap(), []);
 
+  //Your current stage of the interview prep process
   const [stage, setStage] = useState(() => initial.stage);
+  //Your job context from the job posting and the job posting itself
   const [jobContext] = useState(() => initial.jobContext);
   const [selectedQuestion, setSelectedQuestion] = useState(() => initial.selectedQuestion);
   const [dumpCards, setDumpCards] = useState(() => initial.dumpCards);
@@ -184,6 +198,7 @@ export default function InterviewPrepPage() {
   const [readinessPercent, setReadinessPercent] = useState(40);
   const [organising, setOrganising] = useState(false);
 
+  //Your profile skill set from the profile page
   const profileSkillSet = useMemo(() => {
     if (typeof window === "undefined") return new Set();
     return readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
@@ -337,7 +352,7 @@ export default function InterviewPrepPage() {
             )}
           </div>
 
-          {/* Skill tags row */}
+          {/* Tags that match your profile get a green/highlighted style. Tags you don't have stay grey. */}
           {skillsShow.length > 0 && (
             <div className="ip-skill-row">
               {skillsShow.slice(0, 10).map((tag) => (
