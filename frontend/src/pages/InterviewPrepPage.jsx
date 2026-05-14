@@ -220,10 +220,14 @@ function loadInterviewPrepBootstrap() {
       customQuestions: [],
     };
   }
+  //Your role, company, and skills from the job posting
   const jc = safeParse(window.localStorage.getItem(JOB_CTX_KEY));
+  //Your organised thoughts into STAR format
   const org = safeParse(window.localStorage.getItem(ORG_KEY));
+  //Your saved answers
   const saved = loadSavedAnswers();
-  const fromSimplify = loadJobContextFromSimplifyHistory();
+  //Your job context from the job posting and the job posting itself
+  const fromSimplify = loadJobContextFromSimplifyHistory(); 
   const mergedJob = mergeJobContextFromSources(jc, fromSimplify);
   const { bundles, activeQuestion } = migrateOrgToBundles(org);
   const sel = typeof activeQuestion === "string" ? activeQuestion : null;
@@ -325,7 +329,9 @@ function jobContextHasInterviewSource(jc) {
 function InterviewPrepContent({ initial }) {
   const bundlesRef = useRef(initial.bundles || {});
 
+  //Your current stage of the interview prep process
   const [stage, setStage] = useState(() => initial.stage);
+  //Your job context from the job posting and the job posting itself
   const [jobContext] = useState(() => initial.jobContext);
   const [selectedQuestion, setSelectedQuestion] = useState(() => initial.selectedQuestion);
   const [dumpCards, setDumpCards] = useState(() => initial.dumpCards);
@@ -336,7 +342,18 @@ function InterviewPrepContent({ initial }) {
   const [readinessPercent, setReadinessPercent] = useState(40);
   const [organising, setOrganising] = useState(false);
   const [customQuestions, setCustomQuestions] = useState(() => initial.customQuestions || []);
+  // Tracks which questions have saved content — shown as ✓ badges in QuestionSelector.
+  // Derived from bundlesRef on mount; refreshed when the user switches questions.
+  const [answeredQuestions, setAnsweredQuestions] = useState(() => {
+    const out = {};
+    for (const [q, b] of Object.entries(initial.bundles || {})) {
+      const nb = normalizeQuestionBundle(b);
+      if (nb.dumpCards.length > 0 || nb.answerDraft) out[q] = true;
+    }
+    return out;
+  });
 
+  //Your profile skill set from the profile page
   const profileSkillSet = useMemo(() => {
     if (typeof window === "undefined") return new Set();
     return readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
@@ -566,6 +583,15 @@ function InterviewPrepContent({ initial }) {
       if (!allQuestions.includes(q) || q === selectedQuestion) return;
       flushBundleForQuestion(selectedQuestion);
       persistOrgLocal(selectedQuestion);
+      // Refresh ✓ badges now that the outgoing bundle is flushed
+      setAnsweredQuestions(() => {
+        const out = {};
+        for (const [qk, b] of Object.entries(bundlesRef.current)) {
+          const nb = normalizeQuestionBundle(b);
+          if (nb.dumpCards.length > 0 || nb.answerDraft) out[qk] = true;
+        }
+        return out;
+      });
       setSelectedQuestion(q);
       const incoming = bundlesRef.current[q] || defaultQuestionBundle();
       const norm = normalizeQuestionBundle(incoming);
@@ -867,6 +893,7 @@ function InterviewPrepContent({ initial }) {
               questions={allQuestions}
               selectedQuestion={resolvedQuestion}
               onSelectQuestion={handleSelectQuestion}
+              answeredQuestions={answeredQuestions}
               removableCustomQuestionKeys={customQuestionKeys}
               onRemoveCustomQuestion={removeCustomQuestion}
               onAddCustomQuestion={addCustomQuestion}
@@ -891,7 +918,7 @@ function InterviewPrepContent({ initial }) {
               usedFallbackSort={usedFallbackSort}
               onContinue={goBuildAnswer}
               onBack={() => setStage(1)}
-              needsStarSort={dumpCards.length >= 2 && !zonesHaveCards(starZones)}
+              needsStarSort={dumpCards.length >= 1 && !zonesHaveCards(starZones)}
               onSortNow={() => runOrganise()}
               organising={organising}
             />
