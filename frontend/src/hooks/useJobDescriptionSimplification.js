@@ -1,36 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { shouldSyncToCloud, syncFullCloudFromLocalState } from "../utils/cloudSync.js";
+import { useCallback, useMemo, useState } from "react";
 import { assertAllowedFile, MAX_UPLOAD_BYTES, validateJobDescription } from "../utils/validation.js";
 import {
   extractUploadedJobDescription,
   liveSimplifyEnabled,
   simplifyJobDescription
 } from "../services/jobDescriptionApi.js";
-
-const RESULT_STORAGE_KEY  = "neuroguide.simplifiedResult.v1";
-const INPUT_STORAGE_KEY   = "neuroguide.jobInput.v1";
-
-function readStorage(key, fallback = null) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw == null) return fallback;
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
-
-function writeStorage(key, value) {
-  try {
-    if (value == null || value === "") {
-      localStorage.removeItem(key);
-    } else {
-      localStorage.setItem(key, JSON.stringify(value));
-    }
-  } catch {
-    // localStorage unavailable (e.g. private browsing restrictions) — silently skip
-  }
-}
 
 function attachmentMetaFromFile(file) {
   const name = file.name || "document";
@@ -41,58 +15,15 @@ function attachmentMetaFromFile(file) {
 }
 
 export function useJobDescriptionSimplification() {
-  // ── Persisted state (survives navigation and tab close/reopen) ───────────
-  const [inputMode, setInputModeRaw] = useState(
-    () => readStorage(INPUT_STORAGE_KEY + ".mode") ?? "text"
-  );
-  const [text, setTextRaw] = useState(
-    () => readStorage(INPUT_STORAGE_KEY + ".text") ?? ""
-  );
-  const [fileExtractedText, setFileExtractedTextRaw] = useState(
-    () => readStorage(INPUT_STORAGE_KEY + ".fileText") ?? ""
-  );
-
-  const setInputModeStored = useCallback((mode) => {
-    setInputModeRaw(mode);
-    writeStorage(INPUT_STORAGE_KEY + ".mode", mode);
-  }, []);
-
-  const setTextStored = useCallback((value) => {
-    setTextRaw(value);
-    writeStorage(INPUT_STORAGE_KEY + ".text", value);
-  }, []);
-
-  const setFileExtractedTextStored = useCallback((value) => {
-    setFileExtractedTextRaw(value);
-    writeStorage(INPUT_STORAGE_KEY + ".fileText", value);
-  }, []);
-
-  const [simplifiedResult, setSimplifiedResultRaw] = useState(
-    () => readStorage(RESULT_STORAGE_KEY)
-  );
-
-  const setSimplifiedResult = useCallback((value) => {
-    setSimplifiedResultRaw(value);
-    writeStorage(RESULT_STORAGE_KEY, value);
-  }, []);
-
-  useEffect(() => {
-    const onCloud = () => {
-      setSimplifiedResultRaw(readStorage(RESULT_STORAGE_KEY));
-      setInputModeRaw(readStorage(INPUT_STORAGE_KEY + ".mode") ?? "text");
-      setTextRaw(readStorage(INPUT_STORAGE_KEY + ".text") ?? "");
-      setFileExtractedTextRaw(readStorage(INPUT_STORAGE_KEY + ".fileText") ?? "");
-    };
-    window.addEventListener("ng-cloud-session-applied", onCloud);
-    return () => window.removeEventListener("ng-cloud-session-applied", onCloud);
-  }, []);
-
-  // ── Ephemeral state (UI feedback, not worth persisting) ──────────────────
+  const [inputMode, setInputMode] = useState("text");
+  const [text, setText] = useState("");
+  const [fileExtractedText, setFileExtractedText] = useState("");
   const [warnings, setWarnings] = useState([]);
   const [infoMessage, setInfoMessage] = useState("");
   const [composerFileError, setComposerFileError] = useState("");
   const [composerActionError, setComposerActionError] = useState("");
   const [composerInfo, setComposerInfo] = useState("");
+  const [simplifiedResult, setSimplifiedResult] = useState(null);
   const [attachment, setAttachment] = useState(null);
 
   const [isExtracting, setIsExtracting] = useState(false);
@@ -113,23 +44,23 @@ export function useJobDescriptionSimplification() {
 
   const changeInputMode = useCallback((mode) => {
     if (mode !== "text" && mode !== "file") return;
-    setInputModeStored(mode);
+    setInputMode(mode);
     setSimplifiedResult(null);
     setInfoMessage("");
     clearComposerFeedback();
     if (mode === "text") {
       setAttachment(null);
-      setFileExtractedTextStored("");
+      setFileExtractedText("");
       setWarnings([]);
     } else {
-      setTextStored("");
+      setText("");
       setWarnings([]);
     }
-  }, [clearComposerFeedback, setInputModeStored, setTextStored, setFileExtractedTextStored, setSimplifiedResult]);
+  }, [clearComposerFeedback]);
 
   const onTextChange = useCallback(
     (next) => {
-      setTextStored(next);
+      setText(next);
       setSimplifiedResult(null);
       setComposerFileError("");
       setComposerActionError("");
@@ -137,17 +68,17 @@ export function useJobDescriptionSimplification() {
       setWarnings([]);
       setInfoMessage("");
     },
-    [setTextStored, setSimplifiedResult]
+    []
   );
 
   const removeAttachment = useCallback(() => {
     setAttachment(null);
-    setFileExtractedTextStored("");
+    setFileExtractedText("");
     setWarnings([]);
     setComposerFileError("");
     setComposerActionError("");
     setComposerInfo("");
-  }, [setFileExtractedTextStored]);
+  }, []);
 
   const onFileSelected = useCallback(
     async (fileList) => {
@@ -161,7 +92,7 @@ export function useJobDescriptionSimplification() {
 
       if (file.size === 0) {
         setAttachment(null);
-        setFileExtractedTextStored("");
+        setFileExtractedText("");
         setComposerActionError("");
         setComposerFileError("This file is empty. Choose a different file or switch to paste text.");
         return;
@@ -170,7 +101,7 @@ export function useJobDescriptionSimplification() {
       const typeCheck = assertAllowedFile(file);
       if (!typeCheck.ok) {
         setAttachment(null);
-        setFileExtractedTextStored("");
+        setFileExtractedText("");
         setComposerActionError("");
         setComposerFileError(typeCheck.message);
         return;
@@ -178,7 +109,7 @@ export function useJobDescriptionSimplification() {
 
       if (file.size > MAX_UPLOAD_BYTES) {
         setAttachment(null);
-        setFileExtractedTextStored("");
+        setFileExtractedText("");
         setComposerActionError("");
         setComposerFileError("That file is too large (max 5 MB). Try a smaller file or paste the text instead.");
         return;
@@ -194,25 +125,25 @@ export function useJobDescriptionSimplification() {
         const nextWarnings = payload.warnings ?? [];
 
         if (raw) {
-          setFileExtractedTextStored(raw);
+          setFileExtractedText(raw);
           setWarnings(nextWarnings);
           setComposerFileError("");
           setComposerInfo("Text loaded from this file. Submit to get a simplified version.");
         } else {
           setAttachment(null);
-          setFileExtractedTextStored("");
+          setFileExtractedText("");
           setWarnings([]);
           setComposerFileError("No text could be read from this file. Try another file or paste the posting.");
         }
       } catch (err) {
         setAttachment(null);
-        setFileExtractedTextStored("");
+        setFileExtractedText("");
         setComposerFileError(err.message || "Upload could not be processed.");
       } finally {
         setIsExtracting(false);
       }
     },
-    [clearComposerFeedback, setFileExtractedTextStored, setSimplifiedResult]
+    [clearComposerFeedback]
   );
 
   const onSimplify = useCallback(async () => {
@@ -242,17 +173,8 @@ export function useJobDescriptionSimplification() {
     setInfoMessage("");
     try {
       const data = await simplifyJobDescription(String(payloadText).trim());
-      const stamped =
-        data && typeof data === "object"
-          ? { ...data, _ng_simp_ver: Date.now() }
-          : null;
-      setSimplifiedResult(stamped);
+      setSimplifiedResult(data && typeof data === "object" ? data : null);
       setInfoMessage("Simplified version is below.");
-      if (shouldSyncToCloud()) {
-        void syncFullCloudFromLocalState().catch(() => {
-          /* optional sync — ignore failures */
-        });
-      }
     } catch (err) {
       const msg =
         err instanceof Error
@@ -266,7 +188,7 @@ export function useJobDescriptionSimplification() {
     } finally {
       setIsSimplifying(false);
     }
-  }, [isBusy, inputMode, text, fileExtractedText, attachment, setSimplifiedResult]);
+  }, [isBusy, inputMode, text, fileExtractedText, attachment]);
 
   const simplifyEnabled =
     validation.ok &&

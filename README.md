@@ -40,6 +40,16 @@ This updates:
 - `data/au-skills-taxonomy.json`
 - `data/au-role-taxonomy.json`
 
+### Regenerate Iteration 1 Data Management Plan (.docx)
+
+After installing `python-docx` and `pillow`, run from repo root:
+
+```bash
+python3 scripts/generate_data_management_plan_docx.py
+```
+
+This writes `data/NeuroGuide_Iteration1_Data_Management_Plan.docx` and PNG code snippets under `data/dmp_code_snippets/`.
+
 # Team GitHub Workflow & Code Quality Guidelines
 
 This document defines how our team will work using GitHub for the project.  

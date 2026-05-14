@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import SitePasswordGate from "./components/SitePasswordGate.jsx";
 import "./shared.css";
-import "./interview-prep-builder.css";
 import "./profile-app.css";
 import "./jobinput.css";
 

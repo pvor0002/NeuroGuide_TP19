@@ -1,4 +1,3 @@
-import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -6,8 +5,8 @@ from typing import Optional
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logger = logging.getLogger(__name__)
-
+# Resolve .env next to the backend package so GEMINI_API_KEY loads even when
+# uvicorn is started from the repo root (cwd would otherwise miss backend/.env).
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _ENV_FILE = _BACKEND_ROOT / ".env"
 
@@ -15,26 +14,16 @@ _ENV_FILE = _BACKEND_ROOT / ".env"
 class Settings(BaseSettings):
     app_name: str = "NeuroGuide API"
     api_v1_prefix: str = "/api/v1"
-    debug: bool = False
+    debug: bool = True
 
+    # Keep this as a *string* because pydantic-settings will otherwise try to JSON-decode
+    # env vars for complex types (e.g. list[str]) and crash on comma-separated values.
     cors_origins: str = Field(
-        default="https://www.neuroguide.dev,http://localhost:5173,http://127.0.0.1:5173"
+        default="https://neuroguide-rho.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
     )
 
     gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-2.5-flash"
-
-    profile_store_path: Path = Field(default=_BACKEND_ROOT / "data" / "profiles.db")
-
-    # PostgreSQL — injected by Lambda environment
-    database_url: Optional[str] = None
-
-    # HMAC secret for storing pass keys (set in production; required for /pg/session/*)
-    pass_key_pepper: Optional[str] = None
-
-    # S3
-    s3_bucket_name: Optional[str] = None
-    aws_region: str = "ap-southeast-2"
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -61,10 +50,6 @@ class Settings(BaseSettings):
             return None
         return v if isinstance(v, str) else str(v)
 
-    @property
-    def use_postgres(self) -> bool:
-        return bool(self.database_url)
-
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE) if _ENV_FILE.is_file() else ".env",
         env_file_encoding="utf-8",
@@ -73,14 +58,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    s = Settings()
-    logger.info(
-        "[Config] Settings loaded — model=%s, gemini_key_set=%s, cors_origins=%s, "
-        "database_url_set=%s, profile_store_path=%s",
-        s.gemini_model,
-        bool(s.gemini_api_key),
-        s.cors_origins,
-        bool(s.database_url),
-        s.profile_store_path,
-    )
-    return s
+    return Settings()

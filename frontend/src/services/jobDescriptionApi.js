@@ -1,6 +1,5 @@
-import { getApiBase } from "../utils/apiBase.js";
-
-const API_BASE = getApiBase();
+const DEFAULT_API_BASE = "http://127.0.0.1:8000/api/v1";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE).replace(/\/+$/, "");
 
 /**
  * Set VITE_SIMPLIFY_API=0 to hide simplify actions when no backend is available.
@@ -78,50 +77,6 @@ export async function simplifyJobDescription(text) {
   if (!res.ok) {
     const err = await readJsonOrText(res);
     throw new Error(apiFailureMessage(res, err) || `Simplify failed (${res.status}).`);
-  }
-
-  return readJsonOrText(res);
-}
-
-export async function findOccupation(jobTitle) {
-  const res = await fetch(`${API_BASE}/find-occupation`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ job_title: jobTitle }),
-  });
-
-  if (!res.ok) {
-    const err = await readJsonOrText(res);
-    throw new Error(apiFailureMessage(res, err) || `Find occupation failed (${res.status}).`);
-  }
-
-  return readJsonOrText(res);
-}
-
-export async function predictJobScore(
-  userQuestionnaire,
-  occupationId,
-  jobSkills,
-  sessionId,
-  jobFitFeaturesFromGemini = null,
-  userSoftSkillsOverrides = null,
-) {
-  const res = await fetch(`${API_BASE}/predict-job-score`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      user_questionnaire: userQuestionnaire,
-      occupation_id: occupationId,
-      job_skills_from_gemini: jobSkills,
-      job_fit_features_from_gemini: jobFitFeaturesFromGemini ?? null,
-      user_soft_skills_overrides: userSoftSkillsOverrides ?? null,
-      session_id: sessionId ?? null,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await readJsonOrText(res);
-    throw new Error(apiFailureMessage(res, err) || `Job score failed (${res.status}).`);
   }
 
   return readJsonOrText(res);

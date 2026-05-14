@@ -1,20 +1,14 @@
-import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import MarketingLayout from "./layouts/MarketingLayout.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ProfileWizardPage from "./pages/ProfileWizardPage.jsx";
 import SimplifyJobDescriptionPage from "./pages/SimplifyJobDescriptionPage.jsx";
-import InterviewPrepPage from "./pages/InterviewPrepPage.jsx";
-import SettingsPage from "./pages/SettingsPage.jsx";
-import MySavedScoresPage from "./pages/MySavedScoresPage.jsx";
-import SavedResultsPage from "./pages/SavedResultsPage.jsx";
-import DayInLifePage from "./pages/DayInLifePage.jsx";
 
-const VALID_SAVED_INSIGHT_TABS = new Set(["scores", "day-in-life", "interview"]);
-
-function LegacySavedResultsRedirect() {
-  const { tab } = useParams();
-  const t = VALID_SAVED_INSIGHT_TABS.has(tab) ? tab : "scores";
-  return <Navigate to={`/saved-insights/${t}`} replace />;
+/** Matches Vite `base` (import.meta.env.BASE_URL, trailing slash). */
+function routerBasename() {
+  const b = import.meta.env.BASE_URL ?? "/";
+  if (b === "/" || b === "") return undefined;
+  return b.endsWith("/") ? b.slice(0, -1) : b;
 }
 
 /** Matches Vite `base` (import.meta.env.BASE_URL, trailing slash). */
@@ -28,18 +22,9 @@ export default function App() {
   return (
     <BrowserRouter basename={routerBasename()}>
       <Routes>
-        {/* path="/" layout so nested routes resolve (RR v7); index = home */}
-        <Route path="/" element={<MarketingLayout />}>
-          <Route index element={<HomePage />} />
-          <Route path="simplify-job-description" element={<SimplifyJobDescriptionPage />} />
-          <Route path="day-in-life" element={<DayInLifePage />} />
-          <Route path="saved-insights/:tab" element={<SavedResultsPage />} />
-          <Route path="saved-insights" element={<Navigate to="/saved-insights/scores" replace />} />
-          <Route path="saved-results/:tab" element={<LegacySavedResultsRedirect />} />
-          <Route path="saved-results" element={<Navigate to="/saved-insights/scores" replace />} />
-          <Route path="my-saved-scores" element={<MySavedScoresPage />} />
-          <Route path="interview-prep" element={<InterviewPrepPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+        <Route element={<MarketingLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/simplify-job-description" element={<SimplifyJobDescriptionPage />} />
         </Route>
         <Route path="/profile" element={<ProfileWizardPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
