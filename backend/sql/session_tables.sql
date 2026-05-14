@@ -32,3 +32,6 @@ CREATE TABLE IF NOT EXISTS job_workbench_state (
     user_id UUID PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
     state JSONB NOT NULL DEFAULT '{}'::jsonb
 );
+
+-- Optional: interview prep persistence — run backend/sql/interview_prep_sessions.sql when using RDS backup for prep.
+-- Optional: saved Day in the Life timelines — run backend/sql/day_in_life_sessions.sql for /pg/day-in-life/sessions.

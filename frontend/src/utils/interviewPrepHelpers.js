@@ -1,27 +1,11 @@
-/**
- *
- * Shared utility functions used across the Interview Prep feature.
- *
- * Exports used by the Brain Dump page:
- *  - uid()                    — generates unique card IDs
- *  - heuristicStarSort()      — client-side fallback STAR sort (no API needed)
- *  - buildAnswerDraftFromStar() — builds the initial answer draft from sorted cards
- *
- * Other exports (used by other pages):
- *  - loadJobContextFromSimplifyHistory()
- *  - readProfileSkillSet()
- *  - skillMatchesProfile()
- */
-
 import { readJobScoreHistory } from "./jobScorePersistence.js";
 import { parseJobTitleAndCompany } from "./simplifiedJobExport.js";
 
 /**
- * Checks whether a simplified job snapshot has meaningful content.
- * Used to decide whether to load job context for the interview prep questions.
+ * Snapshot shape matches simplified job API / history row from Simplify Job Description.
  * @param {unknown} snap
  */
-function simplifiedSnapshotHasContent(snap) {
+export function simplifiedSnapshotHasContent(snap) {
   if (!snap || typeof snap !== "object") return false;
   if (String(snap.summary ?? "").trim()) return true;
   if (String(snap.job_title ?? "").trim()) return true;
@@ -34,13 +18,8 @@ function simplifiedSnapshotHasContent(snap) {
 const LAST_SIMPLIFIED_STORAGE_KEY = "neuroguide.simplifiedResult.v1";
 
 /**
- * loadJobContextFromSimplifyHistory
- *
- * Reads the most recent simplified job from score history (preferred) or
- * falls back to localStorage. Used to pre-populate interview questions
- * with job-specific context.
- *
- * @returns {null | object} Job context object or null if unavailable
+ * Latest simplified job from score history (preferred) or last simplified result from Simplify page.
+ * @returns {null | { rawText: string, role: string, company: string, skills: string[], skillsManual: string, extractedFromApi: boolean, manualFallback: boolean, simplifiedVerStamp: string | null }}
  */
 export function loadJobContextFromSimplifyHistory() {
   const history = readJobScoreHistory();
@@ -48,7 +27,6 @@ export function loadJobContextFromSimplifyHistory() {
   let snap = row?.simplifiedSnapshot;
   let stamp = row?.simplifiedVerStamp ?? null;
 
-  // Fallback: check localStorage if history snapshot is empty/invalid
   if (!snap || !simplifiedSnapshotHasContent(snap)) {
     try {
       const raw = typeof window !== "undefined" ? window.localStorage.getItem(LAST_SIMPLIFIED_STORAGE_KEY) : null;
@@ -58,22 +36,17 @@ export function loadJobContextFromSimplifyHistory() {
         stamp = parsed._ng_simp_ver ?? stamp;
       }
     } catch {
-      /* ignore storage errors */
+      /* ignore */
     }
   }
 
-  if (!snap || !simplifiedSnapshotHasContent(snap)) {
-    console.log("[interviewPrepHelpers] loadJobContextFromSimplifyHistory: no usable job context found");
-    return null;
-  }
+  if (!snap || !simplifiedSnapshotHasContent(snap)) return null;
 
   const { jobTitle, companyName } = parseJobTitleAndCompany(snap.basic_info ?? "");
   const role = String(snap.job_title ?? "").trim() || jobTitle || String(row?.jobTitleDisplay ?? "").trim() || "";
   const skills = Array.isArray(snap.extracted_skills)
     ? snap.extracted_skills.map((s) => String(s).trim()).filter(Boolean)
     : [];
-
-  console.log("[interviewPrepHelpers] loadJobContextFromSimplifyHistory: loaded →", { role, company: companyName, skillCount: skills.length });
 
   return {
     rawText: "",
@@ -84,29 +57,60 @@ export function loadJobContextFromSimplifyHistory() {
     extractedFromApi: true,
     manualFallback: false,
     simplifiedVerStamp: stamp,
+    simplifiedSnapshot: snap,
   };
 }
 
 /**
- * heuristicStarSort
- *
- * Client-side fallback that assigns each dump card to a STAR zone
- * using keyword matching. Used when the Gemini API is unavailable
- * (liveSimplifyEnabled = false) or the API call fails.
- *
- * Priority order (first match wins):
- *  1. learning  — reflection/takeaway keywords
- *  2. result    — outcome/impact/metric keywords
- *  3. action    — "I did / I built / I led" keywords
- *  4. situation — context/setting keywords
- *  5. action    — default fallback for unmatched cards
- *
- * @param {Array<{ id: string, text: string }>} cards
+ * Build interview prep job context from a saved score row (Simplify flow).
+ * @param {unknown} row
+ * @returns {null | ReturnType<typeof loadJobContextFromSimplifyHistory>}
+ */
+export function jobContextFromSavedScoreRow(row) {
+  if (!row || typeof row !== "object") return null;
+  const snap = row.simplifiedSnapshot;
+  const stamp = row.simplifiedVerStamp ?? null;
+  if (!snap || !simplifiedSnapshotHasContent(snap)) return null;
+  const { jobTitle, companyName } = parseJobTitleAndCompany(snap.basic_info ?? "");
+  const role = String(snap.job_title ?? "").trim() || jobTitle || String(row.jobTitleDisplay ?? "").trim() || "";
+  const skills = Array.isArray(snap.extracted_skills)
+    ? snap.extracted_skills.map((s) => String(s || "").trim()).filter(Boolean)
+    : [];
+  return {
+    rawText: "",
+    role,
+    company: companyName,
+    skills,
+    skillsManual: "",
+    extractedFromApi: true,
+    manualFallback: false,
+    simplifiedVerStamp: stamp,
+    simplifiedSnapshot: snap,
+  };
+}
+
+/**
+ * Build interview prep job context from a cloud session summary row (`/pg/interview-prep/sessions`).
+ * @param {{ simplified_job?: object } | null} row
+ */
+export function jobContextFromInterviewSessionSummary(row) {
+  if (!row || typeof row !== "object") return null;
+  const snap = row.simplified_job;
+  if (!snap || typeof snap !== "object") return null;
+  return jobContextFromSavedScoreRow({
+    simplifiedSnapshot: snap,
+    simplifiedVerStamp: snap._ng_simp_ver ?? null,
+    jobTitleDisplay: "",
+  });
+}
+
+/**
+ * Client-side STAR sort when API is unavailable.
+ * @param {DumpCard[]} cards
  * @returns {{ situation: string[], action: string[], result: string[], learning: string[] }}
  */
 export function heuristicStarSort(cards) {
-  console.log("[interviewPrepHelpers] heuristicStarSort: sorting", cards.length, "cards");
-
+  /** @type {{ situation: string[], action: string[], result: string[], learning: string[] }} */
   const zones = {
     situation: [],
     action: [],
@@ -116,93 +120,49 @@ export function heuristicStarSort(cards) {
 
   for (const c of cards) {
     const t = String(c.text || "").toLowerCase();
-    let assigned;
-
     if (/\b(learned|learning|takeaway|take-away|realised|realized|next time|would do differently|reflect)\b/i.test(t)) {
       zones.learning.push(c.id);
-      assigned = "learning";
     } else if (/\b(result|outcome|impact|metric|achieved|delivered|increased|reduced|saved|won|percent|%)\b/i.test(t)) {
       zones.result.push(c.id);
-      assigned = "result";
     } else if (
       /\b(i did|i built|i led|i owned|i implemented|i fixed|we decided|my role was|i collaborated|i coordinated)\b/i.test(t)
     ) {
       zones.action.push(c.id);
-      assigned = "action";
     } else if (
       /\b(when|context|situation|first|initially|challenge|deadline|pressure|at the time|before)\b/i.test(t)
     ) {
       zones.situation.push(c.id);
-      assigned = "situation";
     } else {
-      // Default: action zone for anything that doesn't match a specific pattern
       zones.action.push(c.id);
-      assigned = "action (default)";
     }
-
-    console.log(`[interviewPrepHelpers] heuristicStarSort: card "${c.id}" → ${assigned} | text: "${c.text}"`);
   }
-
-  console.log("[interviewPrepHelpers] heuristicStarSort: result →", zones);
   return zones;
 }
 
 /**
- * buildAnswerDraftFromStar
- *
- * Assembles a plain-text answer draft from the sorted STAR zones.
- * Called after the sort step to pre-populate the answer textarea
- * in PractiseStage.
- *
- * Zone order: Situation → Action → Result → Learning
- * Cards within each zone are joined with a space (order preserved from sort).
- *
  * @param {{ situation: string[], action: string[], result: string[], learning: string[] }} starZones
- * @param {Array<{ id: string, text: string }>} dumpCards
+ * @param {DumpCard[]} dumpCards
  * @param {string} question
- * @returns {string} Pre-filled answer draft, or "" if no cards are assigned
  */
 export function buildAnswerDraftFromStar(starZones, dumpCards, question) {
-  console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: building draft for question →", question);
-
-  // Build a lookup map from card id → text for quick access
   const byId = Object.fromEntries(dumpCards.map((c) => [c.id, c.text]));
   const parts = [];
-
   const pushZone = (label, keys) => {
     const texts = keys.map((id) => byId[id]).filter(Boolean);
-    if (texts.length === 0) {
-      console.log(`[interviewPrepHelpers] buildAnswerDraftFromStar: zone "${label}" is empty — skipping`);
-      return;
-    }
-    console.log(`[interviewPrepHelpers] buildAnswerDraftFromStar: zone "${label}" →`, texts);
+    if (texts.length === 0) return;
     parts.push(`${label}\n${texts.join(" ")}`);
   };
-
   pushZone("Situation", starZones.situation);
   pushZone("What I did", starZones.action);
   pushZone("Result", starZones.result);
   pushZone("What I learned", starZones.learning);
-
   const body = parts.join("\n\n");
-  if (!body.trim()) {
-    console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: no content — returning empty string");
-    return "";
-  }
-
-  const draft = `For the question "${question}":\n\n${body}`;
-  console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: draft built →", draft);
-  return draft;
+  if (!body.trim()) return "";
+  return `For the question “${question}”:\n\n${body}`;
 }
 
 /**
- * readProfileSkillSet
- *
- * Parses the user's profile skills from a raw JSON string (from localStorage).
- * Returns a lowercase Set used for skill matching in the question selector.
- *
- * @param {string | undefined} raw — raw JSON string from localStorage
- * @returns {Set<string>}
+ * @param {string | undefined} raw
  */
 export function readProfileSkillSet(raw) {
   try {
@@ -217,13 +177,9 @@ export function readProfileSkillSet(raw) {
 }
 
 /**
- * skillMatchesProfile
- *
- * Returns true if a given tag string overlaps with a profile skill (case-insensitive,
- * partial match allowed in either direction).
- *
+ * Case-insensitive overlap between tag and profile skills.
  * @param {string} tag
- * @param {Set<string>} profileLc — lowercase profile skill set from readProfileSkillSet
+ * @param {Set<string>} profileLc
  */
 export function skillMatchesProfile(tag, profileLc) {
   const t = String(tag || "").trim().toLowerCase();
@@ -235,18 +191,91 @@ export function skillMatchesProfile(tag, profileLc) {
   return false;
 }
 
-/**
- * uid
- *
- * Generates a unique ID string for new dump cards.
- * Format: "{prefix}_{random hex}_{timestamp hex}"
- * Example: "d_3f7a2c1_18d4e6f"
- *
- * @param {string} prefix — short prefix to identify the type (e.g. "d" for dump card)
- * @returns {string}
- */
 export function uid(prefix = "c") {
-  const id = `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
-  console.log("[interviewPrepHelpers] uid generated:", id);
-  return id;
+  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+}
+
+/** Stable key for linking interview prep to a simplified posting + role. */
+export function deriveInterviewPrepJobFingerprint(jobContext) {
+  const stamp = jobContext?.simplifiedVerStamp != null ? String(jobContext.simplifiedVerStamp) : "none";
+  const role = String(jobContext?.role || "").trim().toLowerCase().slice(0, 160);
+  const co = String(jobContext?.company || "").trim().toLowerCase().slice(0, 160);
+  return `${stamp}|${role}|${co}`;
+}
+
+export function defaultQuestionBundle() {
+  return {
+    dumpCards: [],
+    starZones: { situation: [], action: [], result: [], learning: [] },
+    answerDraft: "",
+    stage: 1,
+    usedFallbackSort: false,
+    draftUpdatedAt: 0,
+    finalizedAnswer: null,
+    finalizedAt: null,
+  };
+}
+
+/** Normalize bundle field names (camelCase) from server or older saves. */
+export function normalizeQuestionBundle(raw) {
+  const b = raw && typeof raw === "object" ? raw : {};
+  const sz = b.starZones || b.star_zones;
+  const zones =
+    sz && typeof sz === "object"
+      ? {
+          situation: Array.isArray(sz.situation) ? sz.situation : [],
+          action: Array.isArray(sz.action) ? sz.action : [],
+          result: Array.isArray(sz.result) ? sz.result : [],
+          learning: Array.isArray(sz.learning) ? sz.learning : [],
+        }
+      : defaultQuestionBundle().starZones;
+  return {
+    dumpCards: Array.isArray(b.dumpCards) ? b.dumpCards : Array.isArray(b.dump_cards) ? b.dump_cards : [],
+    starZones: zones,
+    answerDraft: String(b.answerDraft ?? b.answer_draft ?? ""),
+    stage: typeof b.stage === "number" && !Number.isNaN(b.stage) ? Math.min(3, Math.max(1, b.stage)) : 1,
+    usedFallbackSort: Boolean(b.usedFallbackSort ?? b.used_fallback_sort),
+    draftUpdatedAt: Number(b.draftUpdatedAt ?? b.draft_updated_at ?? 0) || 0,
+    finalizedAnswer:
+      b.finalizedAnswer != null
+        ? String(b.finalizedAnswer)
+        : b.finalized_answer != null
+          ? String(b.finalized_answer)
+          : null,
+    finalizedAt: Number(b.finalizedAt ?? b.finalized_at ?? 0) || null,
+  };
+}
+
+/**
+ * Merge per-question bundles from server into local; newer draft or finalized wins per field.
+ * @param {Record<string, object>} localBundles
+ * @param {Record<string, object>} serverBundles
+ * @param {string[]} questionOrder
+ */
+export function mergeQuestionBundlesFromServer(localBundles, serverBundles, questionOrder) {
+  const L = localBundles && typeof localBundles === "object" ? { ...localBundles } : {};
+  const S = serverBundles && typeof serverBundles === "object" ? serverBundles : {};
+  for (const q of questionOrder) {
+    const a = normalizeQuestionBundle(L[q]);
+    const b = normalizeQuestionBundle(S[q]);
+    if (!S[q]) continue;
+    if (!L[q]) {
+      L[q] = b;
+      continue;
+    }
+    const base = a.draftUpdatedAt >= b.draftUpdatedAt ? { ...a } : { ...b };
+    const fa = a.finalizedAt || 0;
+    const fb = b.finalizedAt || 0;
+    if (fb > fa) {
+      base.finalizedAnswer = b.finalizedAnswer;
+      base.finalizedAt = b.finalizedAt;
+    } else if (fa > fb) {
+      base.finalizedAnswer = a.finalizedAnswer;
+      base.finalizedAt = a.finalizedAt;
+    } else if (fb && fa && fb === fa) {
+      base.finalizedAnswer = (b.finalizedAnswer || "").length >= (a.finalizedAnswer || "").length ? b.finalizedAnswer : a.finalizedAnswer;
+    }
+    L[q] = normalizeQuestionBundle(base);
+  }
+  return L;
 }

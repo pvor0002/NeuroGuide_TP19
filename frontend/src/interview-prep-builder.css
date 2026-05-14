@@ -122,6 +122,13 @@
   color: var(--ip-muted);
 }
 
+.ip-save-ack {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #15803d;
+}
+
 /* =========================================================================
    Buttons
    ========================================================================= */
@@ -470,9 +477,22 @@
   gap: 0.45rem;
 }
 
+.ip-q-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+.ip-q-row--selected .ip-q-remove {
+  border-color: #b8956a;
+  background: linear-gradient(135deg, #fff8f0 0%, #fff3e4 100%);
+  color: var(--ip-ink);
+}
+
 .ip-q-card {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  width: auto;
   text-align: left;
   padding: 0.8rem 1rem;
   border-radius: var(--ip-radius-sm);
@@ -526,6 +546,76 @@
   padding: 0.1rem 0.45rem;
   line-height: 1.6;
   margin-top: 0.05rem;
+}
+
+.ip-q-remove {
+  flex-shrink: 0;
+  width: 2.35rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border-radius: var(--ip-radius-sm);
+  border: 1.5px solid var(--ip-line);
+  background: #fff;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1;
+  color: #78716c;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+.ip-q-remove:hover {
+  border-color: rgba(143, 111, 94, 0.35);
+  color: #b45309;
+  background: #fffbeb;
+}
+
+/* Add custom question (brain dump step 1) */
+.ip-add-custom-q {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ip-line);
+}
+.ip-add-custom-q__label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ip-ink-muted, #57534e);
+  margin-bottom: 0.45rem;
+}
+.ip-add-custom-q__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.ip-add-custom-q__input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--ip-radius-sm);
+  border: 1.5px solid var(--ip-line);
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--ip-ink);
+  background: #fff;
+}
+.ip-add-custom-q__input:focus {
+  outline: none;
+  border-color: #1a1714;
+  box-shadow: 0 0 0 3px rgba(26, 23, 20, 0.08);
+}
+.ip-add-custom-q__input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.ip-add-custom-q__btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ip-add-custom-q__meta {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
 }
 
 /* =========================================================================

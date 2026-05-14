@@ -20,11 +20,13 @@ export default function MarketingLayout() {
   const isSimplify = location.pathname === "/simplify-job-description";
   const isDayInLife = location.pathname === "/day-in-life";
   const isInterviewPrep = location.pathname === "/interview-prep";
+  const isSavedInsights =
+    location.pathname.startsWith("/saved-insights") || location.pathname.startsWith("/saved-results");
 
   const mainClass = [
     isHome && "main--bleed",
     isSimplify && "main--simplify",
-    (isDayInLife || isInterviewPrep) && "main--bleed",
+    (isDayInLife || isInterviewPrep || isSavedInsights) && "main--bleed",
   ].filter(Boolean).join(" ") || undefined;
 
   return (
