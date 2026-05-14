@@ -1,0 +1,77 @@
+name: Deploy Backend — iteration_2_freeze
+
+on:
+  push:
+    branches:
+      - iteration_2_freeze
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Package & deploy to Lambda (iteration2)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout iteration_2_freeze
+        uses: actions/checkout@v4
+        with:
+          ref: iteration_2_freeze
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            --target ./package \
+            --platform manylinux2014_x86_64 \
+            --implementation cp \
+            --python-version 3.11 \
+            --only-binary=:all: \
+            -r backend/requirements.txt
+
+      - name: Copy app source
+        run: |
+          cp -r backend/app ./package/app
+
+      - name: Create deployment ZIP
+        run: |
+          cd package
+          zip -r ../deployment.zip . -x "*.pyc" -x "__pycache__/*"
+          cd ..
+          echo "ZIP size: $(du -sh deployment.zip | cut -f1)"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload ZIP to S3
+        run: |
+          aws s3 cp deployment.zip \
+            s3://${{ secrets.S3_DEPLOY_BUCKET }}/lambda-deployments/neuroguide-backend-iteration2.zip
+
+      - name: Deploy to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME_ITERATION2 }} \
+            --s3-bucket ${{ secrets.S3_DEPLOY_BUCKET }} \
+            --s3-key lambda-deployments/neuroguide-backend-iteration2.zip \
+            --publish
+
+      - name: Wait for Lambda to finish updating
+        run: |
+          aws lambda wait function-updated \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME_ITERATION2 }}
+
+      - name: Verify deployment
+        run: |
+          aws lambda get-function-configuration \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME_ITERATION2 }} \
+            --query '{State: State, LastStatus: LastUpdateStatus, Runtime: Runtime}' \
+            --output table
