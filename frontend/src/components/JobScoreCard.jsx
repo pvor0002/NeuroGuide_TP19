@@ -923,7 +923,7 @@ export default function JobScoreCard({
             </div>
           </div>
           <div className="jsc-assess-top-actions">
-          <div className="jsc-helpful-box" aria-label="Was it helpful?">
+          {/* <div className="jsc-helpful-box" aria-label="Was it helpful?">
             <span className="jsc-helpful-label">Was it helpful?</span>
             <div className="jsc-helpful-actions" role="group" aria-label="Feedback">
               <button
@@ -945,7 +945,7 @@ export default function JobScoreCard({
                 <span className="jsc-helpful-emoji" aria-hidden="true">👎</span>
               </button>
             </div>
-            </div>
+            </div> */}
           </div>
         </div>
 
