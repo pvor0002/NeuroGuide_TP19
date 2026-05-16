@@ -867,17 +867,12 @@ export default function ProfileWizardPage() {
   // quiz step - it sits entirely outside buildSteps so it doesn't count toward
   // any block's progress. Skipped automatically when we already have a
   // profileId (either loaded from a previous session or just synced).
-  const [loginGateDismissed, setLoginGateDismissed] = useState(false);
-  const showLoginGate = !shouldSyncToCloud() && !loginGateDismissed;
-
-  useEffect(() => {
-    if (!shouldSyncToCloud()) {
-      setLoginGateDismissed(false);
-    }
-  }, [location.pathname]);
+  const [loginGateDismissedPath, setLoginGateDismissedPath] = useState(null);
+  const showLoginGate =
+    !shouldSyncToCloud() && loginGateDismissedPath !== location.pathname;
 
   const dismissLoginGate = () => {
-    setLoginGateDismissed(true);
+    setLoginGateDismissedPath(location.pathname);
   };
 
   useEffect(() => {

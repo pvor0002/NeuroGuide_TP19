@@ -1483,18 +1483,13 @@ export default function SimplifyJobDescriptionPage() {
   const [fileDropActive, setFileDropActive] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
   const location = useLocation();
-  const [loginGateDismissed, setLoginGateDismissed] = useState(false);
-  const showLoginGate = !shouldSyncToCloud() && !loginGateDismissed;
-
-  useEffect(() => {
-    if (!shouldSyncToCloud()) {
-      setLoginGateDismissed(false);
-    }
-  }, [location.pathname]);
+  const [loginGateDismissedPath, setLoginGateDismissedPath] = useState(null);
+  const showLoginGate =
+    !shouldSyncToCloud() && loginGateDismissedPath !== location.pathname;
 
   const dismissLoginGate = useCallback(() => {
-    setLoginGateDismissed(true);
-  }, []);
+    setLoginGateDismissedPath(location.pathname);
+  }, [location.pathname]);
 
   const loadSessionByPassKey = useCallback(
     async (rawOrFormattedId) => {
