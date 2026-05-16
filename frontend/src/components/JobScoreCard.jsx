@@ -775,7 +775,6 @@ export default function JobScoreCard({
   hidePostScoreActions = false,
 }) {
   const navigate = useNavigate();
-  const [helpfulVote, setHelpfulVote] = useState(null);
   const [bdOpen, setBdOpen] = useState({ adhd: false, experience: false, technical: true, soft: false });
   const assessmentConfidenceTipId = useId();
   const [showAssessmentConfidenceTip, setShowAssessmentConfidenceTip] = useState(false);
