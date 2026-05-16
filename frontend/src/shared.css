@@ -969,7 +969,7 @@ body {
   font-size: 1rem;
   font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
   letter-spacing: 0.14em;
-  text-transform: uppercase;
+  text-transform: none;
   color: #2d2926;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -987,30 +987,6 @@ body {
 
 .userid-box-submit {
   flex-shrink: 0;
-}
-
-.userid-box-cancel {
-  flex-shrink: 0;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: #5a544f;
-  font-size: 0.86rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 160ms ease, color 160ms ease;
-}
-
-.userid-box-cancel:hover {
-  background: rgba(45, 41, 38, 0.06);
-  color: #2d2926;
-}
-
-.userid-box-cancel:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .userid-box-error,
@@ -1044,8 +1020,7 @@ body {
     flex-direction: column;
   }
 
-  .userid-box-submit,
-  .userid-box-cancel {
+  .userid-box-submit {
     width: 100%;
   }
 }
@@ -1061,6 +1036,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.settings-page .settings-faq {
+  background: transparent;
 }
 
 

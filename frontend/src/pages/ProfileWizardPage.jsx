@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import SiteAppHeader from "../components/SiteAppHeader.jsx";
 import QuizScene from "../components/QuizScene.jsx";
-import UserIdEntryBox from "../components/UserIdEntryBox.jsx";
+import LoginGateScreen from "../components/LoginGateScreen.jsx";
 import WarmHeroPaperShapes from "../components/WarmHeroPaperShapes.jsx";
 import {
   createProfile,
@@ -21,6 +21,7 @@ import {
   loginWithPassKeyAndApply,
   readCredentials,
   registerCloudAccountFromLocalState,
+  shouldFallbackToLegacyProfileLookup,
   shouldSyncToCloud,
   syncFullCloudFromLocalState,
 } from "../utils/cloudSync.js";
@@ -834,7 +835,7 @@ function validateStep(step, answers) {
 }
 
 export default function ProfileWizardPage() {
-  useLocation(); // keep router context subscribed
+  const location = useLocation();
   const navigate = useNavigate();
   const [roleTags, setRoleTags] = useState([]);
   const [skillTags, setSkillTags] = useState([]);
@@ -866,25 +867,17 @@ export default function ProfileWizardPage() {
   // quiz step - it sits entirely outside buildSteps so it doesn't count toward
   // any block's progress. Skipped automatically when we already have a
   // profileId (either loaded from a previous session or just synced).
-  const GATE_SESSION_KEY = "neuroguide.careerProfile.loginGateDismissed";
-  const [showLoginGate, setShowLoginGate] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      if (window.sessionStorage.getItem(GATE_SESSION_KEY) === "1") return false;
-    } catch {
-      /* sessionStorage unavailable - still show the gate */
+  const [loginGateDismissed, setLoginGateDismissed] = useState(false);
+  const showLoginGate = !shouldSyncToCloud() && !loginGateDismissed;
+
+  useEffect(() => {
+    if (!shouldSyncToCloud()) {
+      setLoginGateDismissed(false);
     }
-    try {
-      if (shouldSyncToCloud()) return false;
-    } catch {
-      /* ignore */
-    }
-    return true;
-  });
+  }, [location.pathname]);
 
   const dismissLoginGate = () => {
-    try { window.sessionStorage.setItem(GATE_SESSION_KEY, "1"); } catch { /* ignore */ }
-    setShowLoginGate(false);
+    setLoginGateDismissed(true);
   };
 
   useEffect(() => {
@@ -1457,10 +1450,8 @@ export default function ProfileWizardPage() {
         dismissLoginGate();
         return { id: "cloud" };
       } catch (cloudErr) {
-        const msg = String(cloudErr?.message || "").toLowerCase();
-        const notFound = msg.includes("not recognised") || msg.includes("404") || /\bnot found\b/.test(msg);
-        if (!notFound) throw cloudErr;
-        /* fall through to anonymous Profile ID lookup */
+        if (!shouldFallbackToLegacyProfileLookup(cloudErr)) throw cloudErr;
+        /* fall through to anonymous Profile ID lookup when session API is unavailable */
       }
     }
 
@@ -2457,43 +2448,14 @@ export default function ProfileWizardPage() {
       />
       <SiteAppHeader />
 
-      {showLoginGate && !state.profileId && !shouldSyncToCloud() ? (
-        <main className="login-gate" aria-labelledby="login-gate-title">
-          <section className="login-gate-card" role="region">
-            <p className="login-gate-eyebrow">Welcome back</p>
-            <h1 id="login-gate-title" className="login-gate-title">Already have your pass key?</h1>
-            <p className="login-gate-sub">
-              Enter the 8-character pass key we gave you when you accepted data storage, or your
-              legacy Profile ID (same length). We&apos;ll load your saved answers and tool state.
-            </p>
-
-            <UserIdEntryBox
-              onSubmit={loadProfileById}
-              defaultOpen
-              showToggle={false}
-              title="Pass key or Profile ID"
-              description="8 letters or numbers — capitals don&apos;t matter for legacy IDs."
-            />
-
-            <div className="login-gate-divider" role="separator" aria-label="or">
-              <span>or</span>
-            </div>
-
-            <button
-              type="button"
-              className="button primary login-gate-new"
-              onClick={() => setShowConsentModal(true)}
-            >
-              Start a new profile
-              <span aria-hidden="true">→</span>
-            </button>
-
-            <p className="login-gate-foot">
-              You can save a new profile at the end of the quiz - we&apos;ll give you
-              a User ID to remember it by.
-            </p>
-          </section>
-        </main>
+      {showLoginGate ? (
+        <LoginGateScreen
+          titleId="login-gate-title"
+          onPassKeySubmit={loadProfileById}
+          secondaryLabel="Start a new profile"
+          onSecondaryClick={() => setShowConsentModal(true)}
+          footnote="Finish the quiz to get a pass key. We'll show it at the end."
+        />
       ) : (
         <main className="q-screen" aria-live="polite">
           {currentStep?.kind !== "profile-ready" ? (

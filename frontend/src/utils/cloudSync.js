@@ -99,10 +99,16 @@ export async function pullCloudSessionSnapshot() {
 export function isCloudSessionUnreachableError(err) {
   const msg = String(err?.message || "").toLowerCase();
   if (!msg) return false;
+  if (msg.includes("pass key not recognised")) return false;
   if (msg.includes("could not reach the session")) return true;
   if (msg.includes("session api") && (msg.includes("404") || msg.includes("not found"))) return true;
   if (msg.includes("request failed (404)")) return true;
   return false;
+}
+
+/** True when cloud login failed because the route is missing, not because the pass key is wrong. */
+export function shouldFallbackToLegacyProfileLookup(err) {
+  return isCloudSessionUnreachableError(err);
 }
 
 export function buildCareerWizardBlob() {

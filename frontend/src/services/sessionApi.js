@@ -47,15 +47,22 @@ function isLikelyNetworkOrCorsError(err) {
 
 function failMessage(res, body) {
   const d = detailToMessage(body?.detail);
+  if (res.status === 404 && d) {
+    if (/pass key not recognised/i.test(d)) {
+      return "Pass key not recognised. Check for typos, or start a new profile to get a new key.";
+    }
+    return d;
+  }
   if (res.status === 404) {
     return (
       "Could not reach the session API (404). Use a full base URL ending in /api/v1, " +
-      "redeploy the frontend after changing .env, and deploy the backend that includes /pg/session/*. " +
-      'You can still use "Continue without cloud backup" below. ' +
-      (d ? `(${d})` : "")
+      "redeploy the frontend after changing .env, and deploy the backend that includes /pg/session/*."
     ).trim();
   }
   if (d) return d;
+  if (res.status >= 500) {
+    return d || "The server had a problem signing you in. Try again in a moment.";
+  }
   return `Request failed (${res.status})`;
 }
 

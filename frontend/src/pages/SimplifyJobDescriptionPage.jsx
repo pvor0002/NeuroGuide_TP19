@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
+import LoginGateScreen from "../components/LoginGateScreen.jsx";
 import { SimplifyLineIcon } from "../components/SimplifyLineIcons.jsx";
 import WarmHeroPaperShapes from "../components/WarmHeroPaperShapes.jsx";
 import JobScoreCard from "../components/JobScoreCard.jsx";
@@ -26,7 +27,13 @@ import {
   removeJobScoreHistoryEntry,
   writePersistedJobScore,
 } from "../utils/jobScorePersistence.js";
-import { registerCloudAccountFromLocalState } from "../utils/cloudSync.js";
+import { fetchProfile, normalizeProfileId } from "../services/profileApi.js";
+import {
+  loginWithPassKeyAndApply,
+  registerCloudAccountFromLocalState,
+  shouldFallbackToLegacyProfileLookup,
+  shouldSyncToCloud,
+} from "../utils/cloudSync.js";
 import { isCloudSessionApiAvailable } from "../services/sessionApi.js";
 import jobMatchConversationUrl from "../../../data/images/job-match-conversation.png";
 
@@ -1474,6 +1481,64 @@ export default function SimplifyJobDescriptionPage() {
   const composerMetaId = useId();
   const [scrollToOutputOnResult, setScrollToOutputOnResult] = useState(false);
   const [fileDropActive, setFileDropActive] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const location = useLocation();
+  const [loginGateDismissed, setLoginGateDismissed] = useState(false);
+  const showLoginGate = !shouldSyncToCloud() && !loginGateDismissed;
+
+  useEffect(() => {
+    if (!shouldSyncToCloud()) {
+      setLoginGateDismissed(false);
+    }
+  }, [location.pathname]);
+
+  const dismissLoginGate = useCallback(() => {
+    setLoginGateDismissed(true);
+  }, []);
+
+  const loadSessionByPassKey = useCallback(
+    async (rawOrFormattedId) => {
+      const trimmed = String(rawOrFormattedId || "").trim();
+      if (!trimmed) {
+        throw new Error("Enter your pass key or Profile ID to continue.");
+      }
+
+      if (isCloudSessionApiAvailable()) {
+        try {
+          await loginWithPassKeyAndApply(trimmed);
+          dismissLoginGate();
+          return;
+        } catch (cloudErr) {
+          if (!shouldFallbackToLegacyProfileLookup(cloudErr)) throw cloudErr;
+        }
+      }
+
+      const normalized = normalizeProfileId(rawOrFormattedId);
+      if (normalized.length !== 8) {
+        throw new Error("Enter an 8-character pass key or Profile ID.");
+      }
+      const result = await fetchProfile(normalized);
+      try {
+        const raw = window.localStorage.getItem(CAREER_PROFILE_STORAGE_KEY);
+        const prev = raw ? JSON.parse(raw) : {};
+        window.localStorage.setItem(
+          CAREER_PROFILE_STORAGE_KEY,
+          JSON.stringify({
+            ...prev,
+            profileId: result.id,
+            completed: true,
+            answers: { ...(prev.answers || {}), ...(result.profile || {}) },
+            syncedAt: result.updated_at || result.created_at || new Date().toISOString(),
+          }),
+        );
+        window.dispatchEvent(new CustomEvent("ng-cloud-session-applied"));
+      } catch {
+        /* localStorage unavailable */
+      }
+      dismissLoginGate();
+    },
+    [dismissLoginGate],
+  );
 
   // Job score state
   const [jobScoreResult, setJobScoreResult] = useState(null);
@@ -1486,6 +1551,12 @@ export default function SimplifyJobDescriptionPage() {
   const [softSkillOverrides, setSoftSkillOverrides] = useState({});
   /** Bumped when career profile work-env prefs are saved so questionnaireBaseline refreshes. */
   const [careerProfileFitRevision, setCareerProfileFitRevision] = useState(0);
+
+  useEffect(() => {
+    const onCloudApplied = () => setCareerProfileFitRevision((n) => n + 1);
+    window.addEventListener("ng-cloud-session-applied", onCloudApplied);
+    return () => window.removeEventListener("ng-cloud-session-applied", onCloudApplied);
+  }, []);
 
   const outputVisible = hasRenderableSimplifiedOutput(simplifiedResult);
 
@@ -1740,9 +1811,41 @@ export default function SimplifyJobDescriptionPage() {
     }
   }, [inputMode]);
 
+  if (showLoginGate) {
+    return (
+      <>
+        <DataConsentModal
+          autoShow={false}
+          open={showConsentModal}
+          onClose={() => setShowConsentModal(false)}
+          onComplete={() => {
+            setShowConsentModal(false);
+            dismissLoginGate();
+          }}
+          onBeforeContinue={
+            isCloudSessionApiAvailable()
+              ? async () => {
+                  await registerCloudAccountFromLocalState();
+                }
+              : undefined
+          }
+        />
+        <LoginGateScreen
+          titleId="simplify-login-gate-title"
+          mainClassName="login-gate--simplify"
+          onPassKeySubmit={loadSessionByPassKey}
+          secondaryLabel="Continue without a pass key"
+          onSecondaryClick={() => setShowConsentModal(true)}
+          footnote="New here? A short data notice comes first. Then you can simplify a posting."
+        />
+      </>
+    );
+  }
+
   return (
     <div className="simplify-page">
       <DataConsentModal
+        autoShow={false}
         onBeforeContinue={
           isCloudSessionApiAvailable()
             ? async () => {
