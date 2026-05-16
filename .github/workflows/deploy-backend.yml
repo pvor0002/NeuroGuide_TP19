@@ -8,8 +8,8 @@ on:
 
 env:
   AWS_REGION: ap-southeast-2
-  S3_BUCKET: neuroguide-deployments-tp19
   LAMBDA_FUNCTION: neuroguide-api
+  ECR_REPOSITORY: neuroguide-api
 
 jobs:
   test:
@@ -34,9 +34,6 @@ jobs:
     name: Deploy to Lambda
     runs-on: ubuntu-latest
     needs: test
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - name: Configure AWS credentials
@@ -45,59 +42,45 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Build deployment package and ML layers
-        run: bash scripts/build_lambda_package.sh
-      - name: Upload artifacts to S3
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Ensure ECR repository exists
         run: |
-          aws s3 cp lambda_package.zip \
-            "s3://$S3_BUCKET/lambda_package.zip" \
+          aws ecr describe-repositories \
+            --repository-names "$ECR_REPOSITORY" \
+            --region "$AWS_REGION" 2>/dev/null || \
+          aws ecr create-repository \
+            --repository-name "$ECR_REPOSITORY" \
             --region "$AWS_REGION"
-          aws s3 cp lambda_layer_scipy.zip \
-            "s3://$S3_BUCKET/lambda_layer_scipy.zip" \
-            --region "$AWS_REGION"
-          aws s3 cp lambda_layer_ml.zip \
-            "s3://$S3_BUCKET/lambda_layer_ml.zip" \
-            --region "$AWS_REGION"
-      - name: Publish ML Lambda layers
-        id: layers
+      - name: Build and push container image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: backend
         run: |
-          SCIPY_ARN=$(aws lambda publish-layer-version \
-            --layer-name neuroguide-ml-scipy \
-            --description "scipy for neuroguide-api" \
-            --content "S3Bucket=$S3_BUCKET,S3Key=lambda_layer_scipy.zip" \
-            --compatible-runtimes python3.11 \
-            --region "$AWS_REGION" \
-            --query LayerVersionArn --output text)
-          ML_ARN=$(aws lambda publish-layer-version \
-            --layer-name neuroguide-ml-stack \
-            --description "numpy pandas sklearn for neuroguide-api" \
-            --content "S3Bucket=$S3_BUCKET,S3Key=lambda_layer_ml.zip" \
-            --compatible-runtimes python3.11 \
-            --region "$AWS_REGION" \
-            --query LayerVersionArn --output text)
-          echo "scipy_arn=$SCIPY_ARN" >> "$GITHUB_OUTPUT"
-          echo "ml_arn=$ML_ARN" >> "$GITHUB_OUTPUT"
-          echo "Published layers: $SCIPY_ARN $ML_ARN"
-      - name: Attach ML layers (before code so imports resolve on cold start)
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+      - name: Verify Lambda uses container package type
         run: |
-          aws lambda update-function-configuration \
+          PKG=$(aws lambda get-function-configuration \
             --function-name "$LAMBDA_FUNCTION" \
-            --layers "${{ steps.layers.outputs.scipy_arn }}" "${{ steps.layers.outputs.ml_arn }}" \
-            --region "$AWS_REGION"
-          aws lambda wait function-updated \
-            --function-name "$LAMBDA_FUNCTION" \
-            --region "$AWS_REGION"
-      - name: Deploy function code from S3
+            --region "$AWS_REGION" \
+            --query PackageType --output text)
+          echo "PackageType=$PKG"
+          if [ "$PKG" != "Image" ]; then
+            echo "::error::neuroguide-api is PackageType=$PKG. Container deploy requires Image. See backend/DEPLOY_LAMBDA.md"
+            exit 1
+          fi
+      - name: Deploy image to Lambda
         run: |
           aws lambda update-function-code \
             --function-name "$LAMBDA_FUNCTION" \
-            --s3-bucket "$S3_BUCKET" \
-            --s3-key lambda_package.zip \
+            --image-uri "$IMAGE_URI" \
             --region "$AWS_REGION"
           aws lambda wait function-updated \
             --function-name "$LAMBDA_FUNCTION" \
             --region "$AWS_REGION"
-          echo "Deployed successfully"
+          echo "Deployed $IMAGE_URI"
