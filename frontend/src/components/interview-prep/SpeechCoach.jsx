@@ -91,6 +91,14 @@ export default function SpeechCoach({ question, answerDraft, onBumpReadiness }) 
       // onend always fires AFTER the last onresult, so finalRef.current is
       // fully populated by the time we advance the phase.
       setInterim("");
+      const captured = finalRef.current.trim();
+      if (!captured) {
+        setErrorMsg(
+          "No speech was captured. Check that your microphone is allowed in the browser, then try again.",
+        );
+        setPhase("error");
+        return;
+      }
       setPhase("recording_ended");
     };
 
@@ -122,14 +130,7 @@ export default function SpeechCoach({ question, answerDraft, onBumpReadiness }) 
     const text = finalRef.current.trim();
     const q = question;
     const draft = answerDraft || "";
-
-    if (!text) {
-      setErrorMsg(
-        "No speech was captured. Check that your microphone is allowed in the browser, then try again."
-      );
-      setPhase("error");
-      return;
-    }
+    if (!text) return;
 
     // Mark as submitted before any state updates to block re-entry
     submittedRef.current = true;
