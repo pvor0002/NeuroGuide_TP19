@@ -164,43 +164,6 @@ def find_occupation_by_name(occupation_name: str) -> Optional[Dict]:
         logger.error(f"[JobScore] DB error finding occupation by name: {e}")
         raise
 # ============================================================================
-# SAVE RECOMMENDATION
-# ============================================================================
-def save_recommendation(session_id: str, occupation_id: int, result: Dict) -> None:
-    """Save job score result to job_recommendations table."""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO job_recommendations (
-                session_id, occupation_id, match_score, match_confidence,
-                factors, match_reasoning, recommendation_text,
-                key_strengths, key_challenges, suggested_accommodations,
-                model_version
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            session_id,
-            occupation_id,
-            result['score'],
-            result['match_confidence'],
-            json.dumps(result['factor_breakdown']),
-            result['reasoning'],
-            result['recommendation'],
-            result['key_strengths'],
-            result['key_challenges'],
-            result['suggested_accommodations'],
-            'v3-hybrid'
-        ))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        logger.info(f"[JobScore] Saved recommendation for session {session_id}")
-    except Exception as e:
-        logger.error(f"[JobScore] Failed to save recommendation: {e}")
-        # Don't raise — saving is optional, don't fail the whole request
-
-
-# ============================================================================
 # MAIN SCORING FUNCTION
 # ============================================================================
 def _merged_job_fit_payload(occupation: dict, job_fit_features_from_gemini: Optional[dict]) -> dict:
@@ -226,13 +189,12 @@ def _structured_work_environment_detail(fit_payload: dict) -> Optional[dict]:
 def calculate_job_score(
     user_questionnaire: Dict,
     occupation_id: int,
-    session_id: Optional[str] = None,
     job_skills_from_gemini: Optional[list] = None,
     job_fit_features_from_gemini: Optional[Dict] = None,
     user_soft_skills_overrides: Optional[Dict[str, str]] = None,
 ) -> Dict:
     """
-    Main function: fetch occupation, run model, save result, return response.
+    Main function: fetch occupation, run model, return response.
 
     If job_skills_from_gemini is provided, it overrides the implied_skills
     from the database — giving the model real skills from the actual job posting
@@ -319,9 +281,5 @@ def calculate_job_score(
             "user_years": None,
             "score_adjustment_applied": 0.0,
         }
-
-    # 5. Save to RDS (optional — don't fail if this errors)
-    if session_id:
-        save_recommendation(session_id, occupation_id, result)
 
     return result

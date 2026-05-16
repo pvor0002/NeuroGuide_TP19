@@ -405,6 +405,13 @@ body {
 
 .site-nav-dropdown {
   position: relative;
+  /* Shrink-wrap the trigger so the panel’s `left: 0` aligns under the label, not the flex row’s left edge */
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: min(15rem, calc(100vw - 2rem));
 }
 
 .site-nav-dropdown-trigger {
@@ -448,10 +455,13 @@ body {
 .site-nav-dropdown-panel {
   position: absolute;
   top: calc(100% + 0.35rem);
-  left: 0;
+  left: 0.45rem;
   right: auto;
-  min-width: 13.75rem;
-  padding: 0.35rem 0;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(12.25rem, calc(100vw - 2.5rem));
+  min-width: 0;
+  padding: 0.4rem 0.4rem;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 0.5rem;
@@ -469,14 +479,19 @@ body {
 .site-nav-dropdown-item {
   display: block;
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
   text-align: left;
-  padding: 0.5rem 0.95rem;
+  padding: 0.5rem 0.65rem 0.5rem 0.85rem;
   text-decoration: none;
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
+  line-height: 1.3;
   color: #1f1d1b;
   border-bottom: none;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
   transition: background 0.12s ease, color 0.12s ease;
 }
 
@@ -616,7 +631,8 @@ body {
 
   .site-nav-dropdown-panel {
     position: static;
-    margin: 0.2rem 0 0.35rem;
+    margin: 0.2rem 0 0.35rem 0.35rem;
+    padding: 0.4rem 0.5rem;
     min-width: 0;
     box-shadow: none;
     border: 1px solid rgba(82, 70, 55, 0.12);
@@ -625,7 +641,7 @@ body {
   }
 
   .site-nav-dropdown-item {
-    padding: 0.45rem 0.75rem;
+    padding: 0.5rem 0.85rem 0.5rem 1rem;
     font-size: 0.9rem;
   }
 

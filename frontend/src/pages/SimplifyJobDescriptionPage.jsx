@@ -1532,7 +1532,6 @@ export default function SimplifyJobDescriptionPage() {
           userQuestionnaire,
           occupationId,
           extractedSkills.length > 0 ? extractedSkills : null,
-          null,
           fitFeatures && typeof fitFeatures === "object" ? fitFeatures : null,
           Object.keys(softSkillOverrides || {}).length ? softSkillOverrides : null,
         );

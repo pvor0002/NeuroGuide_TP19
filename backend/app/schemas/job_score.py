@@ -79,12 +79,6 @@ class JobScoreRequest(BaseModel):
             "Values: low|medium|high."
         ),
     )
-    session_id: Optional[str] = Field(
-        default=None,
-        description="Anonymous session ID for saving results"
-    )
-
-
 class FactorDetail(BaseModel):
     adjustment: float
     reasoning: str
