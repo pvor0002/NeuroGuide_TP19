@@ -93,8 +93,7 @@ async def predict_job_score(request: JobScoreRequest):
     1. Validate incoming user questionnaire + occupation_id
     2. Fetch occupation data from RDS
     3. Run JobScoreModelV2 (hybrid RandomForest on ADHD dataset + 7 rule factors)
-    4. Save result to job_recommendations table
-    5. Return score, recommendation, factor breakdown
+    4. Return score, recommendation, factor breakdown
     """
 
     # Validate ADHD profile type
@@ -122,7 +121,6 @@ async def predict_job_score(request: JobScoreRequest):
         result = calculate_job_score(
             user_questionnaire=user_questionnaire,
             occupation_id=request.occupation_id,
-            session_id=request.session_id,
             job_skills_from_gemini=request.job_skills_from_gemini,
             job_fit_features_from_gemini=fit_payload,
             user_soft_skills_overrides=request.user_soft_skills_overrides,

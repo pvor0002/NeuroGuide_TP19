@@ -102,7 +102,6 @@ export async function predictJobScore(
   userQuestionnaire,
   occupationId,
   jobSkills,
-  sessionId,
   jobFitFeaturesFromGemini = null,
   userSoftSkillsOverrides = null,
 ) {
@@ -115,7 +114,6 @@ export async function predictJobScore(
       job_skills_from_gemini: jobSkills,
       job_fit_features_from_gemini: jobFitFeaturesFromGemini ?? null,
       user_soft_skills_overrides: userSoftSkillsOverrides ?? null,
-      session_id: sessionId ?? null,
     }),
   });
 
