@@ -1,0 +1,13 @@
+# Production Lambda function package (keep unzipped total under ~200MB).
+# Heavy ML wheels live in Lambda layers — see requirements-lambda-layer*.txt
+fastapi
+python-multipart
+pydantic-settings
+httpx
+google-genai
+pypdf
+python-docx
+psycopg2-binary
+mangum
+boto3
+rapidfuzz>=3.6
