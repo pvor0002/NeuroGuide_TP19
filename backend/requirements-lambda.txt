@@ -1,5 +1,5 @@
-# Production Lambda function package (keep unzipped total under ~200MB).
-# Heavy ML wheels live in Lambda layers — see requirements-lambda-layer*.txt
+# Legacy note: zip-only deploy cannot fit the ML stack (250MB combined limit).
+# Production uses requirements.prod.txt + Dockerfile (container image on ECR).
 fastapi
 python-multipart
 pydantic-settings
