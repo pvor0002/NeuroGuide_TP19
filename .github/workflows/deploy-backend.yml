@@ -60,7 +60,7 @@ jobs:
         working-directory: backend
         run: |
           IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
-          docker build -t "$IMAGE_URI" .
+          docker build --progress=plain -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
           echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
       - name: Verify Lambda uses container package type

@@ -1,0 +1,6 @@
+# ML stack — install with --only-binary in Dockerfile (no compiler in Lambda image).
+numpy>=1.24,<2.3
+scipy>=1.11
+pandas>=2.0,<3.0
+scikit-learn>=1.3,<1.8
+joblib>=1.3
