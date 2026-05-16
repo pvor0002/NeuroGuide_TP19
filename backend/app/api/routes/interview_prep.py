@@ -8,6 +8,8 @@ from app.schemas.interview_prep import (
     ReshapeResponse,
     SpeechCoachRequest,
     SpeechCoachResponse,
+    SplitBrainDumpRequest,
+    SplitBrainDumpResponse,
     StarCoverage,
     StarSortRequest,
     StarSortResponse,
@@ -15,7 +17,10 @@ from app.schemas.interview_prep import (
 from app.services.gemini_interview_prep import (
     coach_spoken_answer_with_gemini,
     reshape_answer_with_gemini,
+    split_card_text_with_gemini,
     star_sort_cards_with_gemini,
+    heuristic_split_card_text,
+    should_split_card_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,7 +36,9 @@ def star_sort_endpoint(
 ) -> StarSortResponse:
     cards_payload = [{"id": c.id.strip(), "text": c.text.strip()} for c in body.cards]
     try:
-        zones = star_sort_cards_with_gemini(body.question.strip(), cards_payload, settings)
+        zones, expanded_cards = star_sort_cards_with_gemini(
+            body.question.strip(), cards_payload, settings
+        )
     except HTTPException:
         raise
     except Exception as exc:
@@ -40,10 +47,30 @@ def star_sort_endpoint(
 
     return StarSortResponse(
         situation=zones["situation"],
+        task=zones["task"],
         action=zones["action"],
         result=zones["result"],
-        learning=zones["learning"],
+        cards=[{"id": c["id"], "text": c["text"]} for c in expanded_cards],
     )
+
+
+@router.post("/split-brain-dump", response_model=SplitBrainDumpResponse)
+@router.post("/split-brain-dump/", response_model=SplitBrainDumpResponse)
+def split_brain_dump_endpoint(
+    body: SplitBrainDumpRequest,
+    settings: Settings = Depends(get_settings),
+) -> SplitBrainDumpResponse:
+    text = body.text.strip()
+    if not should_split_card_text(text):
+        return SplitBrainDumpResponse(points=[text])
+    try:
+        points = split_card_text_with_gemini(text, body.question.strip(), settings)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[interview-prep/split-brain-dump] unexpected: %s", exc)
+        points = heuristic_split_card_text(text)
+    return SplitBrainDumpResponse(points=points or [text])
 
 
 @router.post("/reshape-answer", response_model=ReshapeResponse)

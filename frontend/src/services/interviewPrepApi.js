@@ -41,6 +41,26 @@ function apiFailureMessage(res, err) {
  * @param {string} question
  * @param {{ id: string, text: string }[]} cards
  */
+/**
+ * @param {string} question
+ * @param {string} text
+ * @returns {Promise<string[]>}
+ */
+export async function splitBrainDumpText(question, text) {
+  const res = await fetch(`${API_BASE}/interview-prep/split-brain-dump`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question: question || "", text }),
+  });
+  if (!res.ok) {
+    const err = await readJsonOrText(res);
+    throw new Error(apiFailureMessage(res, err) || `Split failed (${res.status}).`);
+  }
+  const data = await readJsonOrText(res);
+  const points = Array.isArray(data?.points) ? data.points.map((p) => String(p).trim()).filter(Boolean) : [];
+  return points.length ? points : [String(text).trim()];
+}
+
 export async function starSortInterview(question, cards) {
   const res = await fetch(`${API_BASE}/interview-prep/star-sort`, {
     method: "POST",

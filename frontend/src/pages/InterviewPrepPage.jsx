@@ -4,7 +4,6 @@ import StageTabs from "../components/interview-prep/StageTabs.jsx";
 import BrainDumpStage from "../components/interview-prep/BrainDumpStage.jsx";
 import OrganiseStage from "../components/interview-prep/OrganiseStage.jsx";
 import PractiseStage from "../components/interview-prep/PractiseStage.jsx";
-import SavedAnswerReview from "../components/interview-prep/SavedAnswerReview.jsx";
 import JobExperienceHub from "../components/experience-hub/JobExperienceHub.jsx";
 import { liveSimplifyEnabled, starSortInterview } from "../services/interviewPrepApi.js";
 import { fetchInterviewPrepProgress, putInterviewPrepProgress } from "../services/interviewPrepProgressApi.js";
@@ -13,6 +12,7 @@ import {
   buildAnswerDraftFromStar,
   defaultQuestionBundle,
   deriveInterviewPrepJobFingerprint,
+  expandLongDumpCardsHeuristic,
   heuristicStarSort,
   loadJobContextFromSimplifyHistory,
   mergeQuestionBundlesFromServer,
@@ -91,8 +91,44 @@ function finalizedTextForQuestion(normBundle, savedAnswersList, questionTrimmed)
   return String(row?.answer || "").trim();
 }
 
+/** Saved answer text from bundle and/or saved-answers list. */
+function resolveAnswerTextForQuestion(normBundle, savedAnswersList, questionTrimmed) {
+  const fromFinalized = finalizedTextForQuestion(normBundle, savedAnswersList, questionTrimmed);
+  if (fromFinalized) return fromFinalized;
+  return String(normBundle?.answerDraft || "").trim();
+}
+
+function questionHasSavedWork(normBundle, savedAnswersList, questionTrimmed) {
+  if (resolveAnswerTextForQuestion(normBundle, savedAnswersList, questionTrimmed)) return true;
+  const nb = normalizeQuestionBundle(normBundle);
+  return nb.dumpCards.length > 0 || zonesHaveCards(nb.starZones);
+}
+
+function computeAnsweredQuestionsMap(bundles, savedList) {
+  const out = {};
+  for (const [qk, b] of Object.entries(bundles || {})) {
+    const nb = normalizeQuestionBundle(b);
+    if (nb.dumpCards.length > 0 || nb.answerDraft || nb.finalizedAnswer) out[qk] = true;
+  }
+  for (const row of savedList || []) {
+    const k = String(row?.question || "").trim();
+    if (k && String(row?.answer || "").trim()) out[k] = true;
+  }
+  return out;
+}
+
+/**
+ * When switching questions in the sidebar, keep the user on their current step
+ * (Brain dump / Organise / Practise) so one saved question does not yank them to Practise.
+ */
+function stageWhenSelectingQuestion(currentStage, wb, hasSavedAnswer) {
+  if (!hasSavedAnswer) return wb.stage;
+  if (currentStage >= 1 && currentStage <= 3) return currentStage;
+  return wb.stage >= 3 ? 3 : wb.stage;
+}
+
 function emptyZones() {
-  return { situation: [], action: [], result: [], learning: [] };
+  return { situation: [], task: [], action: [], result: [] };
 }
 
 function safeParse(raw) {
@@ -142,14 +178,23 @@ function zonesHaveCards(z) {
   return Object.values(z || {}).some((arr) => Array.isArray(arr) && arr.length > 0);
 }
 
-/** Text shown on Brain dump when revisiting a question with a Practise / saved answer. */
-function formulatedSpeechText(q, bundleNorm, savedList) {
-  const n = normalizeQuestionBundle(bundleNorm || null);
-  const fromBundle = String(n.finalizedAnswer || n.answerDraft || "").trim();
+/** User reached Practise (Build my answer) or explicitly saved — show formulated-answer gate on Brain dump. */
+function hasFormulatedSpeechForQuestion(normBundle, savedList, questionTrimmed, liveAnswerDraft) {
+  const qt = String(questionTrimmed || "").trim();
+  if (finalizedTextForQuestion(normBundle, savedList, qt)) return true;
+  const nb = normalizeQuestionBundle(normBundle || null);
+  return Boolean(String(liveAnswerDraft ?? nb.answerDraft ?? "").trim());
+}
+
+/** Text for the Brain dump revisit gate (saved / finalised / Practise draft only). */
+function formulatedSpeechDisplayText(q, normBundle, savedList, liveAnswerDraft) {
+  const qt = String(q || "").trim();
+  const finalized = finalizedTextForQuestion(normBundle, savedList, qt);
+  if (finalized) return finalized;
+  const nb = normalizeQuestionBundle(normBundle || null);
+  const fromBundle = String(nb.answerDraft || "").trim();
   if (fromBundle) return fromBundle;
-  const qn = String(q || "").trim();
-  const row = (savedList || []).find((x) => String(x.question || "").trim() === qn);
-  return String(row?.answer || "").trim();
+  return String(liveAnswerDraft || "").trim();
 }
 
 /**
@@ -253,7 +298,7 @@ function loadInterviewPrepBootstrap() {
   const bundleForSel = sel ? normalizeQuestionBundle(bundles[sel] || null) : null;
   const savedReviewText =
     bundleForSel && sel ? finalizedTextForQuestion(bundleForSel, savedList, String(sel).trim()) : "";
-  const initialStage = savedReviewText ? 4 : wb.stage;
+  const initialStage = savedReviewText ? Math.max(wb.stage, 3) : wb.stage;
 
   return {
     stage: initialStage,
@@ -358,14 +403,9 @@ function InterviewPrepContent({ initial }) {
   const [brainDumpEditingRevisit, setBrainDumpEditingRevisit] = useState(false);
   // Tracks which questions have saved content — shown as ✓ badges in QuestionSelector.
   // Derived from bundlesRef on mount; refreshed when the user switches questions.
-  const [answeredQuestions, setAnsweredQuestions] = useState(() => {
-    const out = {};
-    for (const [q, b] of Object.entries(initial.bundles || {})) {
-      const nb = normalizeQuestionBundle(b);
-      if (nb.dumpCards.length > 0 || nb.answerDraft) out[q] = true;
-    }
-    return out;
-  });
+  const [answeredQuestions, setAnsweredQuestions] = useState(() =>
+    computeAnsweredQuestionsMap(initial.bundles, initial.savedAnswers),
+  );
 
   //Your profile skill set from the profile page
   const profileSkillSet = useMemo(() => {
@@ -460,13 +500,13 @@ function InterviewPrepContent({ initial }) {
     const incoming = bundlesRef.current[pick] || defaultQuestionBundle();
     const norm = normalizeQuestionBundle(incoming);
     const wb = workspaceFromBundle(incoming);
-    const ft = finalizedTextForQuestion(norm, savedAnswersRef.current, String(pick).trim());
+    const answerText = resolveAnswerTextForQuestion(norm, savedAnswersRef.current, String(pick).trim());
     queueMicrotask(() => {
       setSelectedQuestion(pick);
       setDumpCards(wb.dumpCards);
       setStarZones(wb.starZones);
-      setAnswerDraft(ft ? String(norm.answerDraft || "").trim() || ft : wb.answerDraft);
-      setStage(ft ? 4 : wb.stage);
+      setAnswerDraft(answerText || wb.answerDraft);
+      setStage(answerText ? Math.max(wb.stage, 3) : wb.stage);
       setUsedFallbackSort(wb.usedFallbackSort);
     });
   }, [allQuestions, selectedQuestion, savedAnswers]);
@@ -520,13 +560,13 @@ function InterviewPrepContent({ initial }) {
         if (aq) {
           const norm = normalizeQuestionBundle(merged[aq] || defaultQuestionBundle());
           const wb = workspaceFromBundle(merged[aq] || null);
-          const ft = finalizedTextForQuestion(norm, mergedForSavedLookup, aq);
+          const answerText = resolveAnswerTextForQuestion(norm, mergedForSavedLookup, aq);
           queueMicrotask(() => {
             setSelectedQuestion(aq);
             setDumpCards(wb.dumpCards);
             setStarZones(wb.starZones);
-            setAnswerDraft(ft ? String(norm.answerDraft || "").trim() || ft : wb.answerDraft);
-            setStage(ft ? 4 : wb.stage);
+            setAnswerDraft(answerText || wb.answerDraft);
+            setStage(answerText ? Math.max(wb.stage, 3) : wb.stage);
             setUsedFallbackSort(wb.usedFallbackSort);
           });
         }
@@ -541,24 +581,55 @@ function InterviewPrepContent({ initial }) {
   }, [jobContext, persistOrgLocal]);
 
   const canOrganise = dumpCards.length >= 2 || zonesHaveCards(starZones);
-  const canPractise = Boolean(answerDraft?.trim()) || stage === 3 || stage === 4;
+  const canPractise = Boolean(answerDraft?.trim()) || stage === 3;
 
-  const savedReviewDisplayText = useMemo(() => {
-    if (stage !== 4 || !resolvedQuestion) return "";
-    const qt = String(resolvedQuestion).trim();
-    const fromList = String(savedAnswers.find((x) => String(x.question || "").trim() === qt)?.answer || "").trim();
-    if (fromList) return fromList;
-    return String(answerDraft || "").trim();
-  }, [stage, resolvedQuestion, savedAnswers, answerDraft]);
+  const currentBundle = useMemo(
+    () => normalizeQuestionBundle(bundlesRef.current[resolvedQuestion] || null),
+    [resolvedQuestion, dumpCards, starZones, answerDraft, savedAnswers, stage],
+  );
 
-  const revisitSpeechText = useMemo(() => {
-    const fromState = String(answerDraft || "").trim();
-    if (fromState) return fromState;
-    return formulatedSpeechText(resolvedQuestion, bundlesRef.current[resolvedQuestion], savedAnswers);
-  }, [resolvedQuestion, savedAnswers, answerDraft]);
+  const hasFormulatedSpeech = useMemo(
+    () =>
+      resolvedQuestion
+        ? hasFormulatedSpeechForQuestion(
+            currentBundle,
+            savedAnswers,
+            String(resolvedQuestion).trim(),
+            answerDraft,
+          )
+        : false,
+    [resolvedQuestion, currentBundle, savedAnswers, answerDraft],
+  );
+
+  const formulatedSpeechText = useMemo(() => {
+    if (!hasFormulatedSpeech || !resolvedQuestion) return "";
+    return formulatedSpeechDisplayText(
+      resolvedQuestion,
+      currentBundle,
+      savedAnswers,
+      answerDraft,
+    );
+  }, [hasFormulatedSpeech, resolvedQuestion, currentBundle, savedAnswers, answerDraft]);
 
   const showBrainDumpRevisitReadOnly =
-    stage === 1 && Boolean(revisitSpeechText.trim()) && !brainDumpEditingRevisit;
+    stage === 1 && hasFormulatedSpeech && !brainDumpEditingRevisit;
+
+  const enterBrainDumpFromLaterStage = useCallback(() => {
+    const qt = String(resolvedQuestion || "").trim();
+    const bundle = normalizeQuestionBundle(bundlesRef.current[qt] || null);
+    const hasSpeech = hasFormulatedSpeechForQuestion(
+      bundle,
+      savedAnswersRef.current,
+      qt,
+      answerDraft,
+    );
+    setBrainDumpEditingRevisit(!hasSpeech);
+    setStage(1);
+  }, [resolvedQuestion, answerDraft]);
+
+  useEffect(() => {
+    if (stage === 4) setStage(3);
+  }, [stage]);
 
   useEffect(() => {
     window.localStorage.setItem(JOB_CTX_KEY, JSON.stringify(jobContext));
@@ -607,33 +678,30 @@ function InterviewPrepContent({ initial }) {
       flushBundleForQuestion(selectedQuestion);
       persistOrgLocal(selectedQuestion);
       // Refresh ✓ badges now that the outgoing bundle is flushed
-      setAnsweredQuestions(() => {
-        const out = {};
-        for (const [qk, b] of Object.entries(bundlesRef.current)) {
-          const nb = normalizeQuestionBundle(b);
-          if (nb.dumpCards.length > 0 || nb.answerDraft) out[qk] = true;
-        }
-        return out;
-      });
+      setAnsweredQuestions(() =>
+        computeAnsweredQuestionsMap(bundlesRef.current, savedAnswersRef.current),
+      );
       setSelectedQuestion(q);
       const incoming = bundlesRef.current[q] || defaultQuestionBundle();
       const norm = normalizeQuestionBundle(incoming);
       const wb = workspaceFromBundle(incoming);
-      const ft = finalizedTextForQuestion(norm, savedAnswersRef.current, String(q).trim());
-      if (ft) {
-        setStage(4);
-        setDumpCards(wb.dumpCards);
-        setStarZones(wb.starZones);
-        setAnswerDraft(String(norm.answerDraft || "").trim() || ft);
-        setUsedFallbackSort(wb.usedFallbackSort);
-      } else {
-        setDumpCards(wb.dumpCards);
-        setStarZones(wb.starZones);
-        setAnswerDraft(wb.answerDraft);
-        setStage(wb.stage);
-        setUsedFallbackSort(wb.usedFallbackSort);
-      }
-      setReadinessPercent(40);
+      const qt = String(q).trim();
+      const answerText = resolveAnswerTextForQuestion(norm, savedAnswersRef.current, qt);
+      const hasSaved = questionHasSavedWork(norm, savedAnswersRef.current, qt);
+      setDumpCards(wb.dumpCards);
+      setStarZones(wb.starZones);
+      setAnswerDraft(answerText || wb.answerDraft);
+      setStage((prev) => stageWhenSelectingQuestion(prev, wb, Boolean(answerText)));
+      setUsedFallbackSort(wb.usedFallbackSort);
+      const bundle = normalizeQuestionBundle(incoming);
+      const hasSpeech = hasFormulatedSpeechForQuestion(
+        bundle,
+        savedAnswersRef.current,
+        qt,
+        answerText || wb.answerDraft,
+      );
+      setBrainDumpEditingRevisit(!hasSpeech);
+      setReadinessPercent(hasSaved && answerText ? 72 : 40);
       persistOrgLocal(q);
       void pushCloudProgress();
     },
@@ -688,11 +756,11 @@ function InterviewPrepContent({ initial }) {
           const norm = normalizeQuestionBundle(incoming);
           const wb = workspaceFromBundle(incoming);
           const savedAfterFilter = (savedAnswersRef.current || []).filter((x) => String(x.question || "").trim() !== t);
-          const ft = finalizedTextForQuestion(norm, savedAfterFilter, String(pick).trim());
+          const answerText = resolveAnswerTextForQuestion(norm, savedAfterFilter, String(pick).trim());
           setDumpCards(wb.dumpCards);
           setStarZones(wb.starZones);
-          setAnswerDraft(ft ? String(norm.answerDraft || "").trim() || ft : wb.answerDraft);
-          setStage(ft ? 4 : wb.stage);
+          setAnswerDraft(answerText || wb.answerDraft);
+          setStage(answerText ? Math.max(wb.stage, 3) : wb.stage);
           setUsedFallbackSort(wb.usedFallbackSort);
         } else {
           setSelectedQuestion(null);
@@ -715,24 +783,34 @@ function InterviewPrepContent({ initial }) {
     setOrganising(true);
     let fallback = false;
     let zones = emptyZones();
+    let workingCards = dumpCards;
     try {
       if (liveSimplifyEnabled && dumpCards.length && resolvedQuestion) {
         try {
           const res = await starSortInterview(resolvedQuestion, dumpCards);
+          if (Array.isArray(res.cards) && res.cards.length) {
+            workingCards = res.cards.map((c) => ({
+              id: String(c.id),
+              text: String(c.text),
+            }));
+          }
           zones = {
             situation: res.situation || [],
+            task: res.task || [],
             action: res.action || [],
             result: res.result || [],
-            learning: res.learning || [],
           };
         } catch {
           fallback = true;
-          zones = heuristicStarSort(dumpCards);
+          workingCards = expandLongDumpCardsHeuristic(dumpCards);
+          zones = heuristicStarSort(workingCards);
         }
       } else {
         fallback = true;
-        zones = heuristicStarSort(dumpCards);
+        workingCards = expandLongDumpCardsHeuristic(dumpCards);
+        zones = heuristicStarSort(workingCards);
       }
+      setDumpCards(workingCards);
       setUsedFallbackSort(fallback);
       setStarZones(zones);
       setStage(2);
@@ -810,28 +888,34 @@ function InterviewPrepContent({ initial }) {
     const incoming = bundlesRef.current[next] || defaultQuestionBundle();
     const norm = normalizeQuestionBundle(incoming);
     const wb = workspaceFromBundle(incoming);
-    const ft = finalizedTextForQuestion(norm, savedAnswersRef.current, String(next).trim());
-    if (ft) {
-      setStage(4);
-      setDumpCards(wb.dumpCards);
-      setStarZones(wb.starZones);
-      setAnswerDraft(String(norm.answerDraft || "").trim() || ft);
-      setUsedFallbackSort(wb.usedFallbackSort);
-    } else {
-      setDumpCards(wb.dumpCards);
-      setStarZones(wb.starZones);
-      setAnswerDraft(wb.answerDraft);
-      setUsedFallbackSort(wb.usedFallbackSort);
-      setStage(1);
-    }
-    setReadinessPercent(40);
+    const answerText = resolveAnswerTextForQuestion(norm, savedAnswersRef.current, String(next).trim());
+    setDumpCards(wb.dumpCards);
+    setStarZones(wb.starZones);
+    setAnswerDraft(answerText || wb.answerDraft);
+    setStage(answerText ? 3 : wb.stage);
+    setUsedFallbackSort(wb.usedFallbackSort);
+    const hasSpeech = hasFormulatedSpeechForQuestion(
+      norm,
+      savedAnswersRef.current,
+      String(next).trim(),
+      answerText || wb.answerDraft,
+    );
+    setBrainDumpEditingRevisit(!hasSpeech);
+    setReadinessPercent(answerText ? 72 : 40);
     persistOrgLocal(next);
     void pushCloudProgress();
   }, [allQuestions, resolvedQuestion, selectedQuestion, flushBundleForQuestion, persistOrgLocal, pushCloudProgress]);
 
-  const handleEditSavedAnswer = useCallback(() => {
-    setStage(1);
-  }, []);
+  const handleStageSelect = useCallback(
+    (nextStage) => {
+      if (nextStage === 1 && stage > 1) {
+        enterBrainDumpFromLaterStage();
+        return;
+      }
+      setStage(nextStage);
+    },
+    [stage, enterBrainDumpFromLaterStage],
+  );
 
   const readinessLabelFn = useCallback((p) => readinessLabelFor(p), []);
 
@@ -883,35 +967,13 @@ function InterviewPrepContent({ initial }) {
             </div>
           )}
 
-          {stage !== 4 ? (
-            <div className="ip-hero-tabs">
-              <StageTabs stage={stage} onSelect={setStage} canOrganise={canOrganise} canPractise={canPractise} />
-            </div>
-          ) : (
-            <p className="ip-hero-saved-review-hint" role="status">
-              Reviewing your saved answer — use <strong>Edit answer</strong> to change brain dump or STAR steps.
-            </p>
-          )}
+          <div className="ip-hero-tabs">
+            <StageTabs stage={stage} onSelect={handleStageSelect} canOrganise={canOrganise} canPractise={canPractise} />
+          </div>
         </div>
       </header>
 
       <main id="ip-main-content" className="ip-page-main">
-        {stage === 4 && resolvedQuestion ? (
-          <section
-            role="tabpanel"
-            id="ip-tab-panel-saved"
-            aria-label="Saved answer for this question"
-            className="ip-tab-panel"
-          >
-            <SavedAnswerReview
-              question={resolvedQuestion}
-              answerText={savedReviewDisplayText}
-              onEditAnswer={handleEditSavedAnswer}
-              onNextQuestion={nextQuestion}
-            />
-          </section>
-        ) : null}
-
         {stage === 1 ? (
           <section role="tabpanel" id="ip-tab-panel-1" aria-labelledby="ip-tab-1" className="ip-tab-panel">
             <BrainDumpStage
@@ -930,7 +992,9 @@ function InterviewPrepContent({ initial }) {
               onContinue={() => runOrganise()}
               organising={organising}
               revisitReadOnly={showBrainDumpRevisitReadOnly}
-              revisitSpeechText={revisitSpeechText}
+              revisitSpeechText={formulatedSpeechText}
+              hasFormulatedSpeech={hasFormulatedSpeech}
+              isEditingRevisit={brainDumpEditingRevisit}
               onStartEditRevisit={() => setBrainDumpEditingRevisit(true)}
             />
           </section>
@@ -945,7 +1009,7 @@ function InterviewPrepContent({ initial }) {
               onZonesChange={setStarZones}
               usedFallbackSort={usedFallbackSort}
               onContinue={goBuildAnswer}
-              onBack={() => setStage(1)}
+              onBack={enterBrainDumpFromLaterStage}
               needsStarSort={dumpCards.length >= 1 && !zonesHaveCards(starZones)}
               onSortNow={() => runOrganise()}
               organising={organising}

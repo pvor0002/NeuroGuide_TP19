@@ -30,6 +30,24 @@ export default function OrganiseStage({
         <div>
           <h2 id="ip-stage-org-title" className="ip-stage-title">Organise into STAR</h2>
           <p className="ip-stage-lead">Drag cards between zones, or tap a card then tap a zone to move it.</p>
+          <p className="ip-star-legend" aria-label="STAR method">
+            <span className="ip-star-legend__item">
+              <span className="ip-star-legend__letter ip-star-legend__letter--s">S</span>
+              Situation
+            </span>
+            <span className="ip-star-legend__item">
+              <span className="ip-star-legend__letter ip-star-legend__letter--t">T</span>
+              Task
+            </span>
+            <span className="ip-star-legend__item">
+              <span className="ip-star-legend__letter ip-star-legend__letter--a">A</span>
+              Action
+            </span>
+            <span className="ip-star-legend__item">
+              <span className="ip-star-legend__letter ip-star-legend__letter--r">R</span>
+              Result
+            </span>
+          </p>
         </div>
 
         {needsStarSort && (
@@ -41,7 +59,7 @@ export default function OrganiseStage({
 
       {usedFallbackSort && !needsStarSort && (
         <div className="ip-stage-notice" role="status">
-          Cards were sorted automatically. Drag to fine-tune, or add a missing detail below.
+          Cards were sorted automatically. Long notes were split into separate points. Drag to fine-tune, or add a missing detail below.
         </div>
       )}
 
