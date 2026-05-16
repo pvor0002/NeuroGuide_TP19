@@ -9,6 +9,7 @@ on:
 env:
   AWS_REGION: ap-southeast-2
   S3_BUCKET: neuroguide-deployments-tp19
+  LAMBDA_FUNCTION: neuroguide-api
 
 jobs:
   test:
@@ -47,33 +48,56 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Build deployment package
-        run: |
-          pip install -r requirements.txt \
-            -t ./package \
-            --platform manylinux2014_x86_64 \
-            --python-version 3.11 \
-            --only-binary=:all: \
-            --upgrade
-          cp -r app ./package/
-          find ./package -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-          find ./package -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
-          cd ./package && zip -r ../lambda_package.zip . -x "*.pyc" && cd ..
-      - name: Upload package to S3
+      - name: Build deployment package and ML layers
+        run: bash scripts/build_lambda_package.sh
+      - name: Upload artifacts to S3
         run: |
           aws s3 cp lambda_package.zip \
-            s3://$S3_BUCKET/lambda_package.zip \
-            --region $AWS_REGION
-      - name: Deploy to Lambda from S3
+            "s3://$S3_BUCKET/lambda_package.zip" \
+            --region "$AWS_REGION"
+          aws s3 cp lambda_layer_scipy.zip \
+            "s3://$S3_BUCKET/lambda_layer_scipy.zip" \
+            --region "$AWS_REGION"
+          aws s3 cp lambda_layer_ml.zip \
+            "s3://$S3_BUCKET/lambda_layer_ml.zip" \
+            --region "$AWS_REGION"
+      - name: Publish ML Lambda layers
+        id: layers
+        run: |
+          SCIPY_ARN=$(aws lambda publish-layer-version \
+            --layer-name neuroguide-ml-scipy \
+            --description "scipy for neuroguide-api" \
+            --content "S3Bucket=$S3_BUCKET,S3Key=lambda_layer_scipy.zip" \
+            --compatible-runtimes python3.11 \
+            --region "$AWS_REGION" \
+            --query LayerVersionArn --output text)
+          ML_ARN=$(aws lambda publish-layer-version \
+            --layer-name neuroguide-ml-stack \
+            --description "numpy pandas sklearn for neuroguide-api" \
+            --content "S3Bucket=$S3_BUCKET,S3Key=lambda_layer_ml.zip" \
+            --compatible-runtimes python3.11 \
+            --region "$AWS_REGION" \
+            --query LayerVersionArn --output text)
+          echo "scipy_arn=$SCIPY_ARN" >> "$GITHUB_OUTPUT"
+          echo "ml_arn=$ML_ARN" >> "$GITHUB_OUTPUT"
+          echo "Published layers: $SCIPY_ARN $ML_ARN"
+      - name: Attach ML layers (before code so imports resolve on cold start)
+        run: |
+          aws lambda update-function-configuration \
+            --function-name "$LAMBDA_FUNCTION" \
+            --layers "${{ steps.layers.outputs.scipy_arn }}" "${{ steps.layers.outputs.ml_arn }}" \
+            --region "$AWS_REGION"
+          aws lambda wait function-updated \
+            --function-name "$LAMBDA_FUNCTION" \
+            --region "$AWS_REGION"
+      - name: Deploy function code from S3
         run: |
           aws lambda update-function-code \
-            --function-name neuroguide-api \
-            --s3-bucket $S3_BUCKET \
+            --function-name "$LAMBDA_FUNCTION" \
+            --s3-bucket "$S3_BUCKET" \
             --s3-key lambda_package.zip \
-            --region $AWS_REGION
-      - name: Wait for deployment
-        run: |
+            --region "$AWS_REGION"
           aws lambda wait function-updated \
-            --function-name neuroguide-api \
-            --region $AWS_REGION
+            --function-name "$LAMBDA_FUNCTION" \
+            --region "$AWS_REGION"
           echo "Deployed successfully"

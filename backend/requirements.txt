@@ -10,6 +10,8 @@ python-docx
 psycopg2-binary
 mangum
 boto3
+# ML stack is large (~450MB unzipped). Local/tests use full requirements;
+# Lambda deploy splits these into layers — see requirements-lambda*.txt
 numpy>=1.24
 pandas>=2.0
 rapidfuzz>=3.6

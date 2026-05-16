@@ -1,0 +1,2 @@
+# Lambda layer 1 — scipy (~140MB unzipped). Kept separate to stay under 250MB/layer.
+scipy>=1.11
