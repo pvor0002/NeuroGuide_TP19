@@ -18,7 +18,10 @@ class Settings(BaseSettings):
     debug: bool = False
 
     cors_origins: str = Field(
-        default="https://www.neuroguide.dev,http://localhost:5173,http://127.0.0.1:5173"
+        default=(
+            "https://www.neuroguide.dev,https://neuroguide.dev,"
+            "http://localhost:5173,http://127.0.0.1:5173"
+        )
     )
 
     gemini_api_key: Optional[str] = None
