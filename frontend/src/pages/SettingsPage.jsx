@@ -385,7 +385,7 @@ export default function SettingsPage() {
             </ul>
           </nav>
 
-          <section className="home-band home-band--white home-faq settings-faq" aria-labelledby="settings-faq-title">
+          <section className="home-band home-faq settings-faq" aria-labelledby="settings-faq-title">
             <div className="home-band-inner home-band-inner--wide">
               <h2 id="settings-faq-title" className="home-section-title">
                 Frequently asked questions

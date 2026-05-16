@@ -1,0 +1,13 @@
+# Legacy note: zip-only deploy cannot fit the ML stack (250MB combined limit).
+# Production uses requirements.prod.txt + Dockerfile (container image on ECR).
+fastapi
+python-multipart
+pydantic-settings
+httpx
+google-genai
+pypdf
+python-docx
+psycopg2-binary
+mangum
+boto3
+rapidfuzz>=3.6

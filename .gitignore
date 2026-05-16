@@ -9,6 +9,11 @@ dist/
 *.log
 .env
 backend/.env
+# Lambda / pip build artifacts (never commit)
+backend/package-test/
+backend/package/
+backend/lambda_package.zip
+backend/lambda_layer_*.zip
 .idea/
 .vscode/
 

@@ -1,0 +1,12 @@
+# App / API deps (ML wheels installed separately — see requirements.prod-ml.txt).
+fastapi
+python-multipart
+pydantic-settings
+httpx
+google-genai>=1.0,<3
+pypdf
+python-docx
+psycopg2-binary
+mangum
+boto3
+rapidfuzz>=3.6

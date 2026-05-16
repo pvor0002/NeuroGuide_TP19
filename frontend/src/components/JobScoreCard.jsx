@@ -775,7 +775,6 @@ export default function JobScoreCard({
   hidePostScoreActions = false,
 }) {
   const navigate = useNavigate();
-  const [helpfulVote, setHelpfulVote] = useState(null);
   const [bdOpen, setBdOpen] = useState({ adhd: false, experience: false, technical: true, soft: false });
   const assessmentConfidenceTipId = useId();
   const [showAssessmentConfidenceTip, setShowAssessmentConfidenceTip] = useState(false);
@@ -923,7 +922,7 @@ export default function JobScoreCard({
             </div>
           </div>
           <div className="jsc-assess-top-actions">
-          <div className="jsc-helpful-box" aria-label="Was it helpful?">
+          {/* <div className="jsc-helpful-box" aria-label="Was it helpful?">
             <span className="jsc-helpful-label">Was it helpful?</span>
             <div className="jsc-helpful-actions" role="group" aria-label="Feedback">
               <button
@@ -945,7 +944,7 @@ export default function JobScoreCard({
                 <span className="jsc-helpful-emoji" aria-hidden="true">👎</span>
               </button>
             </div>
-            </div>
+            </div> */}
           </div>
         </div>
 

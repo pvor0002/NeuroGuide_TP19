@@ -1,7 +1,9 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import ResponseValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from mangum import Mangum
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -15,10 +17,26 @@ settings = get_settings()
 logger.info("[Startup] NeuroGuide API initialising — api_prefix=%s", settings.api_v1_prefix)
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
+
+
+@app.exception_handler(ResponseValidationError)
+async def response_validation_handler(
+    _request: Request, exc: ResponseValidationError
+) -> JSONResponse:
+    logger.error("[API] Response validation failed: %s", exc)
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "The server could not build a valid response. Please try again."},
+    )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_origin_regex=r"https://.*\.(onrender\.com|vercel\.app)$",
+    # Apex + subdomains for product domains; Render/Vercel preview hosts.
+    allow_origin_regex=(
+        r"https://([\w-]+\.)*(neuroguide\.dev|neuroguide\.app|onrender\.com|vercel\.app)$"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

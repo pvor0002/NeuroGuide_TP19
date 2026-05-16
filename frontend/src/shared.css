@@ -228,6 +228,9 @@ body {
   top: 0;
   z-index: 50;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: clip;
   background: var(--surface-soft);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(10px);
@@ -336,6 +339,9 @@ body {
   justify-content: space-between;
   gap: 1rem 1.5rem;
   flex-wrap: wrap;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 3.5rem;
 }
 
 .site-nav-brand-link {
@@ -347,17 +353,23 @@ body {
 }
 
 .site-nav-brand-link .home-sticky-bar-brand {
-  align-items: flex-start;
+  align-items: center;
   text-align: left;
 }
 
-/* Wins over rule above: logo + wordmark vertically centered on home (top of page) */
+/* Multi-line tagline: align mark with first line of copy */
+.site-nav-header:not(.site-nav-header--home-compact) .site-nav-brand-link .home-sticky-bar-brand {
+  align-items: flex-start;
+}
+
+/* Home at top: single-line wordmark — center mark with text for nav row alignment */
 .site-nav-header--home-compact .site-nav-brand-link .home-sticky-bar-brand {
   align-items: center;
 }
 
 .site-nav-brand-link .home-sticky-bar-copy {
   text-align: left;
+  justify-content: center;
 }
 
 .site-nav-mark {
@@ -376,7 +388,26 @@ body {
   flex-wrap: wrap;
   align-items: center;
   margin-left: auto;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.site-nav-links > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  line-height: 1.2;
+}
+
+.site-nav-links > .site-nav-dropdown {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  min-height: 2.25rem;
+}
+
+.site-nav-links > .site-nav-settings-link {
+  align-self: center;
 }
 
 .site-nav-links a {
@@ -424,8 +455,11 @@ body {
   font: inherit;
   font-weight: 500;
   font-size: 0.78rem;
+  line-height: 1.2;
   color: #1f1d1b;
   padding: 0.25rem 0;
+  min-height: 2.25rem;
+  box-sizing: border-box;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;
 }
@@ -509,9 +543,11 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 999px;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .site-nav-settings-link svg {
@@ -949,7 +985,7 @@ body {
   font-size: 1rem;
   font-family: "SF Mono", "Roboto Mono", ui-monospace, monospace;
   letter-spacing: 0.14em;
-  text-transform: uppercase;
+  text-transform: none;
   color: #2d2926;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -967,30 +1003,6 @@ body {
 
 .userid-box-submit {
   flex-shrink: 0;
-}
-
-.userid-box-cancel {
-  flex-shrink: 0;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: #5a544f;
-  font-size: 0.86rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 160ms ease, color 160ms ease;
-}
-
-.userid-box-cancel:hover {
-  background: rgba(45, 41, 38, 0.06);
-  color: #2d2926;
-}
-
-.userid-box-cancel:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .userid-box-error,
@@ -1024,8 +1036,7 @@ body {
     flex-direction: column;
   }
 
-  .userid-box-submit,
-  .userid-box-cancel {
+  .userid-box-submit {
     width: 100%;
   }
 }
@@ -1041,6 +1052,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.settings-page .settings-faq {
+  background: transparent;
 }
 
 

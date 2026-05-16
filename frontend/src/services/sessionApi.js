@@ -36,17 +36,33 @@ function detailToMessage(detail) {
   return "";
 }
 
+function isLikelyNetworkOrCorsError(err) {
+  const m = String(err?.message ?? "").toLowerCase();
+  return (
+    m.includes("failed to fetch") ||
+    m.includes("load failed") ||
+    m.includes("networkerror when attempting to fetch")
+  );
+}
+
 function failMessage(res, body) {
   const d = detailToMessage(body?.detail);
+  if (res.status === 404 && d) {
+    if (/pass key not recognised/i.test(d)) {
+      return "Pass key not recognised. Check for typos, or start a new profile to get a new key.";
+    }
+    return d;
+  }
   if (res.status === 404) {
     return (
       "Could not reach the session API (404). Use a full base URL ending in /api/v1, " +
-      "redeploy the frontend after changing .env, and deploy the backend that includes /pg/session/*. " +
-      'You can still use "Continue without cloud backup" below. ' +
-      (d ? `(${d})` : "")
+      "redeploy the frontend after changing .env, and deploy the backend that includes /pg/session/*."
     ).trim();
   }
   if (d) return d;
+  if (res.status >= 500) {
+    return d || "The server had a problem signing you in. Try again in a moment.";
+  }
   return `Request failed (${res.status})`;
 }
 
@@ -106,11 +122,23 @@ export async function registerSession(body) {
 }
 
 export async function loginWithPassKey(passKey) {
-  const res = await fetch(`${API_BASE}/pg/session/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pass_key: passKey }),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/pg/session/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pass_key: passKey }),
+    });
+  } catch (err) {
+    if (isLikelyNetworkOrCorsError(err)) {
+      throw new Error(
+        "Could not reach the cloud login service from this browser. " +
+          "If you use a bookmark or an old link, try https://www.neuroguide.dev instead, " +
+          "or ask your team to add this site URL to API CORS settings."
+      );
+    }
+    throw err;
+  }
   const out = await readJsonOrText(res);
   if (!res.ok) throwHttpError(res, out);
   return out;
