@@ -16,19 +16,31 @@ from app.core.config import Settings
 
 logger = logging.getLogger(__name__)
 
+SPLIT_CARD_SYSTEM = """You split one long interview brainstorm note into 2-5 separate point cards.
+
+Each point is ONE distinct idea (setting, task/goal, action taken, result/impact, or learning).
+Break dense paragraphs apart even when there are few full stops — look for topic shifts, lists,
+cause/effect chains, and "I did X / the outcome was Y" patterns.
+Keep the candidate's facts and wording close to the original; do not invent employers, metrics, or events.
+If the text is already a single idea, return exactly one point (trimmed, same meaning).
+Each point should be at most 2 short sentences and under 320 characters.
+
+Return ONLY JSON, no markdown fences: {"points": ["...", "..."]}
+Maximum 5 points."""
+
 STAR_SORT_SYSTEM = """You sort interview brainstorm cards into STAR zones for neurodivergent job candidates.
 
-Zones:
+Zones (classic STAR):
 - situation: context, setting, constraints, what was going on (before the candidate acted).
+- task: the candidate's specific goal, responsibility, or what they were asked to achieve.
 - action: what the candidate personally did, steps taken, collaboration they led or contributed.
-- result: measurable or concrete outcomes, impact, what changed for the team/org/customer.
-- learning: reflections, takeaways, what they'd do differently, growth — not raw outcomes.
+- result: measurable or concrete outcomes, impact, what changed; reflections may go here if no separate outcome.
 
 Rules:
 - Each input card has an "id" string. Output MUST reference those ids exactly — same spelling.
 - Every id must appear exactly once across the four arrays (partition).
 - If a card mixes zones, pick the best fit; prefer "action" for verbs about what they did.
-- Return ONLY JSON, no markdown fences: {"situation":["id",...],"action":[...],"result":[...],"learning":[...]}
+- Return ONLY JSON, no markdown fences: {"situation":["id",...],"task":[...],"action":[...],"result":[...]}
 """
 
 RESHAPE_SYSTEM = """You rewrite interview answers for neurodivergent candidates: warm, natural spoken English,
@@ -133,11 +145,154 @@ def _gemini_model_fallback_chain(primary: str) -> list[str]:
     return out
 
 
+_SPLIT_MIN_CHARS = 180
+_SPLIT_FORCE_CHARS = 300
+_MAX_POINTS_PER_CARD = 5
+
+
+def should_split_card_text(text: str) -> bool:
+    t = text.strip()
+    if len(t) < _SPLIT_MIN_CHARS:
+        return False
+    parts = [p.strip() for p in re.split(r"(?<=[.!?])\s+", t) if p.strip()]
+    return len(parts) >= 2 or len(t) >= _SPLIT_FORCE_CHARS
+
+
+def heuristic_split_card_text(text: str) -> list[str]:
+    """Split long notes on sentence boundaries (no AI)."""
+    t = text.strip()
+    if not t:
+        return []
+    if not should_split_card_text(t):
+        return [t]
+
+    parts = [p.strip() for p in re.split(r"\n{2,}|(?<=[.!?])\s+", t) if p.strip()]
+    if len(parts) <= 1 and len(t) > 300:
+        parts = [p.strip() for p in re.split(r";\s+", t) if p.strip()]
+    if len(parts) <= 1:
+        return [t]
+
+    merged: list[str] = []
+    buf = ""
+    for part in parts:
+        candidate = f"{buf} {part}".strip() if buf else part
+        if len(candidate) > 260 and buf:
+            merged.append(buf)
+            buf = part
+        else:
+            buf = candidate
+    if buf:
+        merged.append(buf)
+
+    if len(merged) > _MAX_POINTS_PER_CARD:
+        merged = merged[: _MAX_POINTS_PER_CARD - 1] + [
+            " ".join(merged[_MAX_POINTS_PER_CARD - 1 :]).strip()
+        ]
+
+    return [p for p in merged if p.strip()] or [t]
+
+
+def _gemini_generate_json(
+    client: genai.Client,
+    model_chain: list[str],
+    *,
+    system_instruction: str,
+    user_prompt: str,
+) -> dict[str, Any]:
+    response = None
+    last_exc: BaseException | None = None
+    for idx, model_name in enumerate(model_chain):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                ),
+            )
+            break
+        except Exception as exc:
+            last_exc = exc
+            if _gemini_error_should_fallback_to_next_model(exc) and idx < len(model_chain) - 1:
+                if _is_transient_gemini_capacity_error(exc):
+                    time.sleep(min(2.0, 0.4 + idx * 0.35))
+                continue
+            raise HTTPException(status_code=502, detail=f"Gemini request failed: {exc!s}") from exc
+
+    if response is None:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Gemini request failed: {last_exc!s}" if last_exc else "Gemini request failed.",
+        )
+
+    raw = _extract_text_from_gemini_response(response)
+    if not raw:
+        raise HTTPException(status_code=502, detail="Gemini returned no usable text.")
+    try:
+        return _parse_json_loose(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=502, detail="Could not parse model response.") from exc
+
+
+def split_card_text_with_gemini(text: str, question: str, settings: Settings) -> list[str]:
+    if not settings.gemini_api_key:
+        return heuristic_split_card_text(text)
+
+    user_prompt = (
+        f"Interview question (context only): {question.strip()}\n\n"
+        f"Note to split:\n{text.strip()}\n\n"
+        "Return only the JSON object."
+    )
+    client = genai.Client(api_key=settings.gemini_api_key)
+    data = _gemini_generate_json(
+        client,
+        _gemini_model_fallback_chain(settings.gemini_model),
+        system_instruction=SPLIT_CARD_SYSTEM,
+        user_prompt=user_prompt,
+    )
+    points = [str(p).strip() for p in (data.get("points") or []) if str(p).strip()]
+    if not points:
+        return heuristic_split_card_text(text)
+    return points[:_MAX_POINTS_PER_CARD]
+
+
+def expand_long_cards(
+    cards: list[dict[str, str]],
+    question: str,
+    settings: Settings,
+) -> list[dict[str, str]]:
+    """Replace long single cards with 2-4 shorter point cards before STAR sort."""
+    expanded: list[dict[str, str]] = []
+    for card in cards:
+        text = card["text"]
+        if not should_split_card_text(text):
+            expanded.append(card)
+            continue
+        try:
+            points = split_card_text_with_gemini(text, question, settings)
+        except HTTPException:
+            points = heuristic_split_card_text(text)
+        except Exception:
+            logger.warning("[InterviewPrep] split failed for card %s, using heuristic", card["id"])
+            points = heuristic_split_card_text(text)
+
+        if len(points) <= 1:
+            expanded.append({**card, "text": points[0] if points else text})
+            continue
+
+        for idx, point in enumerate(points):
+            suffix = f"_s{idx + 1}" if len(points) > 1 else ""
+            expanded.append({"id": f"{card['id']}{suffix}", "text": point})
+
+    return expanded
+
+
 def _validate_star_partition(
     card_ids: set[str],
     zones: dict[str, list[str]],
 ) -> dict[str, list[str]]:
-    keys = ("situation", "action", "result", "learning")
+    keys = ("situation", "task", "action", "result")
     flat: list[str] = []
     for k in keys:
         for cid in zones.get(k) or []:
@@ -154,16 +309,17 @@ def star_sort_cards_with_gemini(
     question: str,
     cards: list[dict[str, str]],
     settings: Settings,
-) -> dict[str, list[str]]:
+) -> tuple[dict[str, list[str]], list[dict[str, str]]]:
     if not settings.gemini_api_key:
         raise HTTPException(
             status_code=503,
             detail="Gemini API is not configured. Set GEMINI_API_KEY in the backend environment.",
         )
 
-    card_ids = {c["id"] for c in cards}
+    working_cards = expand_long_cards(cards, question, settings)
+    card_ids = {c["id"] for c in working_cards}
     payload = json.dumps(
-        {"question": question, "cards": [{"id": c["id"], "text": c["text"]} for c in cards]},
+        {"question": question, "cards": [{"id": c["id"], "text": c["text"]} for c in working_cards]},
         ensure_ascii=False,
     )
     user_prompt = (
@@ -211,13 +367,13 @@ def star_sort_cards_with_gemini(
         raise HTTPException(status_code=502, detail="Could not parse STAR sort response.") from exc
 
     try:
-        return _validate_star_partition(
+        zones = _validate_star_partition(
             card_ids,
             {
                 "situation": list(data.get("situation") or []),
+                "task": list(data.get("task") or []),
                 "action": list(data.get("action") or []),
                 "result": list(data.get("result") or []),
-                "learning": list(data.get("learning") or []),
             },
         )
     except ValueError as exc:
@@ -226,6 +382,8 @@ def star_sort_cards_with_gemini(
             status_code=502,
             detail="The model returned an invalid STAR partition. Try again or organise manually.",
         ) from exc
+
+    return zones, working_cards
 
 
 def reshape_answer_with_gemini(answer: str, instruction: str, settings: Settings) -> str:

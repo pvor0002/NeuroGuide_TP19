@@ -131,43 +131,135 @@ export function jobContextFromInterviewSessionSummary(row) {
   });
 }
 
+/** Minimum length before a brain-dump note may be split into multiple cards. */
+export const BRAIN_DUMP_SPLIT_MIN_CHARS = 180;
+
+/**
+ * @param {string} text
+ */
+export function shouldSplitBrainDumpText(text) {
+  const t = String(text || "").trim();
+  if (t.length < BRAIN_DUMP_SPLIT_MIN_CHARS) return false;
+  const parts = t.split(/(?<=[.!?])\s+/).map((p) => p.trim()).filter(Boolean);
+  return parts.length >= 2 || t.length >= 300;
+}
+
+/**
+ * Split a long note into 2–4 sentence-based points (no API).
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function heuristicSplitBrainDumpText(text) {
+  const t = String(text || "").trim();
+  if (!t) return [];
+  if (!shouldSplitBrainDumpText(t)) return [t];
+
+  let parts = t
+    .split(/\n{2,}|(?<=[.!?])\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length <= 1 && t.length > 300) {
+    parts = t
+      .split(/;\s+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+  }
+  if (parts.length <= 1) return [t];
+
+  const merged = [];
+  let buf = "";
+  for (const part of parts) {
+    const candidate = buf ? `${buf} ${part}`.trim() : part;
+    if (candidate.length > 260 && buf) {
+      merged.push(buf);
+      buf = part;
+    } else {
+      buf = candidate;
+    }
+  }
+  if (buf) merged.push(buf);
+
+  const max = 4;
+  if (merged.length > max) {
+    const head = merged.slice(0, max - 1);
+    head.push(merged.slice(max - 1).join(" ").trim());
+    return head.filter(Boolean);
+  }
+  return merged.filter(Boolean).length ? merged : [t];
+}
+
+/**
+ * @param {{ id: string, text: string }[]} cards
+ * @returns {{ id: string, text: string }[]}
+ */
+export function expandLongDumpCardsHeuristic(cards) {
+  const out = [];
+  for (const card of cards) {
+    const text = String(card.text || "").trim();
+    if (!shouldSplitBrainDumpText(text)) {
+      out.push(card);
+      continue;
+    }
+    const points = heuristicSplitBrainDumpText(text);
+    if (points.length <= 1) {
+      out.push({ ...card, text: points[0] || text });
+      continue;
+    }
+    points.forEach((point, idx) => {
+      out.push({
+        id: points.length > 1 ? `${card.id}_s${idx + 1}` : card.id,
+        text: point,
+      });
+    });
+  }
+  return out;
+}
+
 /**
  * Client-side STAR sort when API is unavailable.
  * @param {DumpCard[]} cards
- * @returns {{ situation: string[], action: string[], result: string[], learning: string[] }}
+ * @returns {{ situation: string[], task: string[], action: string[], result: string[] }}
  */
 export function heuristicStarSort(cards) {
   console.log("[interviewPrepHelpers] heuristicStarSort: sorting", cards.length, "cards");
 
   const zones = {
     situation: [],
+    task: [],
     action: [],
     result: [],
-    learning: [],
   };
 
   for (const c of cards) {
     const t = String(c.text || "").toLowerCase();
     let assigned;
 
-    if (/\b(learned|learning|takeaway|take-away|realised|realized|next time|would do differently|reflect)\b/i.test(t)) {
-      zones.learning.push(c.id);
-      assigned = "learning";
-    } else if (/\b(result|outcome|impact|metric|achieved|delivered|increased|reduced|saved|won|percent|%)\b/i.test(t)) {
+    if (/\b(result|outcome|impact|metric|achieved|delivered|increased|reduced|saved|won|percent|%)\b/i.test(t)) {
       zones.result.push(c.id);
       assigned = "result";
     } else if (
-      /\b(i did|i built|i led|i owned|i implemented|i fixed|we decided|my role was|i collaborated|i coordinated)\b/i.test(t)
+      /\b(i did|i built|i led|i owned|i implemented|i fixed|we decided|i collaborated|i coordinated)\b/i.test(t)
     ) {
       zones.action.push(c.id);
       assigned = "action";
+    } else if (
+      /\b(goal|task|responsible for|needed to|objective|assigned to|my role was to|my job was to|was asked to)\b/i.test(
+        t,
+      )
+    ) {
+      zones.task.push(c.id);
+      assigned = "task";
     } else if (
       /\b(when|context|situation|first|initially|challenge|deadline|pressure|at the time|before)\b/i.test(t)
     ) {
       zones.situation.push(c.id);
       assigned = "situation";
+    } else if (
+      /\b(learned|learning|takeaway|take-away|realised|realized|next time|would do differently|reflect)\b/i.test(t)
+    ) {
+      zones.result.push(c.id);
+      assigned = "result (reflection)";
     } else {
-      // Default: action zone for anything that doesn't match a specific pattern
       zones.action.push(c.id);
       assigned = "action (default)";
     }
@@ -186,10 +278,10 @@ export function heuristicStarSort(cards) {
  * Called after the sort step to pre-populate the answer textarea
  * in PractiseStage.
  *
- * Zone order: Situation → Action → Result → Learning
+ * Zone order: Situation → Task → Action → Result
  * Cards within each zone are joined with a space (order preserved from sort).
  *
- * @param {{ situation: string[], action: string[], result: string[], learning: string[] }} starZones
+ * @param {{ situation: string[], task: string[], action: string[], result: string[] }} starZones
  * @param {Array<{ id: string, text: string }>} dumpCards
  * @param {string} question
  * @returns {string} Pre-filled answer draft, or "" if no cards are assigned
@@ -212,9 +304,9 @@ export function buildAnswerDraftFromStar(starZones, dumpCards, question) {
   };
 
   pushZone("Situation", starZones.situation);
+  pushZone("Task", starZones.task);
   pushZone("What I did", starZones.action);
   pushZone("Result", starZones.result);
-  pushZone("What I learned", starZones.learning);
 
   const body = parts.join("\n\n");
   if (!body.trim()) {
@@ -294,7 +386,7 @@ export function deriveInterviewPrepJobFingerprint(jobContext) {
 export function defaultQuestionBundle() {
   return {
     dumpCards: [],
-    starZones: { situation: [], action: [], result: [], learning: [] },
+    starZones: { situation: [], task: [], action: [], result: [] },
     answerDraft: "",
     stage: 1,
     usedFallbackSort: false,
@@ -312,9 +404,12 @@ export function normalizeQuestionBundle(raw) {
     sz && typeof sz === "object"
       ? {
           situation: Array.isArray(sz.situation) ? sz.situation : [],
+          task: Array.isArray(sz.task) ? sz.task : [],
           action: Array.isArray(sz.action) ? sz.action : [],
-          result: Array.isArray(sz.result) ? sz.result : [],
-          learning: Array.isArray(sz.learning) ? sz.learning : [],
+          result: [
+            ...(Array.isArray(sz.result) ? sz.result : []),
+            ...(Array.isArray(sz.learning) ? sz.learning : []),
+          ],
         }
       : defaultQuestionBundle().starZones;
   return {
