@@ -8,7 +8,8 @@ on:
 
 env:
   AWS_REGION: ap-southeast-2
-  LAMBDA_FUNCTION: neuroguide-api
+  # Zip-based neuroguide-api cannot use --image-uri; deploy to the container function instead.
+  LAMBDA_FUNCTION: neuroguide-api-v2
   ECR_REPOSITORY: neuroguide-api
 
 jobs:
@@ -63,15 +64,25 @@ jobs:
           docker build --progress=plain -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
           echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
-      - name: Verify Lambda uses container package type
+      - name: Verify target Lambda is a container function
         run: |
+          if ! aws lambda get-function-configuration \
+            --function-name "$LAMBDA_FUNCTION" \
+            --region "$AWS_REGION" \
+            --query FunctionName --output text 2>/dev/null; then
+            echo "::error::Lambda $LAMBDA_FUNCTION does not exist yet."
+            echo "Create it once in the console: Package type = Container image, ECR repo neuroguide-api."
+            echo "See backend/DEPLOY_LAMBDA.md"
+            exit 1
+          fi
           PKG=$(aws lambda get-function-configuration \
             --function-name "$LAMBDA_FUNCTION" \
             --region "$AWS_REGION" \
             --query PackageType --output text)
           echo "PackageType=$PKG"
           if [ "$PKG" != "Image" ]; then
-            echo "::error::neuroguide-api is PackageType=$PKG. Container deploy requires Image. See backend/DEPLOY_LAMBDA.md"
+            echo "::error::$LAMBDA_FUNCTION is PackageType=$PKG. Use a new function (e.g. neuroguide-api-v2) with Package type Container image."
+            echo "The old neuroguide-api Zip function cannot be switched to Image in place."
             exit 1
           fi
       - name: Deploy image to Lambda
