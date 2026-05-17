@@ -27,11 +27,8 @@ const BRAIN_DUMP_HINT =
 
   "Anything that comes to mind, messy is fine. Add as many ideas as you like.";
 
-const BRAIN_DUMP_PLACEHOLDER = `Think out loud. A project, a moment, a problem you solved. Anything that comes to mind.
-
-
-
-Try: "fixed a bug before a big launch" or "helped a teammate through a tough deadline"`;
+const BRAIN_DUMP_PLACEHOLDER =
+  "Think out loud. A project, a moment, a problem you solved. Anything that comes to mind.";
 
 
 
@@ -86,12 +83,6 @@ export default function BrainDumpStage({
   const showRevisitGate = revisitReadOnly && hasFormulatedSpeech && !isEditingRevisit;
 
   const showComposer = !showRevisitGate;
-
-  const showSpeechReference =
-
-    showComposer && hasFormulatedSpeech && Boolean(String(revisitSpeechText || "").trim());
-
-
 
   const appendCards = useCallback(
 
@@ -439,23 +430,6 @@ export default function BrainDumpStage({
 
             <div className="ip-bd-composer">
 
-              {showSpeechReference ? (
-
-                <div className="ip-revisit-panel ip-revisit-panel--compact">
-
-                  <p className="ip-revisit-panel__label">Your formulated answer (for reference)</p>
-
-                  <div className="ip-revisit-speech ip-revisit-speech--compact" role="region">
-
-                    {revisitSpeechText}
-
-                  </div>
-
-                </div>
-
-              ) : null}
-
-
 
               <p className="ip-bd-hint">{BRAIN_DUMP_HINT}</p>
 
@@ -531,25 +505,26 @@ export default function BrainDumpStage({
                 </div>
               </div>
 
-                <div className="ip-dump-organise-row">
-                  {!listOk ? (
-                    <span className="ip-dump-organise-row__hint">Add at least one idea to continue</span>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="ip-btn ip-btn--primary ip-dump-organise-btn"
-                    disabled={!listOk || organising || splitting}
-                    onClick={() => onContinue()}
-                  >
-                    {organising ? "Organising…" : "Organise my ideas →"}
-                  </button>
-                </div>
               </div>
 
               <DumpZone
                 cards={dumpCards}
                 onRemove={(id) => onDumpChange(dumpCards.filter((c) => c.id !== id))}
               />
+
+              <div className="ip-dump-organise-row">
+                {!listOk ? (
+                  <span className="ip-dump-organise-row__hint">Add at least one idea to continue</span>
+                ) : null}
+                <button
+                  type="button"
+                  className="ip-btn ip-btn--primary ip-dump-organise-btn"
+                  disabled={!listOk || organising || splitting}
+                  onClick={() => onContinue()}
+                >
+                  {organising ? "Organising…" : "Organise my ideas →"}
+                </button>
+              </div>
 
 
 

@@ -713,6 +713,7 @@
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 0.65rem;
+  margin-top: 1rem;
 }
 
 .ip-dump-organise-row__hint {
@@ -753,6 +754,10 @@
   resize: none;
   min-height: 7rem;
   outline: none;
+  overflow-y: auto;
+}
+.ip-dump-textarea:placeholder-shown {
+  overflow-y: hidden;
 }
 .ip-dump-textarea::placeholder {
   color: #c4b5a8;

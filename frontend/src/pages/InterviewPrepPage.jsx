@@ -876,12 +876,21 @@ function InterviewPrepContent({ initial }) {
 
   const questionKey = String(resolvedQuestion || "").trim();
 
-  const currentQuestionBundle = useMemo(() => {
-    void answeredQuestions;
-    if (!questionKey) return null;
-    const bundles = bundlesRef.current;
-    return normalizeQuestionBundle(bundleForQuestionKey(bundles, questionKey));
-  }, [questionKey, answeredQuestions]);
+  const [currentQuestionBundle, setCurrentQuestionBundle] = useState(() => {
+    const qk = String(initial.selectedQuestion || "").trim();
+    if (!qk) return null;
+    return normalizeQuestionBundle(bundleForQuestionKey(initial.bundles || {}, qk));
+  });
+
+  useEffect(() => {
+    if (!questionKey) {
+      setCurrentQuestionBundle(null);
+      return;
+    }
+    setCurrentQuestionBundle(
+      normalizeQuestionBundle(bundleForQuestionKey(bundlesRef.current, questionKey)),
+    );
+  }, [questionKey, answeredQuestions, dumpCards, starZones, answerDraft, stage]);
 
   const hasFormulatedSpeech = useMemo(
     () =>
@@ -1031,6 +1040,23 @@ function InterviewPrepContent({ initial }) {
 
   const runOrganise = useCallback(async () => {
     releaseListingEntryStepLock(listingStepLockRef);
+
+    const alreadyOrganised =
+      dumpCards.length > 0 &&
+      zonesHaveCards(starZones) &&
+      starPartitionMatchesCards(dumpCards, starZones);
+
+    if (alreadyOrganised) {
+      commitWorkspaceToBundle({ stage: 2 });
+      setStage(2);
+      try {
+        await saveProgressToDatabase({ force: true });
+      } catch {
+        /* non-fatal */
+      }
+      return;
+    }
+
     workspaceApplyGenRef.current += 1;
     const organiseGen = workspaceApplyGenRef.current;
     setOrganising(true);
@@ -1081,7 +1107,14 @@ function InterviewPrepContent({ initial }) {
     } finally {
       if (organiseGen === workspaceApplyGenRef.current) setOrganising(false);
     }
-  }, [dumpCards, resolvedQuestion, setStage, commitWorkspaceToBundle, saveProgressToDatabase]);
+  }, [
+    dumpCards,
+    resolvedQuestion,
+    starZones,
+    setStage,
+    commitWorkspaceToBundle,
+    saveProgressToDatabase,
+  ]);
 
   const handleStageSelect = useCallback(
     (nextStage) => {
@@ -1112,17 +1145,42 @@ function InterviewPrepContent({ initial }) {
 
   const goBuildAnswer = useCallback(async () => {
     releaseListingEntryStepLock(listingStepLockRef);
+
+    const existingAnswer = String(answerDraft || "").trim();
+    const starUnchanged =
+      zonesHaveCards(starZones) && starPartitionMatchesCards(dumpCards, starZones);
+
+    if (existingAnswer && starUnchanged) {
+      commitWorkspaceToBundle({ answerDraft: existingAnswer, stage: 3 });
+      setReadinessPercent(72);
+      setStage(3);
+      try {
+        await saveProgressToDatabase({ force: true });
+      } catch {
+        /* non-fatal */
+      }
+      return;
+    }
+
     const draft = buildAnswerDraftFromStar(starZones, dumpCards, resolvedQuestion || "");
     commitWorkspaceToBundle({ answerDraft: draft, stage: 3 });
     setAnswerDraft(draft);
-    setReadinessPercent(40);
+    setReadinessPercent(draft.trim() ? 72 : 40);
     setStage(3);
     try {
       await saveProgressToDatabase({ force: true });
     } catch {
       /* non-fatal */
     }
-  }, [dumpCards, resolvedQuestion, starZones, setStage, commitWorkspaceToBundle, saveProgressToDatabase]);
+  }, [
+    answerDraft,
+    dumpCards,
+    resolvedQuestion,
+    starZones,
+    setStage,
+    commitWorkspaceToBundle,
+    saveProgressToDatabase,
+  ]);
 
   const persistFormulatedAnswer = useCallback(() => {
     const q = selectedQuestion;

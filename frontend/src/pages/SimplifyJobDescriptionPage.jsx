@@ -1595,12 +1595,13 @@ export default function SimplifyJobDescriptionPage() {
         const occupationId = occResult.occupation_id;
         const occupationName = occResult.occupation_name;
 
+        const overridesForRequest = options?.softOverrides ?? softSkillOverrides;
         const scoreResult = await predictJobScore(
           userQuestionnaire,
           occupationId,
           extractedSkills.length > 0 ? extractedSkills : null,
           fitFeatures && typeof fitFeatures === "object" ? fitFeatures : null,
-          Object.keys(softSkillOverrides || {}).length ? softSkillOverrides : null,
+          overridesForRequest && Object.keys(overridesForRequest).length ? overridesForRequest : null,
         );
 
         setJobScoreOccupationName(occupationName);
@@ -1637,8 +1638,9 @@ export default function SimplifyJobDescriptionPage() {
     ({ skill, action, fromZone, toZone, softOverrideKey, softOverrideLevel }) => {
       const softZone = String(fromZone || "").startsWith("soft_") && String(toZone || "").startsWith("soft_");
       if (softZone && softOverrideKey && (softOverrideLevel === "high" || softOverrideLevel === "medium" || softOverrideLevel === "low")) {
-        setSoftSkillOverrides((prev) => ({ ...prev, [softOverrideKey]: softOverrideLevel }));
-        void runJobScoreForSkills({ appendHistory: false });
+        const nextOverrides = { ...softSkillOverrides, [softOverrideKey]: softOverrideLevel };
+        setSoftSkillOverrides(nextOverrides);
+        void runJobScoreForSkills({ appendHistory: false, softOverrides: nextOverrides });
         return;
       }
       const label = String(skill || "").trim();
@@ -1668,7 +1670,7 @@ export default function SimplifyJobDescriptionPage() {
       if (!profile?.answers) return;
       void runJobScoreForSkills({ appendHistory: false });
     },
-    [runJobScoreForSkills],
+    [runJobScoreForSkills, softSkillOverrides],
   );
 
   const handleSaveJobScore = useCallback(() => {
