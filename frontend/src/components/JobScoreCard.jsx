@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import WorkEnvironmentFitPanel from "./WorkEnvironmentFitPanel.jsx";
 import ExperienceMatchPanel from "./ExperienceMatchPanel.jsx";
@@ -357,6 +358,156 @@ function dropActionFor(fromZone, toZone) {
   return null;
 }
 
+const ZONE_MOVE_LABELS = {
+  tool_matched: "Fully matching",
+  tool_partial: "Partially aligned",
+  tool_missing: "Missing essentials",
+  soft_matched: "Aligned",
+  soft_missing: "Gaps to develop",
+};
+
+function validDropZonesFor(fromZone) {
+  if (!fromZone) return [];
+  const kind = zoneKind(fromZone);
+  const candidates =
+    kind === "tool"
+      ? ["tool_matched", "tool_partial", "tool_missing"]
+      : kind === "soft"
+        ? ["soft_matched", "soft_missing"]
+        : [];
+  return candidates.filter((z) => dropActionFor(fromZone, z));
+}
+
+function toolBucketsFromSplit(split) {
+  const pM = partitionByType(split.matched);
+  const pP = partitionByType(split.partial);
+  const pMi = partitionByType(split.missing);
+  return { matched: pM.tool, partial: pP.tool, missing: pMi.tool };
+}
+
+function moveSkillBetweenToolBuckets(buckets, skill, fromZone, toZone) {
+  const eq = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+  const zoneToKey = { tool_matched: "matched", tool_partial: "partial", tool_missing: "missing" };
+  const fromKey = zoneToKey[fromZone];
+  const toKey = zoneToKey[toZone];
+  if (!fromKey || !toKey || fromKey === toKey) return buckets;
+  const next = {
+    matched: (buckets.matched || []).filter((x) => !eq(x, skill)),
+    partial: (buckets.partial || []).filter((x) => !eq(x, skill)),
+    missing: (buckets.missing || []).filter((x) => !eq(x, skill)),
+  };
+  next[toKey] = [...next[toKey], skill];
+  return next;
+}
+
+function bucketKeyForToolSkill(buckets, skill) {
+  const eq = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+  if ((buckets.matched || []).some((x) => eq(x, skill))) return "matched";
+  if ((buckets.partial || []).some((x) => eq(x, skill))) return "partial";
+  if ((buckets.missing || []).some((x) => eq(x, skill))) return "missing";
+  return null;
+}
+
+/** Keep preview column placement when score refresh recategorises other skills. */
+function rebaseToolBucketsAfterSplit(fresh, prev) {
+  const seen = new Set();
+  const names = [];
+  const addName = (s) => {
+    const k = String(s).trim().toLowerCase();
+    if (!k || seen.has(k)) return;
+    seen.add(k);
+    names.push(s);
+  };
+  [...(fresh.matched || []), ...(fresh.partial || []), ...(fresh.missing || [])].forEach(addName);
+  [...(prev.matched || []), ...(prev.partial || []), ...(prev.missing || [])].forEach(addName);
+
+  const next = { matched: [], partial: [], missing: [] };
+  names.forEach((skill) => {
+    const prevKey = bucketKeyForToolSkill(prev, skill);
+    const freshKey = bucketKeyForToolSkill(fresh, skill);
+    const key = prevKey === "partial" ? "partial" : prevKey || freshKey;
+    if (key) next[key].push(skill);
+  });
+  return next;
+}
+
+function moveSkillBetweenSoftBuckets(buckets, skill, toZone) {
+  const eq = (a, b) => String(a).toLowerCase().trim() === String(b).toLowerCase().trim();
+  const next = {
+    matched: (buckets.matched || []).filter((x) => !eq(x, skill)),
+    partial: (buckets.partial || []).filter((x) => !eq(x, skill)),
+    missing: (buckets.missing || []).filter((x) => !eq(x, skill)),
+  };
+  if (toZone === "soft_matched") next.matched.push(skill);
+  else if (toZone === "soft_missing") next.missing.push(skill);
+  else next.partial.push(skill);
+  return next;
+}
+
+/** Profile mutations only when a column change should add/remove skills; other moves are visual preview. */
+function profileActionForToolDrop(fromZone, toZone) {
+  if (!fromZone || !toZone || fromZone === toZone) return null;
+  if (zoneKind(fromZone) !== "tool" || zoneKind(toZone) !== "tool") return null;
+  if (toZone === "tool_matched" && (fromZone === "tool_missing" || fromZone === "tool_partial")) {
+    return "add";
+  }
+  if (toZone === "tool_missing" && (fromZone === "tool_matched" || fromZone === "tool_partial")) {
+    return "remove";
+  }
+  if (toZone === "tool_partial" && fromZone === "tool_missing") return "add";
+  return null;
+}
+
+function ChipGripIcon() {
+  return (
+    <svg className="jsc-skill-chip__grip-svg" viewBox="0 0 10 16" width="10" height="16" aria-hidden="true">
+      <circle cx="3" cy="3" r="1.35" fill="currentColor" />
+      <circle cx="7" cy="3" r="1.35" fill="currentColor" />
+      <circle cx="3" cy="8" r="1.35" fill="currentColor" />
+      <circle cx="7" cy="8" r="1.35" fill="currentColor" />
+      <circle cx="3" cy="13" r="1.35" fill="currentColor" />
+      <circle cx="7" cy="13" r="1.35" fill="currentColor" />
+    </svg>
+  );
+}
+
+function dropZoneAtPoint(clientX, clientY, { preferNotZone = null } = {}) {
+  const stack =
+    typeof document.elementsFromPoint === "function"
+      ? document.elementsFromPoint(clientX, clientY)
+      : [document.elementFromPoint(clientX, clientY)].filter(Boolean);
+
+  let fallback = null;
+  for (const el of stack) {
+    if (!(el instanceof Element)) continue;
+    const zoneEl = el.closest("[data-jsc-drop-zone]");
+    if (!zoneEl) continue;
+    const zoneId = zoneEl.getAttribute("data-jsc-drop-zone");
+    if (!zoneId) continue;
+    if (!fallback) fallback = zoneId;
+    if (preferNotZone && zoneId === preferNotZone) continue;
+    return zoneId;
+  }
+  return fallback;
+}
+
+function SkillChipFloat({ skill, tone, x, y }) {
+  if (skill == null || x == null || y == null) return null;
+  return createPortal(
+    <span
+      className={`jsc-skill-chip jsc-skill-chip--${tone} jsc-skill-chip--float`}
+      style={{ left: `${x}px`, top: `${y}px` }}
+      aria-hidden="true"
+    >
+      <span className="jsc-skill-chip__grip" aria-hidden="true">
+        <ChipGripIcon />
+      </span>
+      <span className="jsc-skill-chip__label">{skill}</span>
+    </span>,
+    document.body,
+  );
+}
+
 /** Ring / tone colors aligned with legend: Low 0–40, Mid 41–70, High 71–100. */
 function scoreTone(score) {
   if (score >= 71) return "good";
@@ -656,31 +807,87 @@ function ScoreBreakdownRow({ rowId, label, pct, expanded, onToggle, children, va
   );
 }
 
-function parseDragPayload(e) {
-  try {
-    const raw = e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain");
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function DraggableChip({ skill, tone, zone, busy, draggable: draggableProp }) {
+function DraggableChip({
+  skill,
+  tone,
+  zone,
+  busy,
+  draggable: draggableProp,
+  isDragging,
+  onPointerDragStart,
+  onMoveToZone,
+}) {
   const draggable = draggableProp !== undefined ? draggableProp && !busy : !busy;
+  const [focused, setFocused] = useState(false);
+  const moveTargets = useMemo(
+    () => validDropZonesFor(zone).map((z) => ({ zoneId: z, label: ZONE_MOVE_LABELS[z] || z })),
+    [zone],
+  );
+
+  const handleMove = (targetZone) => {
+    if (!dropActionFor(zone, targetZone)) return;
+    onMoveToZone?.({ skill, fromZone: zone, toZone: targetZone });
+  };
+
   return (
     <span
-      className={`jsc-mini-chip jsc-mini-chip--${tone} jsc-mini-chip--drag`}
-      draggable={draggable}
-      onDragStart={(e) => {
-        const payload = JSON.stringify({ skill, fromZone: zone });
-        e.dataTransfer.setData("application/json", payload);
-        e.dataTransfer.setData("text/plain", payload);
-        e.dataTransfer.effectAllowed = "move";
+      className={[
+        "jsc-skill-chip",
+        `jsc-skill-chip--${tone}`,
+        draggable ? "jsc-skill-chip--draggable" : "",
+        isDragging ? "jsc-skill-chip--dragging" : "",
+        focused && !isDragging ? "jsc-skill-chip--focused" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      tabIndex={draggable ? 0 : -1}
+      role="listitem"
+      aria-grabbed={isDragging || undefined}
+      aria-label={`${skill}. Draggable skill. Tab to focus, then use Move to buttons or drag to another column.`}
+      onPointerDown={(e) => {
+        if (!draggable || e.button !== 0) return;
+        if (!(e.target instanceof Element)) return;
+        if (e.target.closest(".jsc-skill-chip__move-btn")) return;
+        e.preventDefault();
+        if (e.currentTarget instanceof HTMLElement) e.currentTarget.blur();
+        const rect = e.currentTarget.getBoundingClientRect();
+        onPointerDragStart?.({
+          skill,
+          fromZone: zone,
+          tone,
+          offsetX: e.clientX - rect.left,
+          offsetY: e.clientY - rect.top,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          pointerId: e.pointerId,
+          captureEl: e.currentTarget,
+        });
       }}
-      title="Drag to another skills row to update your profile"
+      onFocus={() => setFocused(true)}
+      onBlur={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget)) return;
+        setFocused(false);
+      }}
     >
-      {skill}
+      <span className="jsc-skill-chip__grip" aria-hidden="true">
+        <ChipGripIcon />
+      </span>
+      <span className="jsc-skill-chip__label">{skill}</span>
+      {focused && moveTargets.length > 0 ? (
+        <span className="jsc-skill-chip__move" role="group" aria-label={`Move ${skill}`}>
+          {moveTargets.map((t) => (
+            <button
+              key={t.zoneId}
+              type="button"
+              className="jsc-skill-chip__move-btn"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => handleMove(t.zoneId)}
+            >
+              → {t.label}
+            </button>
+          ))}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -693,54 +900,54 @@ function SkillDropBucket({
   tone,
   busy,
   onDropSkill,
-  allowDrop,
   allowDrag = true,
+  dragSession,
+  hoverZone,
+  onPointerDragStart,
 }) {
-  const [over, setOver] = useState(false);
   const showEmpty = !items.length;
   const labelForBucket = ariaLabel || title || zoneId;
+  const isDragging = Boolean(dragSession?.skill);
+  const isValidTarget =
+    isDragging && dragSession?.fromZone && Boolean(dropActionFor(dragSession.fromZone, zoneId));
+  const isHover = hoverZone === zoneId;
+  const isOverValid = isHover && isValidTarget;
+  const isOverInvalid = isHover && isDragging && !isValidTarget;
+
   return (
     <div
-      className={`jsc-assess-box jsc-assess-box--${tone === "good" ? "good" : tone === "warn" ? "warn" : "risk"} jsc-skill-subbox jsc-drop-bucket${over ? " jsc-drop-bucket--over" : ""}`}
+      className={[
+        "jsc-assess-box",
+        `jsc-assess-box--${tone === "good" ? "good" : tone === "warn" ? "warn" : "risk"}`,
+        "jsc-skill-subbox",
+        "jsc-drop-bucket",
+        isDragging ? "jsc-drop-bucket--session" : "",
+        isValidTarget ? "jsc-drop-bucket--valid-target" : "",
+        isOverValid ? "jsc-drop-bucket--over" : "",
+        isOverInvalid ? "jsc-drop-bucket--invalid" : "",
+        isDragging && isValidTarget ? "jsc-drop-bucket--drop-ready" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-jsc-drop-zone={zoneId}
       aria-label={labelForBucket}
-      onDragOver={(e) => {
-        if (!allowDrop) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-      }}
-      onDragOverCapture={(e) => {
-        if (!allowDrop) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-      }}
-      onDragEnter={(e) => {
-        if (!allowDrop) return;
-        e.preventDefault();
-        setOver(true);
-      }}
-      onDragLeave={(e) => {
-        if (!allowDrop) return;
-        const next = e.relatedTarget;
-        if (next instanceof Node && e.currentTarget.contains(next)) return;
-        setOver(false);
-      }}
-      onDrop={(e) => {
-        if (!allowDrop) return;
-        e.preventDefault();
-        setOver(false);
-        const payload = parseDragPayload(e);
-        if (!payload?.skill || !payload?.fromZone) return;
-        const action = dropActionFor(payload.fromZone, zoneId);
-        if (!action) return;
-        onDropSkill?.({ skill: payload.skill, action, fromZone: payload.fromZone, toZone: zoneId });
-      }}
     >
       {title ? <p className="jsc-assess-box-head">{title}</p> : null}
       {showEmpty ? (
-        <p className="jsc-muted-line">Drag skills here</p>
+        isOverValid ? (
+          <div className="jsc-drop-slot jsc-drop-slot--empty" aria-hidden="true">
+            Release to drop
+          </div>
+        ) : (
+          <div className="jsc-drop-empty" aria-hidden={isDragging ? "false" : "true"}>
+            <span className="jsc-drop-empty__icon" aria-hidden="true">
+              ↓
+            </span>
+            <p className="jsc-drop-empty__text">Drop skills here</p>
+          </div>
+        )
       ) : (
-        <div className="jsc-chip-row">
+        <div className="jsc-chip-row" role="list">
           {items.map((it, idx) => (
             <DraggableChip
               key={`${it}-${idx}`}
@@ -749,11 +956,199 @@ function SkillDropBucket({
               zone={zoneId}
               busy={busy}
               draggable={allowDrag}
+              isDragging={
+                dragSession?.fromZone === zoneId &&
+                String(dragSession?.skill || "").trim().toLowerCase() === String(it).trim().toLowerCase()
+              }
+              onPointerDragStart={onPointerDragStart}
+              onMoveToZone={onDropSkill}
             />
           ))}
-          </div>
+          {isOverValid ? (
+            <div className="jsc-drop-slot" aria-hidden="true">
+              Release to drop
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
+  );
+}
+
+function SkillBucketsGroup({
+  instruction,
+  instructionId,
+  dropFeedback,
+  columnsClassName,
+  groupLabel,
+  zones,
+  canDnD,
+  busy,
+  onDropSkill,
+  hoverZone,
+  setHoverZone,
+  setDropFeedback,
+}) {
+  const [activeDrag, setActiveDrag] = useState(null);
+  const [floatPos, setFloatPos] = useState(null);
+  const floatOffsetRef = useRef({ x: 18, y: 12 });
+  const activeDragRef = useRef(null);
+  const validHoverZoneRef = useRef(null);
+  const captureElRef = useRef(null);
+  const capturePointerIdRef = useRef(null);
+
+  const endDrag = useCallback(() => {
+    activeDragRef.current = null;
+    validHoverZoneRef.current = null;
+    setActiveDrag(null);
+    setFloatPos(null);
+    setHoverZone?.(null);
+    document.body.classList.remove("jsc-skill-dnd-active");
+    const capEl = captureElRef.current;
+    const capPid = capturePointerIdRef.current;
+    if (capEl && capPid != null) {
+      try {
+        if (capEl.hasPointerCapture(capPid)) capEl.releasePointerCapture(capPid);
+      } catch {
+        /* ignore */
+      }
+    }
+    captureElRef.current = null;
+    capturePointerIdRef.current = null;
+  }, [setHoverZone]);
+
+  const handleDrop = useCallback(
+    (payload) => {
+      setDropFeedback?.("Updating your match score…");
+      onDropSkill?.(payload);
+      endDrag();
+      window.setTimeout(() => {
+        setDropFeedback?.((msg) =>
+          msg === "Updating your match score…" ? "Match score updated from your skill changes." : msg,
+        );
+      }, 1200);
+    },
+    [endDrag, onDropSkill, setDropFeedback],
+  );
+
+  const beginDrag = useCallback(
+    ({ skill, fromZone, tone, offsetX, offsetY, clientX, clientY, pointerId, captureEl }) => {
+      const session = { skill, fromZone, tone, offsetX, offsetY, pointerId };
+      activeDragRef.current = session;
+      floatOffsetRef.current = { x: offsetX, y: offsetY };
+      setActiveDrag(session);
+      setFloatPos({ x: clientX - offsetX, y: clientY - offsetY });
+      document.body.classList.add("jsc-skill-dnd-active");
+      if (captureEl?.setPointerCapture) {
+        captureEl.setPointerCapture(pointerId);
+        captureElRef.current = captureEl;
+        capturePointerIdRef.current = pointerId;
+      }
+      setDropFeedback?.(
+        `Dragging “${skill}”. Drop it on a highlighted column to update your match score in real time.`,
+      );
+    },
+    [setDropFeedback],
+  );
+
+  const dragHandlersRef = useRef({ onMove: null, onUp: null });
+
+  useEffect(() => {
+    dragHandlersRef.current = {
+      onMove: (e) => {
+        const session = activeDragRef.current;
+        if (!session || session.pointerId !== e.pointerId) return;
+        const { x: ox, y: oy } = floatOffsetRef.current;
+        setFloatPos({ x: e.clientX - ox, y: e.clientY - oy });
+        const zoneId = dropZoneAtPoint(e.clientX, e.clientY, { preferNotZone: session.fromZone });
+        if (zoneId && dropActionFor(session.fromZone, zoneId)) {
+          validHoverZoneRef.current = zoneId;
+        }
+        setHoverZone?.(zoneId);
+      },
+      onUp: (e) => {
+        const session = activeDragRef.current;
+        if (!session || session.pointerId !== e.pointerId) return;
+        const zoneId =
+          dropZoneAtPoint(e.clientX, e.clientY, { preferNotZone: session.fromZone }) ||
+          validHoverZoneRef.current ||
+          dropZoneAtPoint(e.clientX, e.clientY);
+        if (zoneId && dropActionFor(session.fromZone, zoneId)) {
+          handleDrop({ skill: session.skill, fromZone: session.fromZone, toZone: zoneId });
+        } else {
+          endDrag();
+        }
+      },
+    };
+  });
+
+  useEffect(() => {
+    const onMove = (e) => dragHandlersRef.current.onMove?.(e);
+    const onUp = (e) => dragHandlersRef.current.onUp?.(e);
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    };
+  }, []);
+
+  const armPointerDrag = useCallback(
+    (info) => {
+      beginDrag(info);
+    },
+    [beginDrag],
+  );
+
+  return (
+    <>
+      {canDnD ? (
+        <>
+          <p className="jsc-dnd-callout" id={instructionId}>
+            <span className="jsc-dnd-callout__badge" aria-hidden="true">
+              Drag
+            </span>
+            {instruction}
+          </p>
+          <p className="jsc-dnd-live" role="status" aria-live="polite" aria-atomic="true">
+            {dropFeedback || ""}
+          </p>
+        </>
+      ) : null}
+      <div
+        className={columnsClassName}
+        role="group"
+        aria-labelledby={canDnD ? instructionId : undefined}
+        aria-label={!canDnD ? groupLabel : undefined}
+      >
+        {zones.map((z) => (
+          <SkillDropBucket
+            key={z.zoneId}
+            zoneId={z.zoneId}
+            title={z.title}
+            ariaLabel={z.ariaLabel}
+            items={z.items}
+            tone={z.tone}
+            busy={busy}
+            allowDrag={z.allowDrag !== false}
+            dragSession={activeDrag}
+            hoverZone={hoverZone}
+            onPointerDragStart={canDnD && !busy ? armPointerDrag : undefined}
+            onDropSkill={handleDrop}
+          />
+        ))}
+      </div>
+      {activeDrag?.skill && activeDrag?.tone && floatPos ? (
+        <SkillChipFloat
+          skill={activeDrag.skill}
+          tone={activeDrag.tone}
+          x={floatPos.x}
+          y={floatPos.y}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -791,26 +1186,33 @@ export default function JobScoreCard({
   const softDebugSplit = useMemo(() => splitSoftSkillsFromDebug(softDebug), [softDebug]);
   const softBucketsFromDebug = softDebugSplit != null;
   const [softDnDState, setSoftDnDState] = useState(null);
+  const [toolDnDState, setToolDnDState] = useState(null);
   const [prevSoftDebugSplit, setPrevSoftDebugSplit] = useState(softDebugSplit);
+  const splitKey = `${split.matched.join("\0")}|${split.partial.join("\0")}|${split.missing.join("\0")}`;
+  const [prevSplitKey, setPrevSplitKey] = useState(splitKey);
   if (prevSoftDebugSplit !== softDebugSplit) {
     setPrevSoftDebugSplit(softDebugSplit);
-    setSoftDnDState(null);
+    setSoftDnDState((prev) =>
+      prev && softDebugSplit ? rebaseToolBucketsAfterSplit(softDebugSplit, prev) : null,
+    );
+  }
+  if (prevSplitKey !== splitKey) {
+    setPrevSplitKey(splitKey);
+    setToolDnDState((prev) => (prev ? rebaseToolBucketsAfterSplit(toolBucketsFromSplit(split), prev) : null));
   }
 
   const skillBuckets = useMemo(() => {
     const pM = partitionByType(split.matched);
     const pP = partitionByType(split.partial);
     const pMi = partitionByType(split.missing);
+    const toolSource = toolDnDState || toolBucketsFromSplit(split);
     const softSource = softDnDState || softDebugSplit;
-    if (softSource) {
-      return {
-        matched: { tool: pM.tool, soft: softSource.matched },
-        partial: { tool: pP.tool, soft: softSource.partial },
-        missing: { tool: pMi.tool, soft: softSource.missing },
-      };
-    }
-    return { matched: pM, partial: pP, missing: pMi };
-  }, [split.matched, split.partial, split.missing, softDebugSplit, softDnDState]);
+    return {
+      matched: { tool: toolSource.matched || [], soft: softSource?.matched ?? pM.soft },
+      partial: { tool: toolSource.partial || [], soft: softSource?.partial ?? pP.soft },
+      missing: { tool: toolSource.missing || [], soft: softSource?.missing ?? pMi.soft },
+    };
+  }, [split, softDebugSplit, softDnDState, toolDnDState]);
   const matchedByType = skillBuckets.matched;
   const partialByType = skillBuckets.partial;
   const missingByType = skillBuckets.missing;
@@ -851,9 +1253,42 @@ export default function JobScoreCard({
       : undefined;
 
   const canDnD = typeof onSkillProfileChange === "function";
+  const technicalDnDInstructionId = useId();
+  const softDnDInstructionId = useId();
+  const [toolHoverZone, setToolHoverZone] = useState(null);
+  const [toolDropFeedback, setToolDropFeedback] = useState("");
+  const [softHoverZone, setSoftHoverZone] = useState(null);
+  const [softDropFeedback, setSoftDropFeedback] = useState("");
+  const handleDrop = ({ skill, fromZone, toZone }) => {
+    if (!canDnD) return;
+    if (!fromZone || !toZone || fromZone === toZone) return;
+    if (!dropActionFor(fromZone, toZone)) return;
 
-  const handleDrop = ({ skill, action, fromZone, toZone }) => {
-    if (!canDnD || jobScoreBusy) return;
+    const isSoft =
+      String(fromZone).startsWith("soft_") && String(toZone).startsWith("soft_");
+    const feedbackSetter = isSoft ? setSoftDropFeedback : setToolDropFeedback;
+    if (jobScoreBusy) {
+      feedbackSetter("Score is updating — try again in a moment.");
+      window.setTimeout(() => feedbackSetter(""), 2800);
+      return;
+    }
+
+    const toolZone = String(fromZone).startsWith("tool_") && String(toZone).startsWith("tool_");
+    if (toolZone) {
+      setToolDnDState((prev) => {
+        const base = prev || toolBucketsFromSplit(split);
+        return moveSkillBetweenToolBuckets(base, skill, fromZone, toZone);
+      });
+      const profileAction = profileActionForToolDrop(fromZone, toZone);
+      if (profileAction) {
+        onSkillProfileChange({ skill, action: profileAction, fromZone, toZone });
+      } else {
+        setToolDropFeedback("Score preview updated for this column layout.");
+        window.setTimeout(() => setToolDropFeedback(""), 2800);
+      }
+      return;
+    }
+
     const softZone = String(fromZone || "").startsWith("soft_") && String(toZone || "").startsWith("soft_");
     if (softZone && softBucketsFromDebug) {
       const softOverrideKey = parseSoftDimKeyFromLabel(skill);
@@ -864,28 +1299,26 @@ export default function JobScoreCard({
           partial: [...(softDebugSplit?.partial || [])],
           missing: [...(softDebugSplit?.missing || [])],
         };
-        const eq = (a, b) => String(a).toLowerCase().trim() === String(b).toLowerCase().trim();
-        const next = {
-          matched: base.matched.filter((x) => !eq(x, skill)),
-          partial: base.partial.filter((x) => !eq(x, skill)),
-          missing: base.missing.filter((x) => !eq(x, skill)),
-        };
-        if (toZone === "soft_matched") next.matched.push(skill);
-        else if (toZone === "soft_missing") next.missing.push(skill);
-        else next.partial.push(skill);
-        return next;
+        return moveSkillBetweenSoftBuckets(base, skill, toZone);
       });
-      onSkillProfileChange({
-        skill,
-        action,
-        fromZone,
-        toZone,
-        softOverrideKey,
-        softOverrideLevel,
-      });
+      setSoftDropFeedback("Updating your match score…");
+      if (softOverrideKey) {
+        onSkillProfileChange({
+          skill,
+          action: dropActionFor(fromZone, toZone),
+          fromZone,
+          toZone,
+          softOverrideKey,
+          softOverrideLevel,
+        });
+      } else {
+        setSoftDropFeedback("Could not update this soft skill — try the arrow buttons.");
+        window.setTimeout(() => setSoftDropFeedback(""), 3200);
+      }
       return;
     }
-    onSkillProfileChange({ skill, action });
+    const action = dropActionFor(fromZone, toZone);
+    if (action) onSkillProfileChange({ skill, action, fromZone, toZone });
   };
 
   if (!result && !jobScoreBusy) return null;
@@ -1102,41 +1535,42 @@ export default function JobScoreCard({
               expanded={bdOpen.technical}
               onToggle={() => setBdOpen((o) => ({ ...o, technical: !o.technical }))}
             >
-              {canDnD ? (
-                <p className="jsc-dnd-hint">Drag skill chips between columns to explore recalculated scores.</p>
-              ) : null}
-              <div className="jsc-skill-buckets-row jsc-skill-buckets-row--3" role="group" aria-label="Technical skills: matching, partial, missing">
-                <SkillDropBucket
-                  zoneId="tool_matched"
-                  title="Fully matching"
-                  ariaLabel="Fully matching technical skills"
-                  items={matchedByType.tool}
-                  tone="good"
-                  busy={jobScoreBusy}
-                  allowDrop={canDnD}
-                  onDropSkill={handleDrop}
-                />
-                <SkillDropBucket
-                  zoneId="tool_partial"
-                  title="Partially aligned"
-                  ariaLabel="Partially aligned technical skills"
-                  items={partialByType.tool}
-                  tone="warn"
-                  busy={jobScoreBusy}
-                  allowDrop={canDnD}
-                  onDropSkill={handleDrop}
-                />
-                <SkillDropBucket
-                  zoneId="tool_missing"
-                  title="Missing essentials"
-                  ariaLabel="Missing technical skills"
-                  items={missingByType.tool}
-                  tone="risk"
-                  busy={jobScoreBusy}
-                  allowDrop={canDnD}
-                  onDropSkill={handleDrop}
-                />
-                    </div>
+              <SkillBucketsGroup
+                instruction="Drag and drop skills to see how your match score changes in real time."
+                instructionId={technicalDnDInstructionId}
+                dropFeedback={toolDropFeedback}
+                columnsClassName="jsc-skill-buckets-row jsc-skill-buckets-row--3"
+                groupLabel="Technical skills: matching, partial, missing"
+                canDnD={canDnD}
+                busy={jobScoreBusy}
+                onDropSkill={handleDrop}
+                hoverZone={toolHoverZone}
+                setHoverZone={setToolHoverZone}
+                setDropFeedback={setToolDropFeedback}
+                zones={[
+                  {
+                    zoneId: "tool_matched",
+                    title: "Fully matching",
+                    ariaLabel: "Fully matching technical skills",
+                    items: matchedByType.tool,
+                    tone: "good",
+                  },
+                  {
+                    zoneId: "tool_partial",
+                    title: "Partially aligned",
+                    ariaLabel: "Partially aligned technical skills",
+                    items: partialByType.tool,
+                    tone: "warn",
+                  },
+                  {
+                    zoneId: "tool_missing",
+                    title: "Missing essentials",
+                    ariaLabel: "Missing technical skills",
+                    items: missingByType.tool,
+                    tone: "risk",
+                  },
+                ]}
+              />
             </ScoreBreakdownRow>
 
             <ScoreBreakdownRow
@@ -1153,35 +1587,35 @@ export default function JobScoreCard({
                   {neutralizeScoringCopy(softDebug.soft_skills_ui_hint)}
                 </p>
               ) : null}
-              {softBucketsFromDebug ? (
-                <p className="jsc-dnd-hint">Drag chips between columns to update your profile. Scores refresh after save.</p>
-              ) : canDnD ? (
-                <p className="jsc-dnd-hint">Drag chips between columns to update your profile. Scores refresh after save.</p>
-            ) : null}
-              <div className="jsc-skill-buckets-row jsc-skill-buckets-row--2" role="group" aria-label="Soft skills: matching and missing">
-                <SkillDropBucket
-                  zoneId="soft_matched"
-                  title="Aligned"
-                  ariaLabel="Aligned soft skills"
-                  items={matchedByType.soft}
-                  tone="good"
-                  busy={jobScoreBusy}
-                  allowDrop={canDnD}
-                  allowDrag
-                  onDropSkill={handleDrop}
-                />
-                <SkillDropBucket
-                  zoneId="soft_missing"
-                  title="Gaps to develop"
-                  ariaLabel="Soft skill gaps"
-                  items={softGaps}
-                  tone="risk"
-                  busy={jobScoreBusy}
-                  allowDrop={canDnD}
-                  allowDrag
-                  onDropSkill={handleDrop}
-                />
-                </div>
+              <SkillBucketsGroup
+                instruction="Drag and drop skills to see how your match score changes in real time. Scores refresh after you save profile changes."
+                instructionId={softDnDInstructionId}
+                dropFeedback={softDropFeedback}
+                columnsClassName="jsc-skill-buckets-row jsc-skill-buckets-row--2"
+                groupLabel="Soft skills: matching and missing"
+                canDnD={canDnD}
+                busy={jobScoreBusy}
+                onDropSkill={handleDrop}
+                hoverZone={softHoverZone}
+                setHoverZone={setSoftHoverZone}
+                setDropFeedback={setSoftDropFeedback}
+                zones={[
+                  {
+                    zoneId: "soft_matched",
+                    title: "Aligned",
+                    ariaLabel: "Aligned soft skills",
+                    items: matchedByType.soft,
+                    tone: "good",
+                  },
+                  {
+                    zoneId: "soft_missing",
+                    title: "Gaps to develop",
+                    ariaLabel: "Soft skill gaps",
+                    items: softGaps,
+                    tone: "risk",
+                  },
+                ]}
+              />
             </ScoreBreakdownRow>
               </div>
           ) : (
