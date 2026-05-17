@@ -860,6 +860,7 @@ export default function ProfileWizardPage() {
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [roleSearchFocused, setRoleSearchFocused] = useState(false);
+  const roleSearchBlurTimerRef = useRef(null);
   /** True after jumping from Profile Ready to edit; cleared when returning or finishing via Skills. */
   const [resumeToProfileReady, setResumeToProfileReady] = useState(false);
 
@@ -1564,6 +1565,16 @@ export default function ProfileWizardPage() {
     </div>
   );
 
+  const pickRoleSuggestion = (item) => {
+    if (roleSearchBlurTimerRef.current) {
+      window.clearTimeout(roleSearchBlurTimerRef.current);
+      roleSearchBlurTimerRef.current = null;
+    }
+    toggleRole(item);
+    setAnswer("roleSearchQuery", "");
+    setRoleSearchFocused(false);
+  };
+
   const renderRoleSelector = () => {
     const selectedValues = state.answers.selectedRoles;
     const query = state.answers.roleSearchQuery.trim();
@@ -1603,9 +1614,18 @@ export default function ProfileWizardPage() {
               placeholder="Search IT job titles or type your own…"
               aria-label="Search IT job titles"
               autoComplete="off"
-              onFocus={() => setRoleSearchFocused(true)}
+              onFocus={() => {
+                if (roleSearchBlurTimerRef.current) {
+                  window.clearTimeout(roleSearchBlurTimerRef.current);
+                  roleSearchBlurTimerRef.current = null;
+                }
+                setRoleSearchFocused(true);
+              }}
               onBlur={() => {
-                window.setTimeout(() => setRoleSearchFocused(false), 120);
+                roleSearchBlurTimerRef.current = window.setTimeout(() => {
+                  roleSearchBlurTimerRef.current = null;
+                  setRoleSearchFocused(false);
+                }, 150);
               }}
             />
           </div>
@@ -1625,10 +1645,10 @@ export default function ProfileWizardPage() {
                   key={item}
                   type="button"
                   className="suggestion-row"
-                  onClick={() => {
-                    toggleRole(item);
-                    setAnswer("roleSearchQuery", "");
-                    setRoleSearchFocused(false);
+                  role="option"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pickRoleSuggestion(item);
                   }}
                 >
                   <span>{item}</span>
