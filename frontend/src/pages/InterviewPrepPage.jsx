@@ -488,6 +488,7 @@ function jobContextHasInterviewSource(jc) {
 function InterviewPrepContent({ initial }) {
   const navigate = useNavigate();
   const bundlesRef = useRef(initial.bundles || {});
+  const [questionBundles, setQuestionBundles] = useState(() => initial.bundles || {});
   const listingEntryFromListing = peekInterviewPrepStartAtStep1();
   const listingStepLockRef = useRef(listingEntryFromListing);
   const cloudHydrateWorkspaceAppliedRef = useRef(false);
@@ -614,7 +615,9 @@ function InterviewPrepContent({ initial }) {
         draftUpdatedAt: Date.now(),
       });
       if (questionBundleHasWork(prev) && !questionBundleHasWork(candidate)) return;
-      bundlesRef.current[q] = candidate;
+      const nextAll = { ...bundlesRef.current, [q]: candidate };
+      bundlesRef.current = nextAll;
+      setQuestionBundles(nextAll);
       persistOrgLocal(q);
     },
     [allQuestions, dumpCards, starZones, answerDraft, stage, usedFallbackSort, persistOrgLocal],
@@ -757,6 +760,7 @@ function InterviewPrepContent({ initial }) {
         ...Object.keys(serverBundles),
       ]);
       bundlesRef.current = merged;
+      setQuestionBundles(merged);
       const remoteSaved =
         prog.savedAnswers.length > 0 ? prog.savedAnswers : savedAnswersFromBundles(serverBundles);
       const mergedSaved = mergeSavedAnswersByQuestion(savedAnswersRef.current, remoteSaved);
@@ -831,10 +835,13 @@ function InterviewPrepContent({ initial }) {
       prev.usedFallbackSort !== next.usedFallbackSort ||
       String(prev.finalizedAnswer || "") !== String(next.finalizedAnswer || "");
     if (!changed && !nextWork) return;
-    bundlesRef.current[selectedQuestion] = {
+    const nextEntry = {
       ...next,
       draftUpdatedAt: changed ? Date.now() : prev.draftUpdatedAt || Date.now(),
     };
+    const nextAll = { ...bundlesRef.current, [selectedQuestion]: nextEntry };
+    bundlesRef.current = nextAll;
+    setQuestionBundles(nextAll);
     persistOrgLocal(selectedQuestion);
     scheduleCloudSave();
   }, [
@@ -879,7 +886,7 @@ function InterviewPrepContent({ initial }) {
 
   const currentQuestionBundle = useMemo(() => {
     if (!questionKey) return null;
-    const stored = bundleForQuestionKey(bundlesRef.current, questionKey);
+    const stored = bundleForQuestionKey(questionBundles, questionKey);
     return normalizeQuestionBundle({
       ...stored,
       dumpCards,
@@ -887,7 +894,7 @@ function InterviewPrepContent({ initial }) {
       answerDraft,
       stage: persistableStage(stage),
     });
-  }, [questionKey, dumpCards, starZones, answerDraft, stage]);
+  }, [questionKey, questionBundles, dumpCards, starZones, answerDraft, stage]);
 
   const hasFormulatedSpeech = useMemo(
     () =>
@@ -958,7 +965,7 @@ function InterviewPrepContent({ initial }) {
       if (!q || !allQuestions.includes(q)) return;
       const prev = bundlesRef.current[q] || defaultQuestionBundle();
       const st = persistableStage(stage);
-      bundlesRef.current[q] = normalizeQuestionBundle({
+      const nextEntry = normalizeQuestionBundle({
         ...prev,
         dumpCards,
         starZones,
@@ -967,6 +974,9 @@ function InterviewPrepContent({ initial }) {
         usedFallbackSort,
         draftUpdatedAt: Date.now(),
       });
+      const nextAll = { ...bundlesRef.current, [q]: nextEntry };
+      bundlesRef.current = nextAll;
+      setQuestionBundles(nextAll);
     },
     [allQuestions, dumpCards, starZones, answerDraft, stage, usedFallbackSort],
   );
@@ -1131,7 +1141,7 @@ function InterviewPrepContent({ initial }) {
     const existingAnswer = String(answerDraft || "").trim();
     const starKey = starContentFingerprint(question, starZones, dumpCards);
     const bundle = normalizeQuestionBundle(
-      bundlesRef.current[question] || defaultQuestionBundle(),
+      questionBundles[question] || defaultQuestionBundle(),
     );
     const starNotesUnchanged = bundle.formulatedStarKey === starKey;
     const alreadyAiSpeech =
@@ -1230,6 +1240,7 @@ function InterviewPrepContent({ initial }) {
     dumpCards,
     resolvedQuestion,
     starZones,
+    questionBundles,
     setStage,
     commitWorkspaceToBundle,
     saveProgressToDatabase,
