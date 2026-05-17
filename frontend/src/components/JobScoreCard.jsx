@@ -1207,7 +1207,8 @@ export default function JobScoreCard({
               canPrepareInterview ? (
                 <Link
                   className="jsc-post-score-btn jsc-post-score-btn--interview jsc-post-score-btn--interview-ready"
-                  to="/interview-prep"
+                  to="/interview-prep/session"
+                  state={{ directWorkspace: true }}
                 >
                   Start preparing for interview
                 </Link>

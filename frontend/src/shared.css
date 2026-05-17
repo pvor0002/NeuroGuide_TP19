@@ -2955,6 +2955,21 @@ body {
   flex-wrap: wrap;
 }
 
+.ip-hero-back {
+  margin: 0 0 0.5rem;
+}
+
+.ip-hero-back__link {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ng-teal, #0d6e6e);
+  text-decoration: none;
+}
+
+.ip-hero-back__link:hover {
+  text-decoration: underline;
+}
+
 .ip-hero-copy {
   flex: 1 1 0;
   min-width: 0;

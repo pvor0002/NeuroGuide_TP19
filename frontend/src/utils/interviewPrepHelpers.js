@@ -429,6 +429,32 @@ export function uid(prefix = "c") {
   return id;
 }
 
+/** Lookup per-question bundle by exact or trimmed question key. */
+export function bundleForQuestionKey(bundles, questionTrimmed) {
+  const qt = String(questionTrimmed || "").trim();
+  if (!qt || !bundles || typeof bundles !== "object") return null;
+  if (bundles[qt] != null) return bundles[qt];
+  for (const [k, v] of Object.entries(bundles)) {
+    if (String(k || "").trim() === qt) return v;
+  }
+  return null;
+}
+
+/** Normalize RDS progress blob (camelCase or snake_case). */
+export function normalizeInterviewPrepProgress(raw) {
+  const prog = raw && typeof raw === "object" ? raw : {};
+  const bundles = prog.bundles ?? prog.question_bundles;
+  const saved = prog.savedAnswers ?? prog.saved_answers;
+  const custom = prog.customQuestions ?? prog.custom_questions;
+  const active = prog.activeQuestion ?? prog.active_question ?? null;
+  return {
+    bundles: bundles && typeof bundles === "object" ? bundles : {},
+    savedAnswers: Array.isArray(saved) ? saved : [],
+    customQuestions: Array.isArray(custom) ? custom : [],
+    activeQuestion: typeof active === "string" ? active : null,
+  };
+}
+
 /** Stable key for linking interview prep to a simplified posting + role. */
 export function deriveInterviewPrepJobFingerprint(jobContext) {
   const stamp = jobContext?.simplifiedVerStamp != null ? String(jobContext.simplifiedVerStamp) : "none";
@@ -483,8 +509,27 @@ export function normalizeQuestionBundle(raw) {
   };
 }
 
+/** True when a per-question bundle has any user-visible progress. */
+export function questionBundleHasWork(raw) {
+  const n = normalizeQuestionBundle(raw);
+  if (n.dumpCards.length > 0) return true;
+  const z = n.starZones || {};
+  if (
+    (z.situation || []).length ||
+    (z.task || []).length ||
+    (z.action || []).length ||
+    (z.result || []).length
+  ) {
+    return true;
+  }
+  if (String(n.finalizedAnswer || "").trim()) return true;
+  if (String(n.answerDraft || "").trim()) return true;
+  return false;
+}
+
 /**
  * Merge per-question bundles from server into local; newer draft or finalized wins per field.
+ * Prefer the copy that actually has content so empty local shells do not erase cloud saves.
  * @param {Record<string, object>} localBundles
  * @param {Record<string, object>} serverBundles
  * @param {string[]} questionOrder
@@ -492,15 +537,23 @@ export function normalizeQuestionBundle(raw) {
 export function mergeQuestionBundlesFromServer(localBundles, serverBundles, questionOrder) {
   const L = localBundles && typeof localBundles === "object" ? { ...localBundles } : {};
   const S = serverBundles && typeof serverBundles === "object" ? serverBundles : {};
-  for (const q of questionOrder) {
+  const keys = new Set([...Object.keys(L), ...Object.keys(S), ...(questionOrder || [])]);
+  for (const q of keys) {
+    if (!q) continue;
     const a = normalizeQuestionBundle(L[q]);
     const b = normalizeQuestionBundle(S[q]);
-    if (!S[q]) continue;
-    if (!L[q]) {
+    if (!S[q] && L[q]) continue;
+    if (!L[q] && S[q]) {
       L[q] = b;
       continue;
     }
-    const base = a.draftUpdatedAt >= b.draftUpdatedAt ? { ...a } : { ...b };
+    if (!S[q]) continue;
+    const aWork = questionBundleHasWork(a);
+    const bWork = questionBundleHasWork(b);
+    let base;
+    if (aWork && !bWork) base = { ...a };
+    else if (!aWork && bWork) base = { ...b };
+    else base = a.draftUpdatedAt >= b.draftUpdatedAt ? { ...a } : { ...b };
     const fa = a.finalizedAt || 0;
     const fb = b.finalizedAt || 0;
     if (fb > fa) {
@@ -510,7 +563,10 @@ export function mergeQuestionBundlesFromServer(localBundles, serverBundles, ques
       base.finalizedAnswer = a.finalizedAnswer;
       base.finalizedAt = a.finalizedAt;
     } else if (fb && fa && fb === fa) {
-      base.finalizedAnswer = (b.finalizedAnswer || "").length >= (a.finalizedAnswer || "").length ? b.finalizedAnswer : a.finalizedAnswer;
+      base.finalizedAnswer =
+        (b.finalizedAnswer || "").length >= (a.finalizedAnswer || "").length
+          ? b.finalizedAnswer
+          : a.finalizedAnswer;
     }
     L[q] = normalizeQuestionBundle(base);
   }

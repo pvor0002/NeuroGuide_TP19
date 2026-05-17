@@ -19,7 +19,7 @@ export default function MarketingLayout() {
   const isHome = location.pathname === "/";
   const isSimplify = location.pathname === "/simplify-job-description";
   const isDayInLife = location.pathname === "/day-in-life";
-  const isInterviewPrep = location.pathname === "/interview-prep";
+  const isInterviewPrep = location.pathname.startsWith("/interview-prep");
   const isSavedInsights =
     location.pathname.startsWith("/saved-insights") || location.pathname.startsWith("/saved-results");
 

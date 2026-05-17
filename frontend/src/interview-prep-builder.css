@@ -701,6 +701,31 @@
    ========================================================================= */
 
 /* Brain dump — chat-style input */
+.ip-dump-entry-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ip-dump-organise-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.ip-dump-organise-row__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ip-muted);
+  margin-right: auto;
+}
+
+.ip-dump-organise-btn {
+  flex-shrink: 0;
+}
+
 .ip-dump-entry {
   border-radius: var(--ip-radius);
   border: 1.5px solid #1a1714;

@@ -9,6 +9,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { Link } from "react-router-dom";
+import { INTERVIEW_PREP_LIST_PATH } from "../../utils/interviewPrepNav.js";
 
 import DumpZone from "./DumpZone.jsx";
 
@@ -44,10 +45,6 @@ export default function BrainDumpStage({
 
   answeredQuestions = {},
 
-  removableCustomQuestionKeys,
-
-  onRemoveCustomQuestion,
-
   onAddCustomQuestion,
 
   customQuestionMaxChars = 480,
@@ -73,6 +70,8 @@ export default function BrainDumpStage({
   isEditingRevisit = false,
 
   onStartEditRevisit,
+
+  onBackToListing,
 
 }) {
 
@@ -259,10 +258,6 @@ export default function BrainDumpStage({
             onSelect={onSelectQuestion}
 
             answeredQuestions={answeredQuestions}
-
-            removableQuestionKeys={removableCustomQuestionKeys}
-
-            onRemove={onRemoveCustomQuestion}
 
           />
 
@@ -476,6 +471,7 @@ export default function BrainDumpStage({
 
 
 
+              <div className="ip-dump-entry-block">
               <div className="ip-dump-entry">
 
                 <label className="ip-visually-hidden" htmlFor="ip-dump-line">Add an idea</label>
@@ -533,17 +529,26 @@ export default function BrainDumpStage({
                   </button>
 
                 </div>
-
               </div>
 
-
+                <div className="ip-dump-organise-row">
+                  {!listOk ? (
+                    <span className="ip-dump-organise-row__hint">Add at least one idea to continue</span>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="ip-btn ip-btn--primary ip-dump-organise-btn"
+                    disabled={!listOk || organising || splitting}
+                    onClick={() => onContinue()}
+                  >
+                    {organising ? "Organising…" : "Organise my ideas →"}
+                  </button>
+                </div>
+              </div>
 
               <DumpZone
-
                 cards={dumpCards}
-
                 onRemove={(id) => onDumpChange(dumpCards.filter((c) => c.id !== id))}
-
               />
 
 
@@ -565,43 +570,15 @@ export default function BrainDumpStage({
 
 
       <footer className="ip-stage-footer">
-
-        <Link to="/simplify-job-description" className="ip-btn ip-btn--ghost">
-
-          ← Job posting
-
-        </Link>
-
-        <div className="ip-stage-footer__right">
-
-          {showComposer && dumpCards.length === 0 ? (
-
-            <span className="ip-stage-footer__hint">Add at least one idea to continue</span>
-
-          ) : null}
-
-          {showComposer ? (
-
-            <button
-
-              type="button"
-
-              className="ip-btn ip-btn--primary"
-
-              disabled={!listOk || organising || splitting}
-
-              onClick={() => onContinue()}
-
-            >
-
-              {organising ? "Organising…" : "Organise my ideas →"}
-
-            </button>
-
-          ) : null}
-
-        </div>
-
+        {typeof onBackToListing === "function" ? (
+          <button type="button" className="ip-btn ip-btn--ghost" onClick={() => onBackToListing()}>
+            ← All jobs
+          </button>
+        ) : (
+          <Link to={INTERVIEW_PREP_LIST_PATH} className="ip-btn ip-btn--ghost">
+            ← All jobs
+          </Link>
+        )}
       </footer>
 
     </section>

@@ -36,6 +36,7 @@ app.add_middleware(
     # Apex + subdomains for product domains; Render/Vercel preview hosts.
     allow_origin_regex=(
         r"https://([\w-]+\.)*(neuroguide\.dev|neuroguide\.app|onrender\.com|vercel\.app)$"
+        r"|http://(localhost|127\.0\.0\.1)(:\d+)?$"
     ),
     allow_credentials=True,
     allow_methods=["*"],

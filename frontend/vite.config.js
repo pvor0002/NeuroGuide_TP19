@@ -19,6 +19,10 @@ export default defineConfig(({ mode }) => {
   const fromRepoRoot = loadEnv(mode, repoRoot, "VITE_");
   const fromFrontend = loadEnv(mode, __dirname, "VITE_");
   const sitePassword = fromFrontend.VITE_SITE_PASSWORD ?? fromRepoRoot.VITE_SITE_PASSWORD ?? "";
+  /** When set, dev server proxies /api → this host (AWS API Gateway or local uvicorn). Avoids browser CORS. */
+  const devApiProxy =
+    (fromFrontend.VITE_DEV_API_PROXY ?? fromRepoRoot.VITE_DEV_API_PROXY ?? "").trim() ||
+    "http://127.0.0.1:8000";
 
   return {
     plugins: [react()],
@@ -30,8 +34,9 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         "/api": {
-          target: "http://127.0.0.1:8000",
+          target: devApiProxy,
           changeOrigin: true,
+          secure: true,
         },
       },
     },
