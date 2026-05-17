@@ -186,7 +186,11 @@ export default function SiteTopNav() {
           <Link to="/day-in-life" aria-current={location.pathname === "/day-in-life" ? "page" : undefined} onClick={closeMobileMenu}>
             Day in the Life
           </Link>
-          <Link to="/interview-prep" aria-current={location.pathname === "/interview-prep" ? "page" : undefined} onClick={closeMobileMenu}>
+          <Link
+            to="/interview-prep"
+            aria-current={location.pathname.startsWith("/interview-prep") ? "page" : undefined}
+            onClick={closeMobileMenu}
+          >
             Interview Prep
           </Link>
           <SavedInsightsDropdown key={location.pathname} navId={navId} closeMobileMenu={closeMobileMenu} />

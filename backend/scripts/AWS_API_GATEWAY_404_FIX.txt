@@ -34,7 +34,16 @@ request never hits FastAPI, or the path is wrong).
 4) Lambda environment (after 404 is fixed)
    - DATABASE_URL
    - PASS_KEY_PEPPER
-   - CORS: allow your site origin (or use API Gateway CORS for browser calls)
+   - CORS_ORIGINS must include every dev origin, e.g. http://localhost:5174
+     (/pg/interview-prep/progress sends X-NG-User-Id and X-NG-Pass-Key — preflight fails
+     if the origin is not allowed). Regex in app.main also allows http://localhost:<port>.
+   - Local dev without redeploying CORS: unset VITE_API_BASE_URL, set
+     VITE_DEV_API_PROXY=https://<api-id>.execute-api.ap-southeast-2.amazonaws.com
+     and restart Vite (requests go through the dev proxy).
+
+5) Interview prep save route
+   - Must be reachable: GET/PUT /api/v1/pg/interview-prep/progress
+   - Catch-all ANY /api/v1/{proxy+} covers this if Lambda has interview_prep_storage routes.
 
 5) Redeploy backend after code changes
    - GitHub Action deploy-backend.yml updates neuroguide-api from main when

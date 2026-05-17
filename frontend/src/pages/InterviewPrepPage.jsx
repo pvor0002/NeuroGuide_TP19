@@ -1,12 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import StageTabs from "../components/interview-prep/StageTabs.jsx";
 import BrainDumpStage from "../components/interview-prep/BrainDumpStage.jsx";
 import OrganiseStage from "../components/interview-prep/OrganiseStage.jsx";
 import PractiseStage from "../components/interview-prep/PractiseStage.jsx";
-import JobExperienceHub from "../components/experience-hub/JobExperienceHub.jsx";
+import {
+  goToInterviewPrepListing,
+  INTERVIEW_PREP_LIST_PATH,
+  isListingEntryStepLockActive,
+  peekInterviewPrepStartAtStep1,
+  releaseListingEntryStepLock,
+} from "../utils/interviewPrepNav.js";
 import { liveSimplifyEnabled, starSortInterview } from "../services/interviewPrepApi.js";
-import { fetchInterviewPrepProgress, putInterviewPrepProgress } from "../services/interviewPrepProgressApi.js";
+import {
+  fetchInterviewPrepProgress,
+  fetchInterviewPrepSessions,
+  putInterviewPrepProgress,
+} from "../services/interviewPrepProgressApi.js";
 import { hasCloudSessionCredentials, readCredentials } from "../utils/cloudSync.js";
 import {
   buildAnswerDraftFromStar,
@@ -17,7 +27,10 @@ import {
   reconcileStarZonesWithCards,
   starPartitionMatchesCards,
   loadJobContextFromSimplifyHistory,
+  bundleForQuestionKey,
   mergeQuestionBundlesFromServer,
+  normalizeInterviewPrepProgress,
+  questionBundleHasWork,
   normalizeQuestionBundle,
   readProfileSkillSet,
   simplifiedSnapshotHasContent,
@@ -66,18 +79,52 @@ function combineQuestionLists(baseList, customList) {
   return out;
 }
 
+function normalizeSavedAnswerRow(x) {
+  if (!x || typeof x !== "object") return null;
+  const question = String(x.question || x.q || "").trim();
+  if (!question) return null;
+  const answer = String(x.answer ?? x.answer_text ?? x.text ?? "").trim();
+  return {
+    id: x.id != null ? String(x.id) : undefined,
+    question,
+    answer,
+    role: x.role != null ? String(x.role) : undefined,
+    company: x.company != null ? String(x.company) : undefined,
+    savedAt: Number(x.savedAt ?? x.saved_at ?? 0) || 0,
+  };
+}
+
 /** One saved row per question text (newest wins). */
+/** Build saved-answer rows from per-question bundles when progress.savedAnswers is missing. */
+function savedAnswersFromBundles(bundles) {
+  const out = [];
+  for (const [qk, raw] of Object.entries(bundles || {})) {
+    const n = normalizeQuestionBundle(raw);
+    const text = String(n.finalizedAnswer || "").trim() || String(n.answerDraft || "").trim();
+    if (!text) continue;
+    const question = String(qk || "").trim();
+    if (!question) continue;
+    out.push({
+      id: `bundle-${question.slice(0, 24)}`,
+      question,
+      answer: text,
+      savedAt: Number(n.finalizedAt || n.draftUpdatedAt || 0) || Date.now(),
+    });
+  }
+  return out;
+}
+
 function mergeSavedAnswersByQuestion(local, remote) {
   const norm = (q) => String(q || "").trim();
   const by = new Map();
-  for (const x of [...(Array.isArray(local) ? local : []), ...(Array.isArray(remote) ? remote : [])]) {
-    if (!x || typeof x !== "object") continue;
+  for (const raw of [...(Array.isArray(local) ? local : []), ...(Array.isArray(remote) ? remote : [])]) {
+    const x = normalizeSavedAnswerRow(raw);
+    if (!x) continue;
     const k = norm(x.question);
-    if (!k) continue;
     const prev = by.get(k);
     const ta = Number(x.savedAt || 0);
     const tb = Number(prev?.savedAt || 0);
-    if (!prev || ta > tb || (ta === tb && String(x.answer || "").length >= String(prev.answer || "").length)) {
+    if (!prev || ta > tb || (ta === tb && x.answer.length >= String(prev.answer || "").length)) {
       by.set(k, { ...x, question: k });
     }
   }
@@ -119,11 +166,20 @@ function computeAnsweredQuestionsMap(bundles, savedList) {
   return out;
 }
 
+/** Pick UI stage when loading bundle / saved progress (respect listing-entry lock). */
+function stageFromLoadedProgress(wb, answerText, listingStepLockRef) {
+  if (isListingEntryStepLockActive(listingStepLockRef)) return 1;
+  if (answerText) return Math.max(wb.stage, 3);
+  const s = wb.stage;
+  return s >= 1 && s <= 3 ? s : 1;
+}
+
 /**
  * When switching questions in the sidebar, keep the user on their current step
  * (Brain dump / Organise / Practise) so one saved question does not yank them to Practise.
  */
-function stageWhenSelectingQuestion(currentStage, wb, hasSavedAnswer) {
+function stageWhenSelectingQuestion(currentStage, wb, hasSavedAnswer, listingStepLockRef) {
+  if (isListingEntryStepLockActive(listingStepLockRef)) return 1;
   if (!hasSavedAnswer) return wb.stage;
   if (currentStage >= 1 && currentStage <= 3) return currentStage;
   return wb.stage >= 3 ? 3 : wb.stage;
@@ -228,6 +284,53 @@ function migrateOrgToBundles(org) {
     });
   }
   return { bundles, activeQuestion };
+}
+
+/** Pick the best RDS session row when fingerprint GET misses. */
+function pickInterviewPrepSessionRow(sessions, jobContext, localFp) {
+  const list = Array.isArray(sessions) ? sessions : [];
+  if (!list.length) return null;
+  const exact = list.find((s) => String(s?.job_fingerprint || "") === localFp);
+  if (exact) return exact;
+  const stamp =
+    jobContext?.simplifiedVerStamp != null ? String(jobContext.simplifiedVerStamp) : null;
+  if (stamp) {
+    const byStamp = list.find((s) => {
+      const sj = s?.simplified_job;
+      return sj && String(sj._ng_simp_ver ?? sj._ngSimpVer ?? "") === stamp;
+    });
+    if (byStamp) return byStamp;
+  }
+  const role = String(jobContext?.role || "").trim().toLowerCase();
+  const co = String(jobContext?.company || "").trim().toLowerCase();
+  if (role || co) {
+    const byRole = list.find((s) => {
+      const fp = String(s?.job_fingerprint || "");
+      const parts = fp.split("|");
+      if (parts.length < 3) return false;
+      return parts[1] === role && parts[2] === co;
+    });
+    if (byRole) return byRole;
+  }
+  return list[0];
+}
+
+function pickHydrationQuestion(qs, merged, prog, localSelected, savedList) {
+  const active = typeof prog?.activeQuestion === "string" ? prog.activeQuestion : null;
+  for (const row of savedList || []) {
+    const k = String(row?.question || "").trim();
+    if (k && String(row?.answer || "").trim()) return k;
+  }
+  if (active && qs.includes(active)) return active;
+  if (localSelected && qs.includes(localSelected)) return localSelected;
+  for (const q of qs) {
+    const b = normalizeQuestionBundle(merged[q]);
+    if (b.dumpCards.length > 0 || zonesHaveCards(b.starZones) || b.finalizedAnswer || b.answerDraft) return q;
+  }
+  for (const [qk, raw] of Object.entries(merged || {})) {
+    if (!qs.includes(qk) && questionBundleHasWork(raw)) return qk;
+  }
+  return qs[0] ?? null;
 }
 
 function mergeJobContextFromSources(stored, fromSimplify) {
@@ -386,16 +489,30 @@ function jobContextHasInterviewSource(jc) {
 }
 
 function InterviewPrepContent({ initial }) {
+  const navigate = useNavigate();
   const bundlesRef = useRef(initial.bundles || {});
+  const listingStepLockRef = useRef(peekInterviewPrepStartAtStep1());
+  const cloudHydrateWorkspaceAppliedRef = useRef(false);
 
   //Your current stage of the interview prep process (legacy stage 4 → 3)
-  const [stage, setStageRaw] = useState(() => persistableStage(initial.stage));
+  const [stage, setStageRaw] = useState(() =>
+    listingStepLockRef.current ? 1 : persistableStage(initial.stage),
+  );
   const setStage = useCallback((next) => {
     setStageRaw((prev) => {
-      const value = typeof next === "function" ? next(prev) : next;
+      let value = typeof next === "function" ? next(prev) : next;
+      if (isListingEntryStepLockActive(listingStepLockRef) && persistableStage(value) > 1) {
+        value = 1;
+      }
       return persistableStage(value);
     });
   }, []);
+
+  useLayoutEffect(() => {
+    if (isListingEntryStepLockActive(listingStepLockRef)) {
+      setStage(1);
+    }
+  }, [setStage]);
   //Your job context from the job posting and the job posting itself
   const [jobContext] = useState(() => initial.jobContext);
   const [selectedQuestion, setSelectedQuestion] = useState(() => initial.selectedQuestion);
@@ -406,6 +523,8 @@ function InterviewPrepContent({ initial }) {
   const [usedFallbackSort, setUsedFallbackSort] = useState(() => initial.usedFallbackSort);
   const [readinessPercent, setReadinessPercent] = useState(40);
   const [organising, setOrganising] = useState(false);
+  const [cloudSaving, setCloudSaving] = useState(false);
+  const [organiseSaveAck, setOrganiseSaveAck] = useState(false);
   const [customQuestions, setCustomQuestions] = useState(() => initial.customQuestions || []);
   /** When true, Brain dump shows the composer for a question that already has formulated speech. */
   const [brainDumpEditingRevisit, setBrainDumpEditingRevisit] = useState(false);
@@ -449,6 +568,13 @@ function InterviewPrepContent({ initial }) {
   const cloudSaveTimerRef = useRef(null);
   /** Bumped when the user organises ideas so in-flight cloud hydration cannot overwrite fresh STAR state. */
   const workspaceApplyGenRef = useRef(0);
+  /** Blocks local persist / cloud push until first cloud hydrate finishes (avoids wiping RDS with empty local). */
+  const hydrationReadyRef = useRef(!hasCloudSessionCredentials());
+  const [hydrationReady, setHydrationReady] = useState(() => hydrationReadyRef.current);
+  /** Fingerprint of the RDS row we loaded (PUT must use same key as GET). */
+  const cloudJobFingerprintRef = useRef(null);
+  /** False until cloud row is merged and UI workspace reflects it — blocks empty-state overwrites. */
+  const cloudWorkspaceSyncedRef = useRef(!hasCloudSessionCredentials());
 
   const persistOrgLocal = useCallback((activeQ) => {
     if (typeof window === "undefined") return;
@@ -467,41 +593,198 @@ function InterviewPrepContent({ initial }) {
     }
   }, []);
 
-  const pushCloudProgress = useCallback(async () => {
-    if (!hasCloudSessionCredentials()) return;
-    const cred = readCredentials();
-    if (!cred?.userId || !cred?.passKey) return;
-    const fp = deriveInterviewPrepJobFingerprint(jobContext);
-    const iq = combineQuestionLists(
-      buildQuestionList(jobContext, readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY))),
-      customQuestionsRef.current,
-    );
-    try {
-      await putInterviewPrepProgress(cred, {
-        job_fingerprint: fp,
-        simplified_job: jobContext.simplifiedSnapshot && typeof jobContext.simplifiedSnapshot === "object"
-          ? jobContext.simplifiedSnapshot
-          : null,
-        interview_questions: iq,
-        progress: {
-          bundles: bundlesRef.current,
-          activeQuestion: selectedQuestionRef.current,
-          savedAnswers: savedAnswersRef.current,
-          customQuestions: customQuestionsRef.current,
-        },
+  const commitWorkspaceToBundle = useCallback(
+    (patch = {}) => {
+      const q = patch.question ?? selectedQuestionRef.current;
+      if (!q || !allQuestions.includes(q)) return;
+      const prev = bundlesRef.current[q] || defaultQuestionBundle();
+      const candidate = normalizeQuestionBundle({
+        ...prev,
+        dumpCards: patch.dumpCards !== undefined ? patch.dumpCards : dumpCards,
+        starZones: patch.starZones !== undefined ? patch.starZones : starZones,
+        answerDraft: patch.answerDraft !== undefined ? patch.answerDraft : answerDraft,
+        stage: patch.stage !== undefined ? patch.stage : persistableStage(stage),
+        usedFallbackSort: patch.usedFallbackSort !== undefined ? patch.usedFallbackSort : usedFallbackSort,
+        finalizedAnswer: patch.finalizedAnswer !== undefined ? patch.finalizedAnswer : prev.finalizedAnswer,
+        finalizedAt: patch.finalizedAt !== undefined ? patch.finalizedAt : prev.finalizedAt,
+        draftUpdatedAt: Date.now(),
       });
-    } catch {
-      /* non-fatal: user may be offline or table missing */
-    }
-  }, [jobContext]);
+      if (questionBundleHasWork(prev) && !questionBundleHasWork(candidate)) return;
+      bundlesRef.current[q] = candidate;
+      persistOrgLocal(q);
+    },
+    [allQuestions, dumpCards, starZones, answerDraft, stage, usedFallbackSort, persistOrgLocal],
+  );
+
+  const saveProgressToDatabase = useCallback(
+    async ({ throwOnError = true, force = false } = {}) => {
+      if (!hydrationReadyRef.current && !force) {
+        return { ok: false, skipped: true };
+      }
+      if (!hasCloudSessionCredentials()) {
+        return { ok: false, skipped: true };
+      }
+      const cred = readCredentials();
+      if (!cred?.userId || !cred?.passKey) {
+        return { ok: false, skipped: true };
+      }
+      if (!cloudWorkspaceSyncedRef.current && !force) {
+        return { ok: false, skipped: true };
+      }
+      const fp =
+        cloudJobFingerprintRef.current || deriveInterviewPrepJobFingerprint(jobContext);
+      const iq = combineQuestionLists(
+        buildQuestionList(jobContext, readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY))),
+        customQuestionsRef.current,
+      );
+      setCloudSaving(true);
+      try {
+        await putInterviewPrepProgress(cred, {
+          job_fingerprint: fp,
+          simplified_job:
+            jobContext.simplifiedSnapshot && typeof jobContext.simplifiedSnapshot === "object"
+              ? jobContext.simplifiedSnapshot
+              : null,
+          interview_questions: iq,
+          progress: {
+            bundles: bundlesRef.current,
+            activeQuestion: selectedQuestionRef.current,
+            savedAnswers: savedAnswersRef.current,
+            customQuestions: customQuestionsRef.current,
+          },
+        });
+        return { ok: true };
+      } catch (err) {
+        if (throwOnError) throw err;
+        return { ok: false, error: err };
+      } finally {
+        setCloudSaving(false);
+      }
+    },
+    [jobContext, commitWorkspaceToBundle],
+  );
 
   const scheduleCloudSave = useCallback(() => {
+    if (!hydrationReadyRef.current || !cloudWorkspaceSyncedRef.current) return;
     if (cloudSaveTimerRef.current) window.clearTimeout(cloudSaveTimerRef.current);
     cloudSaveTimerRef.current = window.setTimeout(() => {
       cloudSaveTimerRef.current = null;
-      void pushCloudProgress();
+      void saveProgressToDatabase({ throwOnError: false });
     }, 900);
-  }, [pushCloudProgress]);
+  }, [saveProgressToDatabase]);
+
+  const applyWorkspaceFromBundle = useCallback(
+    (q, bundleRow, savedList) => {
+      if (!q) return;
+      const norm = normalizeQuestionBundle(bundleRow || null);
+      const wb = workspaceFromBundle(bundleRow || null);
+      const answerText = resolveAnswerTextForQuestion(norm, savedList, String(q).trim());
+      setSelectedQuestion(q);
+      setDumpCards(wb.dumpCards);
+      setStarZones(reconcileStarZonesWithCards(wb.dumpCards, wb.starZones));
+      setAnswerDraft(answerText || wb.answerDraft);
+      setStage(stageFromLoadedProgress(wb, answerText, listingStepLockRef));
+      setUsedFallbackSort(wb.usedFallbackSort);
+      const hasSpeech = hasFormulatedSpeechForQuestion(norm, savedList, String(q).trim(), answerText || wb.answerDraft);
+      setBrainDumpEditingRevisit(!hasSpeech);
+      setReadinessPercent(answerText ? 72 : wb.dumpCards.length ? 55 : 40);
+    },
+    [setStage],
+  );
+
+  const finishHydration = useCallback(() => {
+    if (hydrationReadyRef.current) return;
+    hydrationReadyRef.current = true;
+    setHydrationReady(true);
+  }, []);
+
+  const hydrateFromCloud = useCallback(async () => {
+    if (!hasCloudSessionCredentials()) {
+      cloudWorkspaceSyncedRef.current = true;
+      finishHydration();
+      return;
+    }
+    const cred = readCredentials();
+    if (!cred?.userId || !cred?.passKey) {
+      cloudWorkspaceSyncedRef.current = true;
+      finishHydration();
+      return;
+    }
+    cloudWorkspaceSyncedRef.current = false;
+    const hydrationGenAtStart = workspaceApplyGenRef.current;
+    const fp = deriveInterviewPrepJobFingerprint(jobContext);
+    const prof = readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
+    try {
+      let row = await fetchInterviewPrepProgress(cred, fp);
+      if (!row) {
+        try {
+          const list = await fetchInterviewPrepSessions(cred);
+          const sessions = Array.isArray(list?.sessions) ? list.sessions : [];
+          const fallback = pickInterviewPrepSessionRow(sessions, jobContext, fp);
+          if (fallback?.job_fingerprint) {
+            row = await fetchInterviewPrepProgress(cred, String(fallback.job_fingerprint));
+          }
+        } catch {
+          /* ignore list fallback */
+        }
+      }
+      if (!row) {
+        cloudWorkspaceSyncedRef.current = true;
+        finishHydration();
+        return;
+      }
+      const rowFp = String(row.job_fingerprint || row.jobFingerprint || fp).trim();
+      if (rowFp) cloudJobFingerprintRef.current = rowFp;
+      const prog = normalizeInterviewPrepProgress(row.progress);
+      const remoteCustom = prog.customQuestions;
+      const serverBundles = prog.bundles;
+      const bundleOnlyCustom = Object.keys(serverBundles).filter((k) => {
+        const t = String(k || "").trim();
+        return t && questionBundleHasWork(serverBundles[k]);
+      });
+      const mergedCustom = mergeCustomQuestionLists(customQuestionsRef.current, [
+        ...remoteCustom,
+        ...bundleOnlyCustom,
+      ]);
+      customQuestionsRef.current = mergedCustom;
+      setCustomQuestions(mergedCustom);
+      const qs = combineQuestionLists(buildQuestionList(jobContext, prof), mergedCustom);
+      const merged = mergeQuestionBundlesFromServer(bundlesRef.current, serverBundles, [
+        ...qs,
+        ...Object.keys(serverBundles),
+      ]);
+      bundlesRef.current = merged;
+      const remoteSaved =
+        prog.savedAnswers.length > 0 ? prog.savedAnswers : savedAnswersFromBundles(serverBundles);
+      const mergedSaved = mergeSavedAnswersByQuestion(savedAnswersRef.current, remoteSaved);
+      savedAnswersRef.current = mergedSaved;
+      setSavedAnswers(mergedSaved);
+      setAnsweredQuestions(() => computeAnsweredQuestionsMap(bundlesRef.current, savedAnswersRef.current));
+      const targetQ = pickHydrationQuestion(qs, merged, prog, selectedQuestionRef.current, mergedSaved);
+      const skipWorkspaceApply = hydrationGenAtStart !== workspaceApplyGenRef.current;
+      if (targetQ && !skipWorkspaceApply && !cloudHydrateWorkspaceAppliedRef.current) {
+        cloudHydrateWorkspaceAppliedRef.current = true;
+        if (!qs.includes(targetQ)) {
+          const extra = mergeCustomQuestionLists(customQuestionsRef.current, [targetQ]);
+          customQuestionsRef.current = extra;
+          setCustomQuestions(extra);
+        }
+        const bundleRow = bundleForQuestionKey(merged, targetQ) || defaultQuestionBundle();
+        applyWorkspaceFromBundle(targetQ, bundleRow, mergedSaved);
+        persistOrgLocal(targetQ);
+      } else if (isListingEntryStepLockActive(listingStepLockRef)) {
+        setStage(1);
+      } else {
+        persistOrgLocal(targetQ || selectedQuestionRef.current);
+      }
+      cloudWorkspaceSyncedRef.current = true;
+    } catch (err) {
+      console.warn("[InterviewPrep] cloud hydrate failed:", err);
+      cloudWorkspaceSyncedRef.current = true;
+    } finally {
+      finishHydration();
+    }
+  }, [jobContext, persistOrgLocal, applyWorkspaceFromBundle, finishHydration]);
 
   useEffect(() => {
     if (!allQuestions.length) return;
@@ -514,84 +797,72 @@ function InterviewPrepContent({ initial }) {
     queueMicrotask(() => {
       setSelectedQuestion(pick);
       setDumpCards(wb.dumpCards);
-      setStarZones(wb.starZones);
+      setStarZones(reconcileStarZonesWithCards(wb.dumpCards, wb.starZones));
       setAnswerDraft(answerText || wb.answerDraft);
-      setStage(answerText ? Math.max(wb.stage, 3) : wb.stage);
+      setStage(stageFromLoadedProgress(wb, answerText, listingStepLockRef));
       setUsedFallbackSort(wb.usedFallbackSort);
     });
   }, [allQuestions, selectedQuestion, savedAnswers, setStage]);
 
   useEffect(() => {
+    if (!hydrationReady || !cloudWorkspaceSyncedRef.current) return;
     if (!selectedQuestion || !allQuestions.includes(selectedQuestion)) return;
     const prev = bundlesRef.current[selectedQuestion] || defaultQuestionBundle();
     const st = persistableStage(stage);
-    bundlesRef.current[selectedQuestion] = normalizeQuestionBundle({
+    const next = normalizeQuestionBundle({
       ...prev,
       dumpCards,
       starZones,
       answerDraft,
       stage: st,
       usedFallbackSort,
-      draftUpdatedAt: Date.now(),
     });
+    const prevWork = questionBundleHasWork(prev);
+    const nextWork = questionBundleHasWork(next);
+    if (prevWork && !nextWork) return;
+    const changed =
+      JSON.stringify(prev.dumpCards) !== JSON.stringify(next.dumpCards) ||
+      JSON.stringify(prev.starZones) !== JSON.stringify(next.starZones) ||
+      String(prev.answerDraft || "") !== String(next.answerDraft || "") ||
+      prev.stage !== next.stage ||
+      prev.usedFallbackSort !== next.usedFallbackSort ||
+      String(prev.finalizedAnswer || "") !== String(next.finalizedAnswer || "");
+    if (!changed && !nextWork) return;
+    bundlesRef.current[selectedQuestion] = {
+      ...next,
+      draftUpdatedAt: changed ? Date.now() : prev.draftUpdatedAt || Date.now(),
+    };
     persistOrgLocal(selectedQuestion);
     scheduleCloudSave();
-  }, [dumpCards, starZones, answerDraft, stage, usedFallbackSort, selectedQuestion, allQuestions, persistOrgLocal, scheduleCloudSave]);
+  }, [
+    hydrationReady,
+    dumpCards,
+    starZones,
+    answerDraft,
+    stage,
+    usedFallbackSort,
+    selectedQuestion,
+    allQuestions,
+    persistOrgLocal,
+    scheduleCloudSave,
+  ]);
 
   useEffect(() => {
-    let cancelled = false;
-    const hydrationGenAtStart = workspaceApplyGenRef.current;
-    (async () => {
-      if (!hasCloudSessionCredentials()) return;
-      const cred = readCredentials();
-      if (!cred?.userId || !cred?.passKey) return;
-      const fp = deriveInterviewPrepJobFingerprint(jobContext);
-      const prof = readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
-      try {
-        const row = await fetchInterviewPrepProgress(cred, fp);
-        if (!row || cancelled) return;
-        const prog = row.progress && typeof row.progress === "object" ? row.progress : {};
-        const remoteCustom = Array.isArray(prog.customQuestions) ? prog.customQuestions : [];
-        const mergedCustom = mergeCustomQuestionLists(customQuestionsRef.current, remoteCustom);
-        customQuestionsRef.current = mergedCustom;
-        setCustomQuestions(mergedCustom);
-        const qs = combineQuestionLists(buildQuestionList(jobContext, prof), mergedCustom);
-        const serverBundles = prog.bundles && typeof prog.bundles === "object" ? prog.bundles : {};
-        const merged = mergeQuestionBundlesFromServer(bundlesRef.current, serverBundles, qs);
-        bundlesRef.current = merged;
-        const remoteSaved = Array.isArray(prog.savedAnswers) ? prog.savedAnswers : null;
-        const mergedForSavedLookup = remoteSaved?.length
-          ? mergeSavedAnswersByQuestion(savedAnswersRef.current, remoteSaved)
-          : [...(savedAnswersRef.current || [])];
-        if (remoteSaved?.length) {
-          setSavedAnswers((prev) => mergeSavedAnswersByQuestion(prev, remoteSaved));
-        }
-        const aq =
-          typeof prog.activeQuestion === "string" && qs.includes(prog.activeQuestion) ? prog.activeQuestion : null;
-        if (aq) {
-          const norm = normalizeQuestionBundle(merged[aq] || defaultQuestionBundle());
-          const wb = workspaceFromBundle(merged[aq] || null);
-          const answerText = resolveAnswerTextForQuestion(norm, mergedForSavedLookup, aq);
-          const reconciledZones = reconcileStarZonesWithCards(wb.dumpCards, wb.starZones);
-          queueMicrotask(() => {
-            if (cancelled || hydrationGenAtStart !== workspaceApplyGenRef.current) return;
-            setSelectedQuestion(aq);
-            setDumpCards(wb.dumpCards);
-            setStarZones(reconciledZones);
-            setAnswerDraft(answerText || wb.answerDraft);
-            setStage(answerText ? Math.max(wb.stage, 3) : wb.stage);
-            setUsedFallbackSort(wb.usedFallbackSort);
-          });
-        }
-        persistOrgLocal(aq || selectedQuestionRef.current);
-      } catch {
-        /* ignore */
+    void hydrateFromCloud();
+  }, [hydrateFromCloud]);
+
+  useEffect(() => {
+    const onApplied = () => {
+      cloudWorkspaceSyncedRef.current = false;
+      if (cloudSaveTimerRef.current) {
+        window.clearTimeout(cloudSaveTimerRef.current);
+        cloudSaveTimerRef.current = null;
       }
-    })();
-    return () => {
-      cancelled = true;
+      void hydrateFromCloud();
     };
-  }, [jobContext, persistOrgLocal, setStage]);
+    window.addEventListener("ng-cloud-session-applied", onApplied);
+    return () => window.removeEventListener("ng-cloud-session-applied", onApplied);
+  }, [hydrateFromCloud]);
 
   const dumpCardIdsKey = useMemo(
     () => dumpCards.map((c) => c.id).sort().join("\0"),
@@ -608,18 +879,23 @@ function InterviewPrepContent({ initial }) {
 
   const questionKey = String(resolvedQuestion || "").trim();
 
+  const currentQuestionBundle = useMemo(() => {
+    if (!questionKey) return null;
+    return normalizeQuestionBundle(bundleForQuestionKey(bundlesRef.current, questionKey));
+  }, [questionKey, savedAnswers, answeredQuestions, dumpCards, answerDraft, stage]);
+
   const hasFormulatedSpeech = useMemo(
     () =>
       questionKey
-        ? hasFormulatedSpeechForQuestion(null, savedAnswers, questionKey, answerDraft)
+        ? hasFormulatedSpeechForQuestion(currentQuestionBundle, savedAnswers, questionKey, answerDraft)
         : false,
-    [questionKey, savedAnswers, answerDraft],
+    [questionKey, savedAnswers, answerDraft, currentQuestionBundle],
   );
 
   const formulatedSpeechText = useMemo(() => {
     if (!hasFormulatedSpeech || !questionKey) return "";
-    return formulatedSpeechDisplayText(resolvedQuestion, null, savedAnswers, answerDraft);
-  }, [hasFormulatedSpeech, resolvedQuestion, questionKey, savedAnswers, answerDraft]);
+    return formulatedSpeechDisplayText(resolvedQuestion, currentQuestionBundle, savedAnswers, answerDraft);
+  }, [hasFormulatedSpeech, resolvedQuestion, questionKey, savedAnswers, answerDraft, currentQuestionBundle]);
 
   const showBrainDumpRevisitReadOnly =
     stage === 1 && hasFormulatedSpeech && !brainDumpEditingRevisit;
@@ -642,15 +918,28 @@ function InterviewPrepContent({ initial }) {
   }, [jobContext]);
 
   useEffect(() => {
-    savedAnswersRef.current = savedAnswers;
-    window.localStorage.setItem(SAVED_KEY, JSON.stringify(savedAnswers));
-    scheduleCloudSave();
-  }, [savedAnswers, scheduleCloudSave]);
+    const stateList = Array.isArray(savedAnswers) ? savedAnswers : [];
+    const refList = Array.isArray(savedAnswersRef.current) ? savedAnswersRef.current : [];
+    if (hydrationReady && stateList.length === 0 && refList.length > 0) {
+      setSavedAnswers(refList);
+      return;
+    }
+    if (stateList.length > 0 || refList.length === 0) {
+      savedAnswersRef.current = stateList;
+      try {
+        window.localStorage.setItem(SAVED_KEY, JSON.stringify(stateList));
+      } catch {
+        /* ignore */
+      }
+    }
+    if (hydrationReady) scheduleCloudSave();
+  }, [savedAnswers, scheduleCloudSave, hydrationReady]);
 
   useEffect(() => {
+    if (!hydrationReady) return;
     persistOrgLocal(selectedQuestionRef.current);
     scheduleCloudSave();
-  }, [customQuestions, persistOrgLocal, scheduleCloudSave]);
+  }, [customQuestions, persistOrgLocal, scheduleCloudSave, hydrationReady]);
 
   useEffect(() => {
     if (stage !== 3) return;
@@ -688,16 +977,16 @@ function InterviewPrepContent({ initial }) {
         computeAnsweredQuestionsMap(bundlesRef.current, savedAnswersRef.current),
       );
       setSelectedQuestion(q);
-      const incoming = bundlesRef.current[q] || defaultQuestionBundle();
+      const incoming = bundleForQuestionKey(bundlesRef.current, q) || defaultQuestionBundle();
       const norm = normalizeQuestionBundle(incoming);
       const wb = workspaceFromBundle(incoming);
       const qt = String(q).trim();
       const answerText = resolveAnswerTextForQuestion(norm, savedAnswersRef.current, qt);
       const hasSaved = questionHasSavedWork(norm, savedAnswersRef.current, qt);
       setDumpCards(wb.dumpCards);
-      setStarZones(wb.starZones);
+      setStarZones(reconcileStarZonesWithCards(wb.dumpCards, wb.starZones));
       setAnswerDraft(answerText || wb.answerDraft);
-      setStage((prev) => stageWhenSelectingQuestion(prev, wb, Boolean(answerText)));
+      setStage((prev) => stageWhenSelectingQuestion(prev, wb, Boolean(answerText), listingStepLockRef));
       setUsedFallbackSort(wb.usedFallbackSort);
       const bundle = normalizeQuestionBundle(incoming);
       const hasSpeech = hasFormulatedSpeechForQuestion(
@@ -709,9 +998,9 @@ function InterviewPrepContent({ initial }) {
       setBrainDumpEditingRevisit(!hasSpeech);
       setReadinessPercent(hasSaved && answerText ? 72 : 40);
       persistOrgLocal(q);
-      void pushCloudProgress();
+      void saveProgressToDatabase({ throwOnError: false });
     },
-    [allQuestions, selectedQuestion, flushBundleForQuestion, persistOrgLocal, pushCloudProgress, setStage],
+    [allQuestions, selectedQuestion, flushBundleForQuestion, persistOrgLocal, saveProgressToDatabase, setStage],
   );
 
   const addCustomQuestion = useCallback(
@@ -736,56 +1025,13 @@ function InterviewPrepContent({ initial }) {
       setReadinessPercent(40);
       setBrainDumpEditingRevisit(false);
       persistOrgLocal(t);
-      void pushCloudProgress();
+      void saveProgressToDatabase({ throwOnError: false });
     },
-    [jobContext, profileSkillSet, flushBundleForQuestion, persistOrgLocal, pushCloudProgress, setStage],
-  );
-
-  const removeCustomQuestion = useCallback(
-    (q) => {
-      const t = String(q || "").trim();
-      const cur = customQuestionsRef.current;
-      if (!cur.some((x) => String(x).trim() === t)) return;
-      const wasSelected = selectedQuestionRef.current === t;
-      flushBundleForQuestion(selectedQuestionRef.current);
-      const next = cur.filter((x) => String(x).trim() !== t);
-      customQuestionsRef.current = next;
-      setCustomQuestions(next);
-      if (bundlesRef.current[t]) delete bundlesRef.current[t];
-      setSavedAnswers((prev) => prev.filter((x) => String(x.question || "").trim() !== t));
-      const combined = combineQuestionLists(baseQuestions, next);
-      const pick = wasSelected ? combined[0] ?? null : selectedQuestionRef.current;
-      if (wasSelected) {
-        if (pick) {
-          setSelectedQuestion(pick);
-          const incoming = bundlesRef.current[pick] || defaultQuestionBundle();
-          const norm = normalizeQuestionBundle(incoming);
-          const wb = workspaceFromBundle(incoming);
-          const savedAfterFilter = (savedAnswersRef.current || []).filter((x) => String(x.question || "").trim() !== t);
-          const answerText = resolveAnswerTextForQuestion(norm, savedAfterFilter, String(pick).trim());
-          setDumpCards(wb.dumpCards);
-          setStarZones(wb.starZones);
-          setAnswerDraft(answerText || wb.answerDraft);
-          setStage(answerText ? Math.max(wb.stage, 3) : wb.stage);
-          setUsedFallbackSort(wb.usedFallbackSort);
-        } else {
-          setSelectedQuestion(null);
-          setDumpCards([]);
-          setStarZones(emptyZones());
-          setAnswerDraft("");
-          setStage(1);
-          setUsedFallbackSort(false);
-          setBrainDumpEditingRevisit(false);
-        }
-        setReadinessPercent(40);
-      }
-      persistOrgLocal(pick);
-      void pushCloudProgress();
-    },
-    [baseQuestions, flushBundleForQuestion, persistOrgLocal, pushCloudProgress, setStage],
+    [jobContext, profileSkillSet, flushBundleForQuestion, persistOrgLocal, saveProgressToDatabase, setStage],
   );
 
   const runOrganise = useCallback(async () => {
+    releaseListingEntryStepLock(listingStepLockRef);
     workspaceApplyGenRef.current += 1;
     const organiseGen = workspaceApplyGenRef.current;
     setOrganising(true);
@@ -820,17 +1066,27 @@ function InterviewPrepContent({ initial }) {
       }
       zones = reconcileStarZonesWithCards(workingCards, zones);
       if (organiseGen !== workspaceApplyGenRef.current) return;
+      const q = resolvedQuestion;
+      commitWorkspaceToBundle({
+        question: q,
+        dumpCards: workingCards,
+        starZones: zones,
+        stage: 2,
+        usedFallbackSort: fallback,
+      });
       setDumpCards(workingCards);
       setUsedFallbackSort(fallback);
       setStarZones(zones);
       setStage(2);
+      await saveProgressToDatabase({ force: true });
     } finally {
       if (organiseGen === workspaceApplyGenRef.current) setOrganising(false);
     }
-  }, [dumpCards, resolvedQuestion, setStage]);
+  }, [dumpCards, resolvedQuestion, setStage, commitWorkspaceToBundle, saveProgressToDatabase]);
 
   const handleStageSelect = useCallback(
     (nextStage) => {
+      if (nextStage > 1) releaseListingEntryStepLock(listingStepLockRef);
       if (nextStage === 1 && stage > 1) {
         enterBrainDumpFromLaterStage();
         return;
@@ -844,80 +1100,105 @@ function InterviewPrepContent({ initial }) {
     [stage, dumpCards, starZones, enterBrainDumpFromLaterStage, runOrganise, setStage],
   );
 
-  const goBuildAnswer = useCallback(() => {
+  const saveOrganiseProgress = useCallback(async () => {
+    commitWorkspaceToBundle({ stage: 2 });
+    try {
+      await saveProgressToDatabase({ force: true });
+      setOrganiseSaveAck(true);
+      window.setTimeout(() => setOrganiseSaveAck(false), 3200);
+    } catch {
+      /* user may be offline */
+    }
+  }, [commitWorkspaceToBundle, saveProgressToDatabase]);
+
+  const goBuildAnswer = useCallback(async () => {
+    releaseListingEntryStepLock(listingStepLockRef);
     const draft = buildAnswerDraftFromStar(starZones, dumpCards, resolvedQuestion || "");
+    commitWorkspaceToBundle({ answerDraft: draft, stage: 3 });
     setAnswerDraft(draft);
     setReadinessPercent(40);
     setStage(3);
-  }, [dumpCards, resolvedQuestion, starZones, setStage]);
+    try {
+      await saveProgressToDatabase({ force: true });
+    } catch {
+      /* non-fatal */
+    }
+  }, [dumpCards, resolvedQuestion, starZones, setStage, commitWorkspaceToBundle, saveProgressToDatabase]);
+
+  const persistFormulatedAnswer = useCallback(() => {
+    const q = selectedQuestion;
+    if (!q || !allQuestions.includes(q)) return;
+    const text = String(answerDraft || "").trim();
+    if (!text) return;
+    const now = Date.now();
+    const qn = String(resolvedQuestion || "").trim();
+    commitWorkspaceToBundle({
+      finalizedAnswer: text,
+      finalizedAt: now,
+      answerDraft: text,
+      stage: persistableStage(stage),
+    });
+    const existing = savedAnswersRef.current?.find((x) => String(x.question || "").trim() === qn);
+    const entry = {
+      id: existing?.id || uid("save"),
+      question: qn,
+      answer: text,
+      role: jobContext.role,
+      company: jobContext.company,
+      savedAt: now,
+    };
+    savedAnswersRef.current = [entry, ...savedAnswersRef.current.filter((x) => String(x.question || "").trim() !== qn)].slice(
+      0,
+      40,
+    );
+    setSavedAnswers(savedAnswersRef.current);
+    setAnsweredQuestions(() => computeAnsweredQuestionsMap(bundlesRef.current, savedAnswersRef.current));
+    persistOrgLocal(q);
+  }, [
+    answerDraft,
+    allQuestions,
+    jobContext.company,
+    jobContext.role,
+    persistOrgLocal,
+    resolvedQuestion,
+    selectedQuestion,
+    stage,
+    commitWorkspaceToBundle,
+  ]);
 
   const bumpReadiness = useCallback((n) => {
     setReadinessPercent((p) => Math.min(98, p + (n || 6)));
   }, []);
 
-  const saveAnswer = useCallback(() => {
-    const q = selectedQuestion;
-    if (!q || !allQuestions.includes(q)) return;
-    const prev = bundlesRef.current[q] || defaultQuestionBundle();
-    const now = Date.now();
-    bundlesRef.current[q] = normalizeQuestionBundle({
-      ...prev,
-      dumpCards,
-      starZones,
-      answerDraft,
-      stage: persistableStage(stage),
-      usedFallbackSort,
-      draftUpdatedAt: now,
-      finalizedAnswer: answerDraft,
-      finalizedAt: now,
-    });
-    const qn = String(resolvedQuestion || "").trim();
-    const existing = savedAnswersRef.current?.find((x) => String(x.question || "").trim() === qn);
-    const entry = {
-      id: existing?.id || uid("save"),
-      question: qn,
-      answer: answerDraft,
-      role: jobContext.role,
-      company: jobContext.company,
-      savedAt: now,
-    };
-    setSavedAnswers((prev) => {
-      const rest = prev.filter((x) => String(x.question || "").trim() !== qn);
-      return [entry, ...rest].slice(0, 40);
-    });
-    persistOrgLocal(q);
-    void pushCloudProgress();
-  }, [
-    answerDraft,
-    dumpCards,
-    jobContext.company,
-    jobContext.role,
-    persistOrgLocal,
-    pushCloudProgress,
-    allQuestions,
-    resolvedQuestion,
-    selectedQuestion,
-    stage,
-    starZones,
-    usedFallbackSort,
-  ]);
+  const saveAnswer = useCallback(async () => {
+    persistFormulatedAnswer();
+    try {
+      await saveProgressToDatabase({ force: true });
+    } catch {
+      /* non-fatal */
+    }
+  }, [persistFormulatedAnswer, saveProgressToDatabase]);
 
-  const nextQuestion = useCallback(() => {
+  const nextQuestion = useCallback(async () => {
+    persistFormulatedAnswer();
     const qs = allQuestions;
     const qFlush = qs.includes(selectedQuestion) ? selectedQuestion : resolvedQuestion;
     const idx = Math.max(0, qs.indexOf(resolvedQuestion));
     const next = qs[(idx + 1) % qs.length] || qs[0];
-    if (qFlush) flushBundleForQuestion(qFlush);
-    persistOrgLocal(qFlush || null);
+    try {
+      await saveProgressToDatabase({ force: true });
+    } catch {
+      /* non-fatal */
+    }
     setSelectedQuestion(next);
-    const incoming = bundlesRef.current[next] || defaultQuestionBundle();
+    const incoming = bundleForQuestionKey(bundlesRef.current, next) || defaultQuestionBundle();
     const norm = normalizeQuestionBundle(incoming);
     const wb = workspaceFromBundle(incoming);
     const answerText = resolveAnswerTextForQuestion(norm, savedAnswersRef.current, String(next).trim());
     setDumpCards(wb.dumpCards);
-    setStarZones(wb.starZones);
+    setStarZones(reconcileStarZonesWithCards(wb.dumpCards, wb.starZones));
     setAnswerDraft(answerText || wb.answerDraft);
-    setStage(answerText ? 3 : wb.stage);
+    setStage(stageFromLoadedProgress(wb, answerText, listingStepLockRef));
     setUsedFallbackSort(wb.usedFallbackSort);
     const hasSpeech = hasFormulatedSpeechForQuestion(
       norm,
@@ -928,18 +1209,20 @@ function InterviewPrepContent({ initial }) {
     setBrainDumpEditingRevisit(!hasSpeech);
     setReadinessPercent(answerText ? 72 : 40);
     persistOrgLocal(next);
-    void pushCloudProgress();
-  }, [allQuestions, resolvedQuestion, selectedQuestion, flushBundleForQuestion, persistOrgLocal, pushCloudProgress, setStage]);
+  }, [
+    allQuestions,
+    resolvedQuestion,
+    selectedQuestion,
+    persistFormulatedAnswer,
+    saveProgressToDatabase,
+    persistOrgLocal,
+    setStage,
+  ]);
 
   const readinessLabelFn = useCallback((p) => readinessLabelFor(p), []);
 
   const skillsShow = normalizedSkills(jobContext);
   const hasJobHints = Boolean(jobContext.role || jobContext.company || skillsShow.length);
-
-  const customQuestionKeys = useMemo(
-    () => new Set(customQuestions.map((s) => String(s || "").trim()).filter(Boolean)),
-    [customQuestions],
-  );
 
   return (
     <div className="ip-page">
@@ -951,6 +1234,18 @@ function InterviewPrepContent({ initial }) {
         <div className="ip-hero-inner">
           <div className="ip-hero-top">
             <div className="ip-hero-copy">
+              <p className="ip-hero-back">
+                <Link
+                  to={INTERVIEW_PREP_LIST_PATH}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    goToInterviewPrepListing(navigate);
+                  }}
+                  className="ip-hero-back__link"
+                >
+                  ← All jobs
+                </Link>
+              </p>
               <p className="simplify-hero-eyebrow">Step by step · STAR method</p>
               <h1 className="ip-hero-title">Interview Prep</h1>
               <p className="ip-hero-lead">
@@ -995,8 +1290,6 @@ function InterviewPrepContent({ initial }) {
               selectedQuestion={resolvedQuestion}
               onSelectQuestion={handleSelectQuestion}
               answeredQuestions={answeredQuestions}
-              removableCustomQuestionKeys={customQuestionKeys}
-              onRemoveCustomQuestion={removeCustomQuestion}
               onAddCustomQuestion={addCustomQuestion}
               customQuestionMaxChars={MAX_CUSTOM_QUESTION_CHARS}
               customQuestionsUsed={customQuestions.length}
@@ -1010,6 +1303,7 @@ function InterviewPrepContent({ initial }) {
               hasFormulatedSpeech={hasFormulatedSpeech}
               isEditingRevisit={brainDumpEditingRevisit}
               onStartEditRevisit={() => setBrainDumpEditingRevisit(true)}
+              onBackToListing={() => goToInterviewPrepListing(navigate)}
             />
           </section>
         ) : null}
@@ -1022,11 +1316,14 @@ function InterviewPrepContent({ initial }) {
               starZones={starZones}
               onZonesChange={setStarZones}
               usedFallbackSort={usedFallbackSort}
-              onContinue={goBuildAnswer}
+              onSave={() => void saveOrganiseProgress()}
+              onContinue={() => void goBuildAnswer()}
               onBack={enterBrainDumpFromLaterStage}
               needsStarSort={dumpCards.length >= 1 && !zonesHaveCards(starZones)}
               onSortNow={() => runOrganise()}
               organising={organising}
+              saving={cloudSaving}
+              saveAck={organiseSaveAck}
             />
           </section>
         ) : null}
@@ -1043,8 +1340,8 @@ function InterviewPrepContent({ initial }) {
               readinessPercent={readinessPercent}
               readinessLabel={readinessLabelFn}
               onBumpReadiness={bumpReadiness}
-              onSave={saveAnswer}
-              onNextQuestion={nextQuestion}
+              onSave={() => void saveAnswer()}
+              onNextQuestion={() => void nextQuestion()}
               onBack={() => setStage(2)}
             />
           </section>
@@ -1057,11 +1354,7 @@ function InterviewPrepContent({ initial }) {
 export default function InterviewPrepPage() {
   const initial = useMemo(() => loadInterviewPrepBootstrap(), []);
   if (!jobContextHasInterviewSource(initial.jobContext)) {
-    return (
-      <div className="ip-page">
-        <JobExperienceHub mode="interview" />
-      </div>
-    );
+    return <Navigate to={INTERVIEW_PREP_LIST_PATH} replace />;
   }
   return <InterviewPrepContent initial={initial} />;
 }

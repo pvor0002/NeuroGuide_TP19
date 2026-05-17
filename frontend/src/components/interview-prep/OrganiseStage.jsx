@@ -8,11 +8,14 @@ export default function OrganiseStage({
   starZones,
   onZonesChange,
   usedFallbackSort,
+  onSave,
   onContinue,
   onBack,
   needsStarSort,
   onSortNow,
   organising,
+  saving = false,
+  saveAck = false,
 }) {
   const addToZone = (zoneKey, text) => {
     const id = uid("z");
@@ -36,6 +39,8 @@ export default function OrganiseStage({
       result: (starZones.result || []).filter((x) => x !== id),
     });
   };
+
+  const busy = organising || saving;
 
   return (
     <section className="ip-stage" aria-labelledby="ip-stage-org-title">
@@ -65,7 +70,7 @@ export default function OrganiseStage({
         </div>
 
         {needsStarSort && (
-          <button type="button" className="ip-btn ip-btn--secondary" disabled={organising} onClick={onSortNow}>
+          <button type="button" className="ip-btn ip-btn--secondary" disabled={busy} onClick={onSortNow}>
             {organising ? "Sorting…" : "✦ Auto-sort into STAR"}
           </button>
         )}
@@ -88,12 +93,18 @@ export default function OrganiseStage({
       {!needsStarSort ? <FollowUpBubble onAddToZone={addToZone} /> : null}
 
       <footer className="ip-stage-footer">
-        <button type="button" className="ip-btn ip-btn--ghost" onClick={onBack}>
+        <button type="button" className="ip-btn ip-btn--ghost" onClick={onBack} disabled={busy}>
           ← Brain dump
         </button>
-        <button type="button" className="ip-btn ip-btn--primary" disabled={needsStarSort} onClick={onContinue}>
-          Build my answer →
-        </button>
+        <div className="ip-stage-footer__right">
+          {saveAck ? <p className="ip-save-ack" role="status">Saved</p> : null}
+          <button type="button" className="ip-btn ip-btn--secondary" disabled={needsStarSort || busy} onClick={onSave}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button type="button" className="ip-btn ip-btn--primary" disabled={needsStarSort || busy} onClick={onContinue}>
+            {saving ? "Saving…" : "Build my answer →"}
+          </button>
+        </div>
       </footer>
     </section>
   );

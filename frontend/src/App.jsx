@@ -3,7 +3,7 @@ import MarketingLayout from "./layouts/MarketingLayout.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ProfileWizardPage from "./pages/ProfileWizardPage.jsx";
 import SimplifyJobDescriptionPage from "./pages/SimplifyJobDescriptionPage.jsx";
-import InterviewPrepPage from "./pages/InterviewPrepPage.jsx";
+import InterviewPrepRouter from "./pages/InterviewPrepRouter.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import MySavedScoresPage from "./pages/MySavedScoresPage.jsx";
 import SavedResultsPage from "./pages/SavedResultsPage.jsx";
@@ -31,7 +31,7 @@ export default function App() {
           <Route path="saved-results/:tab" element={<LegacySavedResultsRedirect />} />
           <Route path="saved-results" element={<Navigate to="/saved-insights/scores" replace />} />
           <Route path="my-saved-scores" element={<MySavedScoresPage />} />
-          <Route path="interview-prep" element={<InterviewPrepPage />} />
+          <Route path="interview-prep/*" element={<InterviewPrepRouter />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="/profile" element={<ProfileWizardPage />} />

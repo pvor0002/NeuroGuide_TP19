@@ -12,6 +12,7 @@ import {
   jobContextFromSavedScoreRow,
 } from "../../utils/interviewPrepHelpers.js";
 import { applyInterviewPrepJobContext } from "../../utils/interviewPrepResume.js";
+import { goToInterviewPrepWorkspaceFromListing } from "../../utils/interviewPrepNav.js";
 
 function formatAdhdLabel(raw) {
   const s = String(raw || "")
@@ -93,14 +94,14 @@ export default function JobExperienceHub({ mode }) {
     const ctx = jobContextFromSavedScoreRow(row);
     if (!ctx) return;
     applyInterviewPrepJobContext(ctx);
-    window.location.assign("/interview-prep");
+    goToInterviewPrepWorkspaceFromListing(navigate);
   };
 
   const openInterviewFromCloud = (sess) => {
     const ctx = jobContextFromInterviewSessionSummary(sess);
     if (!ctx) return;
     applyInterviewPrepJobContext(ctx);
-    window.location.assign("/interview-prep");
+    goToInterviewPrepWorkspaceFromListing(navigate);
   };
 
   const title = mode === "dil" ? "Day in the Life" : "Interview Prep";

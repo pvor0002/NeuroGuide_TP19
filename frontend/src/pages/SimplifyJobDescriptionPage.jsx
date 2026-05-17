@@ -1435,7 +1435,8 @@ export function JobHistoryDetailModal({ open, item, fallbackProfileKey, liveSimp
           <div className="jsc-history-detail-footer">
             <Link
               className="jsc-history-detail-interview"
-              to="/interview-prep"
+              to="/interview-prep/session"
+              state={{ directWorkspace: true }}
               onClick={() => onClose()}
             >
               Start preparing for interview

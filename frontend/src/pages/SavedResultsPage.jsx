@@ -1,17 +1,11 @@
-import { Link, NavLink, Navigate, useNavigate, useParams } from "react-router-dom";
+﻿import { Link, NavLink, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import SavedScoresPanel from "../components/saved-results/SavedScoresPanel.jsx";
 import { fetchDayInLifeSessions } from "../services/dayInLifeSessionsApi.js";
-import { fetchInterviewPrepSessions } from "../services/interviewPrepProgressApi.js";
 import { readDayInLifeRecents } from "../utils/dayInLifeRecents.js";
 import { dilCacheSet } from "../utils/dayInLifeCache.js";
 import { hasCloudSessionCredentials, readCredentials } from "../utils/cloudSync.js";
-import { displayTitleForScoreRow, mergeScoreRowsForHub } from "../utils/experienceHubJobs.js";
-import {
-  jobContextFromInterviewSessionSummary,
-  jobContextFromSavedScoreRow,
-} from "../utils/interviewPrepHelpers.js";
-import { resumeInterviewPrepFromSavedScoreRow, applyInterviewPrepJobContext } from "../utils/interviewPrepResume.js";
+import InterviewPrepSessionsList from "../components/interview-prep/InterviewPrepSessionsList.jsx";
 
 const TAB_IDS = ["scores", "day-in-life", "interview"];
 
@@ -99,7 +93,7 @@ function DayInLifeSavedPanel() {
               const when =
                 sess.updated_at != null
                   ? new Date(sess.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-                  : "—";
+                  : "â€”";
               return (
                 <li key={String(sess.id)} className="saved-results-subcard">
                   <div className="saved-results-subcard__text">
@@ -131,7 +125,7 @@ function DayInLifeSavedPanel() {
               const when =
                 r.updatedAt != null
                   ? new Date(r.updatedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-                  : "—";
+                  : "â€”";
               return (
                 <li key={`${job}|${adhd}|${i}`} className="saved-results-subcard">
                   <div className="saved-results-subcard__text">
@@ -155,129 +149,6 @@ function DayInLifeSavedPanel() {
     </>
   );
 }
-
-function InterviewPrepSavedPanel() {
-  const navigate = useNavigate();
-  const localRows = mergeScoreRowsForHub().filter((row) => jobContextFromSavedScoreRow(row));
-  const [cloudSessions, setCloudSessions] = useState([]);
-
-  useEffect(() => {
-    if (!hasCloudSessionCredentials()) return;
-    let cancelled = false;
-    const cred = readCredentials();
-    if (!cred?.userId || !cred?.passKey) return;
-    fetchInterviewPrepSessions(cred)
-      .then((d) => {
-        if (cancelled) return;
-        const list = Array.isArray(d?.sessions) ? d.sessions : [];
-        setCloudSessions(list.filter((s) => jobContextFromInterviewSessionSummary(s)));
-      })
-      .catch(() => {
-        if (!cancelled) setCloudSessions([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const resumeLocal = (row) => {
-    if (resumeInterviewPrepFromSavedScoreRow(row)) navigate("/interview-prep");
-  };
-
-  const resumeCloud = (sess) => {
-    const ctx = jobContextFromInterviewSessionSummary(sess);
-    if (!ctx) return;
-    applyInterviewPrepJobContext(ctx);
-    window.location.assign("/interview-prep");
-  };
-
-  if (!localRows.length && !cloudSessions.length) {
-    return (
-      <p className="saved-scores-page__empty">
-        No saved interview prep yet. Save a match score from{" "}
-        <Link to="/simplify-job-description">Simplify Job Description</Link> with a simplified posting, or sign in and
-        work through <Link to="/interview-prep">Interview Prep</Link> so it can sync to your account.
-      </p>
-    );
-  }
-
-  return (
-    <>
-      {cloudSessions.length ? (
-        <div className="saved-insights-subsect">
-          <h3 className="saved-insights-subsect__title">Saved to your account</h3>
-          <ul className="saved-results-sublist">
-            {cloudSessions.map((sess) => {
-              const title = interviewSessionLabelForSaved(sess);
-              const when =
-                sess.updated_at != null
-                  ? new Date(sess.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-                  : "—";
-              return (
-                <li key={String(sess.id)} className="saved-results-subcard">
-                  <div className="saved-results-subcard__text">
-                    <p className="saved-results-subcard__title">{title}</p>
-                    <p className="saved-results-subcard__date">{when}</p>
-                  </div>
-                  <div className="saved-results-subcard__actions">
-                    <button type="button" className="saved-results-resume-btn" onClick={() => resumeCloud(sess)}>
-                      Resume interview prep
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
-
-      {localRows.length ? (
-        <div className="saved-insights-subsect">
-          <h3 className="saved-insights-subsect__title">From your saved &amp; recent jobs</h3>
-          <ul className="saved-results-sublist">
-            {localRows.map((row, i) => {
-              const title = displayTitleForScoreRow(row);
-              const occ = row.occupationName || "—";
-              const date =
-                row.createdAt != null
-                  ? new Date(row.createdAt).toLocaleString(undefined, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })
-                  : "—";
-              return (
-                <li key={`${row.jobTitleNorm}-${String(row.simplifiedVerStamp)}-${row.createdAt ?? i}`} className="saved-results-subcard">
-                  <div className="saved-results-subcard__text">
-                    <p className="saved-results-subcard__title">{title}</p>
-                    <p className="saved-results-subcard__meta">
-                      <span className="saved-scores-card__occ-label">Role profile used:</span> {occ}
-                    </p>
-                    <p className="saved-results-subcard__date">{date}</p>
-                  </div>
-                  <div className="saved-results-subcard__actions">
-                    <button type="button" className="saved-results-resume-btn" onClick={() => resumeLocal(row)}>
-                      Resume interview prep
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-function interviewSessionLabelForSaved(sess) {
-  const s = sess?.simplified_job;
-  if (!s || typeof s !== "object") return "Saved interview prep";
-  const t = String(s.job_title || "").trim();
-  if (t) return t.slice(0, 120);
-  const bi = String(s.basic_info || "").trim().split("\n")[0];
-  return bi ? bi.slice(0, 120) : "Saved interview prep";
-}
-
 export default function SavedResultsPage() {
   const { tab } = useParams();
   const activeTab = TAB_IDS.includes(tab) ? tab : null;
@@ -345,7 +216,7 @@ export default function SavedResultsPage() {
               Each row is a job you saved with a simplified posting. Resume opens Interview Prep for that job (cloud
               backup applies when you are signed in).
             </p>
-            <InterviewPrepSavedPanel />
+            <InterviewPrepSessionsList />
           </>
         ) : null}
       </div>
