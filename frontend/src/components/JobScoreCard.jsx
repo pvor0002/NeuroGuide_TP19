@@ -1327,7 +1327,13 @@ export default function JobScoreCard({
   const score = hasResult ? Number(result.score || 0) : 0;
   const tone = scoreTone(score);
   const scorePct = Math.min(100, Math.max(0, score));
-  const canPrepareInterview = hasResult && scorePct >= 50;
+  const INTERVIEW_PREP_MIN_SCORE = 50;
+  const canPrepareInterview = hasResult && scorePct >= INTERVIEW_PREP_MIN_SCORE;
+  const interviewPrepLockedHint = !hasResult
+    ? "Interview prep unlocks after you receive a compatibility score for this job."
+    : scorePct >= INTERVIEW_PREP_MIN_SCORE
+      ? ""
+      : `Interview prep unlocks at ${INTERVIEW_PREP_MIN_SCORE}% compatibility. Your score is ${scorePct}% (${INTERVIEW_PREP_MIN_SCORE - scorePct}% below). Improve your skills match or profile fit to unlock.`;
   const scoreBand = !hasResult ? null : scorePct >= 71 ? "high" : scorePct >= 41 ? "mid" : "low";
   const confidencePct = hasResult ? Math.round((result.match_confidence ?? 0) * 100) : 0;
   const donutLoading = Boolean(jobScoreBusy);
@@ -1647,14 +1653,25 @@ export default function JobScoreCard({
                   Start preparing for interview
                 </Link>
               ) : (
-                <button
-                  type="button"
-                  className="jsc-post-score-btn jsc-post-score-btn--interview jsc-post-score-btn--interview-locked"
-                  disabled
-                  title="Reach at least a 50% match score to open interview prep."
+                <span
+                  className="jsc-post-score-btn-locked-wrap"
+                  title={interviewPrepLockedHint}
+                  tabIndex={0}
+                  aria-label={`Start preparing for interview. ${interviewPrepLockedHint}`}
                 >
-                  Start preparing for interview
-                </button>
+                  <button
+                    type="button"
+                    className="jsc-post-score-btn jsc-post-score-btn--interview jsc-post-score-btn--interview-locked"
+                    disabled
+                    aria-disabled="true"
+                    tabIndex={-1}
+                  >
+                    Start preparing for interview
+                  </button>
+                  <span className="jsc-post-score-btn-locked-hint" role="tooltip">
+                    {interviewPrepLockedHint}
+                  </span>
+                </span>
               )
             ) : null}
             <button

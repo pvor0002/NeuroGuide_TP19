@@ -6949,6 +6949,61 @@ a.home-hero-redesign__cta-btn {
   color: #a8988c;
 }
 
+.jsc-post-score-btn-locked-wrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  border-radius: 999px;
+  cursor: not-allowed;
+  outline: none;
+}
+
+.jsc-post-score-btn-locked-wrap:focus-visible {
+  outline: 2px solid #265a38;
+  outline-offset: 2px;
+}
+
+.jsc-post-score-btn-locked-hint {
+  position: absolute;
+  z-index: 50;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(320px, 92vw);
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(82, 70, 55, 0.2);
+  background: #2f2720;
+  color: #faf6f0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(26, 23, 20, 0.22);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.jsc-post-score-btn-locked-hint::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: #2f2720;
+}
+
+.jsc-post-score-btn-locked-wrap:hover .jsc-post-score-btn-locked-hint,
+.jsc-post-score-btn-locked-wrap:focus-visible .jsc-post-score-btn-locked-hint,
+.jsc-post-score-btn-locked-wrap:focus-within .jsc-post-score-btn-locked-hint {
+  opacity: 1;
+  visibility: visible;
+}
+
 @media (max-width: 560px) {
   .jsc-post-score-actions {
     justify-content: stretch;
