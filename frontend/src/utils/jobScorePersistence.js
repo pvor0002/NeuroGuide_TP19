@@ -171,3 +171,138 @@ export function removeSavedJobScoreEntry(entry) {
     return readSavedJobScores();
   }
 }
+
+/** Minimum compatibility score (0–100) to open interview prep. */
+export const INTERVIEW_PREP_MIN_SCORE = 50;
+
+export function jobMatchScorePercent(result) {
+  const n = Number(result?.score);
+  if (!Number.isFinite(n)) return null;
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+function titleNormsForScoreRow(row) {
+  const keys = new Set();
+  const add = (v) => {
+    const k = normalizeJobTitleKey(v);
+    if (k) keys.add(k);
+  };
+  add(row?.jobTitleNorm);
+  add(row?.jobTitleDisplay);
+  add(row?.occupationName);
+  add(row?.simplifiedSnapshot?.job_title);
+  return keys;
+}
+
+/** Day-in-life often uses occupation name; job scores use simplified posting title. */
+function jobTitleMatchesScoreLookup(jobTitle, candidate) {
+  const norm = normalizeJobTitleKey(jobTitle);
+  if (!norm) return false;
+  const keys = typeof candidate === "object" && candidate !== null ? titleNormsForScoreRow(candidate) : new Set();
+  if (keys.has(norm)) return true;
+  const cNorm =
+    typeof candidate === "string"
+      ? normalizeJobTitleKey(candidate)
+      : normalizeJobTitleKey(candidate?.occupationName || candidate?.jobTitleNorm || candidate?.jobTitleDisplay);
+  if (!cNorm) return false;
+  if (cNorm === norm) return true;
+  const shorter = norm.length <= cNorm.length ? norm : cNorm;
+  const longer = norm.length > cNorm.length ? norm : cNorm;
+  if (longer.includes(shorter) && shorter.length >= 10) return true;
+  return false;
+}
+
+function pickHighestScoreRow(rows) {
+  let best = null;
+  let bestPct = -1;
+  for (const row of rows) {
+    if (!row?.result) continue;
+    const pct = jobMatchScorePercent(row.result);
+    if (pct == null || pct <= bestPct) continue;
+    bestPct = pct;
+    best = row;
+  }
+  return best;
+}
+
+function collectMatchingScoreRows(jobTitle) {
+  if (!normalizeJobTitleKey(jobTitle)) return [];
+  const rows = [];
+  for (const row of [...readSavedJobScores(), ...readJobScoreHistory()]) {
+    if (row?.result && jobTitleMatchesScoreLookup(jobTitle, row)) rows.push(row);
+  }
+  const persisted = readPersistedJobScore();
+  if (persisted?.result && jobTitleMatchesScoreLookup(jobTitle, persisted)) {
+    rows.push(rowFromPersistedScore(persisted));
+  }
+  return rows;
+}
+
+function rowFromPersistedScore(persisted) {
+  if (!persisted?.result) return null;
+  return {
+    jobTitleNorm: persisted.jobTitleNorm,
+    jobTitleDisplay: persisted.occupationName || "",
+    simplifiedVerStamp: persisted.simplifiedVerStamp ?? null,
+    occupationName: persisted.occupationName || "",
+    result: persisted.result,
+    simplifiedSnapshot: null,
+  };
+}
+
+/** Best saved/history row for a job title (highest score when several rows match). */
+export function findJobScoreRowForTitle(jobTitle) {
+  return pickHighestScoreRow(collectMatchingScoreRows(jobTitle));
+}
+
+/** Try several titles (occupation vs simplified posting) and prefer the highest score. */
+export function findBestJobScoreRowForTitles(titleCandidates = []) {
+  const deduped = [];
+  const seen = new Set();
+  for (const title of titleCandidates) {
+    const t = String(title || "").trim();
+    if (!t) continue;
+    for (const row of collectMatchingScoreRows(t)) {
+      const key = `${row.jobTitleNorm}|${row.simplifiedVerStamp ?? ""}|${row.occupationName ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(row);
+    }
+  }
+  const best = pickHighestScoreRow(deduped);
+  if (best) return best;
+  const persisted = readPersistedJobScore();
+  return persisted?.result ? rowFromPersistedScore(persisted) : null;
+}
+
+export function interviewPrepEligibilityForJobTitle(jobTitle) {
+  return interviewPrepEligibilityForDayInLife({ titleCandidates: [jobTitle] });
+}
+
+/**
+ * Day-in-life eligibility: match occupation/posting titles and honour score passed from job score page.
+ * @param {{ titleCandidates?: string[], overrideScorePct?: number | string | null }} opts
+ */
+export function interviewPrepEligibilityForDayInLife({ titleCandidates = [], overrideScorePct = null } = {}) {
+  const overrideRaw = overrideScorePct != null && overrideScorePct !== "" ? Number(overrideScorePct) : null;
+  const overridePct =
+    overrideRaw != null && Number.isFinite(overrideRaw)
+      ? Math.min(100, Math.max(0, Math.round(overrideRaw)))
+      : null;
+
+  let scoreRow = findBestJobScoreRowForTitles(titleCandidates);
+  if (!scoreRow) {
+    const persisted = readPersistedJobScore();
+    if (persisted?.result) scoreRow = rowFromPersistedScore(persisted);
+  }
+
+  const rowPct = scoreRow?.result ? jobMatchScorePercent(scoreRow.result) : null;
+  const scorePct = overridePct != null ? overridePct : rowPct;
+
+  return {
+    eligible: scorePct != null && scorePct >= INTERVIEW_PREP_MIN_SCORE,
+    hasScore: scorePct != null,
+    scorePct,
+    scoreRow,
+  };
+}

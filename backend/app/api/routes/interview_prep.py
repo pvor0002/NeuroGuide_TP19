@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.config import Settings, get_settings
 from app.schemas.interview_prep import (
+    FormulateSpeechRequest,
+    FormulateSpeechResponse,
     ReshapeRequest,
     ReshapeResponse,
     SpeechCoachRequest,
@@ -16,6 +18,7 @@ from app.schemas.interview_prep import (
 )
 from app.services.gemini_interview_prep import (
     coach_spoken_answer_with_gemini,
+    formulate_speech_from_star_with_gemini,
     reshape_answer_with_gemini,
     split_card_text_with_gemini,
     star_sort_cards_with_gemini,
@@ -71,6 +74,30 @@ def split_brain_dump_endpoint(
         logger.exception("[interview-prep/split-brain-dump] unexpected: %s", exc)
         points = heuristic_split_card_text(text)
     return SplitBrainDumpResponse(points=points or [text])
+
+
+@router.post("/formulate-speech", response_model=FormulateSpeechResponse)
+@router.post("/formulate-speech/", response_model=FormulateSpeechResponse)
+def formulate_speech_endpoint(
+    body: FormulateSpeechRequest,
+    settings: Settings = Depends(get_settings),
+) -> FormulateSpeechResponse:
+    try:
+        text = formulate_speech_from_star_with_gemini(
+            body.question.strip(),
+            situation=[s.strip() for s in body.situation if s.strip()],
+            task=[s.strip() for s in body.task if s.strip()],
+            action=[s.strip() for s in body.action if s.strip()],
+            result=[s.strip() for s in body.result if s.strip()],
+            settings=settings,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[interview-prep/formulate-speech] unexpected: %s", exc)
+        raise HTTPException(status_code=502, detail=f"Formulate speech failed: {exc!s}") from exc
+
+    return FormulateSpeechResponse(text=text)
 
 
 @router.post("/reshape-answer", response_model=ReshapeResponse)

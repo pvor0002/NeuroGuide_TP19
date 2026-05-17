@@ -48,6 +48,28 @@ not corporate jargon. Preserve facts the candidate stated; do not invent employe
 
 Return ONLY JSON: {"text":"..."} where "text" is the full rewritten answer."""
 
+FORMULATE_SPEECH_SYSTEM = """You turn STAR brainstorm notes into a single conversational interview answer
+the candidate reads aloud — like explaining something to a friendly interviewer, not reading a list.
+
+Write ONE continuous story in first person (about 60–90 seconds aloud). Use connected sentences with
+natural transitions (so, then, because, after that, which meant). Merge related notes into the same
+sentence instead of stacking separate facts.
+
+SOUND LIKE SPEECH:
+- Good: "When I joined the team we were still on a legacy API, so I mapped out a week-by-week plan
+  and paired with frontend and QA every day. We shipped two days early and cut response times by 45%."
+- Bad (bullet/list): "Leverage Java logic. Immersion in Python syntax. Deep-dive into Pandas.
+  Study the codebase. Shipped early."
+
+FORBIDDEN: bullet points, numbered lists, dash lists, line breaks between facts, semicolon chains of
+tasks, repeating the interview question, STAR headings (Situation/Task/What I did/Result),
+filler openers ("Absolutely", "I can tell you about a time"), or meta talk about answering.
+
+Start directly in the story. Plain spoken English, warm tone, no corporate jargon.
+Preserve every fact from the notes; do not invent employers, metrics, tools, or outcomes.
+
+Return ONLY JSON: {"text":"..."} where "text" is the full spoken answer."""
+
 SPEECH_COACH_SYSTEM = """You are a friendly, encouraging speech coach for neurodivergent job candidates
 practising interview answers out loud.
 
@@ -384,6 +406,59 @@ def star_sort_cards_with_gemini(
         ) from exc
 
     return zones, working_cards
+
+
+def _format_star_zone_lines(label: str, points: list[str]) -> str:
+    cleaned = [p.strip() for p in points if isinstance(p, str) and p.strip()]
+    if not cleaned:
+        return f"{label}: (none)"
+    if len(cleaned) == 1:
+        return f"{label}: {cleaned[0]}"
+    bullets = "\n".join(f"  - {p}" for p in cleaned)
+    return f"{label}:\n{bullets}"
+
+
+def formulate_speech_from_star_with_gemini(
+    question: str,
+    *,
+    situation: list[str],
+    task: list[str],
+    action: list[str],
+    result: list[str],
+    settings: Settings,
+) -> str:
+    if not settings.gemini_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini API is not configured. Set GEMINI_API_KEY in the backend environment.",
+        )
+
+    zones_block = "\n\n".join(
+        [
+            _format_star_zone_lines("Situation", situation),
+            _format_star_zone_lines("Task", task),
+            _format_star_zone_lines("Action", action),
+            _format_star_zone_lines("Result", result),
+        ]
+    )
+    user_prompt = (
+        f"Interview question: {question.strip()}\n\n"
+        "Organised STAR notes:\n"
+        f"{zones_block}\n\n"
+        "Return only the JSON object with key \"text\"."
+    )
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+    data = _gemini_generate_json(
+        client,
+        _gemini_model_fallback_chain(settings.gemini_model),
+        system_instruction=FORMULATE_SPEECH_SYSTEM,
+        user_prompt=user_prompt,
+    )
+    text = (data.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=502, detail="Model returned empty text.")
+    return text
 
 
 def reshape_answer_with_gemini(answer: str, instruction: str, settings: Settings) -> str:

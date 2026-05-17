@@ -1,4 +1,5 @@
 import { getApiBase } from "../utils/apiBase.js";
+import { cleanSpeechDraft } from "../utils/interviewPrepHelpers.js";
 
 const API_BASE = getApiBase();
 
@@ -111,4 +112,77 @@ export async function reshapeInterviewAnswer(answer, instruction) {
     throw new Error(apiFailureMessage(res, err) || `Reshape failed (${res.status}).`);
   }
   return readJsonOrText(res);
+}
+
+const SPEECH_FORMULATE_INSTRUCTION =
+  "Rewrite as one conversational spoken answer (60–90 seconds read aloud), like talking to an interviewer. " +
+  "Use connected sentences with natural transitions (so, then, because, after that) — not a bullet list or fact stack. " +
+  "Merge related notes into the same sentence. First person, warm plain English. " +
+  "Do NOT use bullets, dashes, numbered lists, line breaks between facts, STAR headings, or repeat the question. " +
+  "No filler openers. Start directly in the story. Preserve every fact; do not invent details.";
+
+/** @param {{ situation: string[], task: string[], action: string[], result: string[] }} starTexts */
+export function starTextsToFormulateInput(question, starTexts) {
+  const sections = [
+    ["Situation", starTexts.situation || []],
+    ["Task", starTexts.task || []],
+    ["Action", starTexts.action || []],
+    ["Result", starTexts.result || []],
+  ];
+  const body = sections
+    .filter(([, items]) => items.length > 0)
+    .map(([label, items]) => `${label}: ${items.map((t) => String(t).trim()).join(" ")}`)
+    .join("\n");
+  return (
+    `Interview question (context only — do not repeat in your answer): ${question}\n\n` +
+    `Rough notes to turn into flowing speech (not a script to copy verbatim):\n${body}`
+  );
+}
+
+function speechResponse(text, question) {
+  const cleaned = cleanSpeechDraft(String(text || "").trim(), question);
+  return { text: cleaned };
+}
+
+/** Gemini via reshape-answer (works when formulate-speech route is not deployed yet). */
+export async function reshapeSpeechFromStarNotes(question, starTexts) {
+  const input = starTextsToFormulateInput(question, starTexts).trim();
+  if (input.length < 12) {
+    throw new Error("Not enough STAR content to formulate an answer.");
+  }
+  const data = await reshapeInterviewAnswer(input, SPEECH_FORMULATE_INSTRUCTION);
+  return speechResponse(data?.text, question);
+}
+
+/**
+ * @param {string} question
+ * @param {{ situation: string[], task: string[], action: string[], result: string[] }} starTexts
+ */
+export async function formulateInterviewSpeech(question, starTexts) {
+  const payload = {
+    question,
+    situation: starTexts.situation || [],
+    task: starTexts.task || [],
+    action: starTexts.action || [],
+    result: starTexts.result || [],
+  };
+
+  const res = await fetch(`${API_BASE}/interview-prep/formulate-speech`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (res.ok) {
+    const data = await readJsonOrText(res);
+    return speechResponse(data?.text, question);
+  }
+
+  try {
+    return await reshapeSpeechFromStarNotes(question, starTexts);
+  } catch (reshapeErr) {
+    const err = await readJsonOrText(res);
+    const primary = apiFailureMessage(res, err) || `Formulate speech failed (${res.status}).`;
+    throw new Error(reshapeErr?.message ? `${primary} ${reshapeErr.message}` : primary);
+  }
 }

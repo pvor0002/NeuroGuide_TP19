@@ -315,6 +315,13 @@
 
 .ip-textarea--answer {
   min-height: 14rem;
+  flex: 1;
+  resize: vertical;
+}
+
+.ip-textarea--composing {
+  color: var(--ip-muted);
+  font-style: italic;
 }
 
 /* =========================================================================
@@ -1557,59 +1564,9 @@
   gap: 0.75rem;
 }
 
-/* Two-column practise layout: editor | tools */
+/* Practise layout — full-width editor row (textarea + STAR cheat sheet) */
 .ip-practise-layout {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2rem;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .ip-practise-layout {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-}
-
-.ip-practise-editor-col {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* Right tools panel — inner two-column: speak+readiness | cheat sheet */
-.ip-practise-tools-col {
-  display: grid;
-  grid-template-columns: 200px 220px;
-  gap: 1rem;
-  align-items: start;
-  position: sticky;
-  top: 5rem;
-  align-self: start;
-}
-
-.ip-practise-tools-left {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.ip-practise-tools-right {
-  align-self: start;
-}
-
-@media (max-width: 900px) {
-  .ip-practise-tools-col {
-    grid-template-columns: 1fr 1fr;
-    position: static;
-  }
-}
-
-@media (max-width: 600px) {
-  .ip-practise-tools-col {
-    grid-template-columns: 1fr;
-  }
+  display: block;
 }
 
 /* Speak card */
@@ -2174,6 +2131,83 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.ip-answer-editor__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ip-answer-editor--with-aside .ip-answer-editor__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  grid-template-rows: auto 1fr;
+  column-gap: 1.25rem;
+  row-gap: 0.5rem;
+  align-items: stretch;
+}
+
+.ip-answer-editor--with-aside .ip-answer-editor__label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.ip-answer-editor--with-aside .ip-textarea--answer {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 22rem;
+  height: 100%;
+}
+
+.ip-answer-editor--with-aside .ip-answer-editor__aside {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  min-height: 0;
+  height: 100%;
+}
+
+.ip-practise-tips-card--aside {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+}
+
+.ip-practise-tips-card--aside .ip-practise-cheatsheet {
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .ip-answer-editor--with-aside .ip-answer-editor__main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .ip-answer-editor--with-aside .ip-textarea--answer {
+    min-height: 14rem;
+    height: auto;
+  }
+
+  .ip-answer-editor--with-aside .ip-answer-editor__aside {
+    grid-column: 1;
+    grid-row: 3;
+    height: auto;
+  }
+}
+
+.ip-formulate-notice {
+  margin: 0.35rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #78350f;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
 }
 
 .ip-reshape-row {

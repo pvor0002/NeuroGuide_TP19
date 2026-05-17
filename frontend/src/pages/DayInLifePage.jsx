@@ -9,6 +9,12 @@ import { recordDayInLifeRecent } from "../utils/dayInLifeRecents.js";
 import { dilCacheGet, dilCacheSet } from "../utils/dayInLifeCache.js";
 import { getDefaultAdhdSlugForDayInLife } from "../utils/experienceHubProfile.js";
 import { hasCloudSessionCredentials, readCredentials } from "../utils/cloudSync.js";
+import {
+  INTERVIEW_PREP_MIN_SCORE,
+  interviewPrepEligibilityForDayInLife,
+} from "../utils/jobScorePersistence.js";
+import { goToInterviewPrepWorkspaceFromListing } from "../utils/interviewPrepNav.js";
+import { resumeInterviewPrepFromSavedScoreRow } from "../utils/interviewPrepResume.js";
 
 const ENERGY_LABELS = {
   high:   { label: "High focus required", colour: "#dc2626", bg: "#fff5f5", pillBg: "#fee2e2" },
@@ -85,6 +91,7 @@ export default function DayInLifePage() {
   const [error, setError] = useState(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
+  const [saveMsgTone, setSaveMsgTone] = useState("info");
 
   useEffect(() => {
     if (!job_title || !adhd_type) return;
@@ -122,6 +129,35 @@ export default function DayInLifePage() {
 
   const visibleTimeline = timeline ?? cachedTimeline;
 
+  const occupationHint = String(st.occupation ?? searchParams.get("occupation") ?? "").trim();
+  const matchScoreHint = st.match_score_pct ?? searchParams.get("match_score") ?? null;
+
+  const interviewPrepAccess = useMemo(
+    () =>
+      interviewPrepEligibilityForDayInLife({
+        titleCandidates: [job_title, occupationHint],
+        overrideScorePct: matchScoreHint,
+      }),
+    [job_title, occupationHint, matchScoreHint],
+  );
+
+  const interviewPrepLockedHint = useMemo(() => {
+    if (!interviewPrepAccess.hasScore) {
+      return `Run a job match score for this role on Simplify Job Description first. Interview prep unlocks at ${INTERVIEW_PREP_MIN_SCORE}% compatibility.`;
+    }
+    if (interviewPrepAccess.eligible) return "";
+    const gap = INTERVIEW_PREP_MIN_SCORE - (interviewPrepAccess.scorePct ?? 0);
+    return `Interview prep unlocks at ${INTERVIEW_PREP_MIN_SCORE}% compatibility. Your score is ${interviewPrepAccess.scorePct}% (${gap}% below). Improve your match to unlock.`;
+  }, [interviewPrepAccess]);
+
+  const openInterviewPrep = () => {
+    if (!interviewPrepAccess.eligible) return;
+    if (interviewPrepAccess.scoreRow) {
+      resumeInterviewPrepFromSavedScoreRow(interviewPrepAccess.scoreRow);
+    }
+    goToInterviewPrepWorkspaceFromListing(navigate);
+  };
+
   useEffect(() => {
     if (!job_title || !adhd_type || !visibleTimeline || loading) return;
     if (error) return;
@@ -132,6 +168,7 @@ export default function DayInLifePage() {
     if (!visibleTimeline?.length) return;
     setSaveMsg(null);
     if (!hasCloudSessionCredentials()) {
+      setSaveMsgTone("info");
       setSaveMsg("Sign in via Settings to save this day to your account.");
       return;
     }
@@ -142,8 +179,10 @@ export default function DayInLifePage() {
         adhd_type,
         timeline: visibleTimeline,
       });
+      setSaveMsgTone("success");
       setSaveMsg("Saved to your account.");
     } catch (e) {
+      setSaveMsgTone("error");
       setSaveMsg(e?.message || "Save failed.");
     } finally {
       setSaveBusy(false);
@@ -177,18 +216,57 @@ export default function DayInLifePage() {
               <button type="button" className="simplify-hero-back" onClick={() => navigate(-1)}>
                 ← Back
               </button>
-              {visibleTimeline && !loading ? (
-                <button
-                  type="button"
-                  className="dil-save-day-btn"
-                  onClick={() => void saveToAccount()}
-                  disabled={saveBusy}
-                >
-                  {saveBusy ? "Saving…" : "Save this day"}
-                </button>
-              ) : null}
+              <div className="dil-hero-actions__end">
+                {interviewPrepAccess.hasScore || matchScoreHint != null ? (
+                  interviewPrepAccess.eligible ? (
+                    <button
+                      type="button"
+                      className="dil-interview-prep-btn"
+                      onClick={openInterviewPrep}
+                    >
+                      Start preparing for interview
+                    </button>
+                  ) : (
+                    <span
+                      className="dil-btn-locked-wrap"
+                      title={interviewPrepLockedHint}
+                      tabIndex={0}
+                      aria-label={`Start preparing for interview. ${interviewPrepLockedHint}`}
+                    >
+                      <button
+                        type="button"
+                        className="dil-interview-prep-btn dil-interview-prep-btn--locked"
+                        disabled
+                        aria-disabled="true"
+                        tabIndex={-1}
+                      >
+                        Start preparing for interview
+                      </button>
+                      <span className="dil-btn-locked-hint" role="tooltip">
+                        {interviewPrepLockedHint}
+                      </span>
+                    </span>
+                  )
+                ) : null}
+                {visibleTimeline && !loading ? (
+                  <div className="dil-hero-actions__save-stack">
+                    <button
+                      type="button"
+                      className="dil-save-day-btn"
+                      onClick={() => void saveToAccount()}
+                      disabled={saveBusy}
+                    >
+                      {saveBusy ? "Saving…" : "Save this day"}
+                    </button>
+                    {saveMsg ? (
+                      <p className={`dil-save-msg dil-save-msg--${saveMsgTone}`} role="status">
+                        {saveMsg}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
-            {saveMsg ? <p className="dil-save-msg" role="status">{saveMsg}</p> : null}
           </div>
 
           <div className="day-in-life-legend">

@@ -102,7 +102,7 @@ export default function OrganiseStage({
             {saving ? "Saving…" : "Save"}
           </button>
           <button type="button" className="ip-btn ip-btn--primary" disabled={needsStarSort || busy} onClick={onContinue}>
-            {saving ? "Saving…" : "Build my answer →"}
+            {organising ? "Building answer…" : saving ? "Saving…" : "Build my answer →"}
           </button>
         </div>
       </footer>

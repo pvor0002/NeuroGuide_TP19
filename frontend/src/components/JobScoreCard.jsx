@@ -1678,13 +1678,24 @@ export default function JobScoreCard({
               type="button"
               className="jsc-post-score-btn jsc-interview-cta--secondary"
               onClick={() => {
-                const jobTitle = occupationName || "this role";
                 const adhdType = getAdhdTypeFromProfile();
                 const q = new URLSearchParams({
-                  job_title: jobTitle,
+                  job_title: occupationName || "this role",
                   adhd_type: adhdType,
                 });
-                navigate({ pathname: "/day-in-life", search: `?${q.toString()}` }, { state: { job_title: jobTitle, adhd_type: adhdType } });
+                if (occupationName) q.set("occupation", occupationName);
+                if (hasResult) q.set("match_score", String(scorePct));
+                navigate(
+                  { pathname: "/day-in-life", search: `?${q.toString()}` },
+                  {
+                    state: {
+                      job_title: occupationName || "this role",
+                      adhd_type: adhdType,
+                      occupation: occupationName,
+                      match_score_pct: scorePct,
+                    },
+                  },
+                );
               }}
             >
               See a day in this job

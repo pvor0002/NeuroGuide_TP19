@@ -2346,9 +2346,107 @@ body {
 .dil-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 0.65rem 1rem;
   margin-top: 0.75rem;
+  width: 100%;
+}
+
+.dil-hero-actions:has(.dil-save-msg) {
+  padding-bottom: 1.55rem;
+}
+
+.dil-hero-actions__end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.65rem 1rem;
+  margin-left: auto;
+}
+
+.dil-interview-prep-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #1f4a2e;
+  background: linear-gradient(180deg, #3d8f58 0%, #2f8248 100%);
+  color: #fff;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(47, 130, 72, 0.25);
+}
+
+.dil-interview-prep-btn:hover {
+  filter: brightness(1.05);
+}
+
+.dil-interview-prep-btn--locked:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: rgba(82, 70, 55, 0.18);
+  background: rgba(255, 255, 255, 0.85);
+  color: #a8988c;
+  box-shadow: none;
+}
+
+.dil-btn-locked-wrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  border-radius: 10px;
+  cursor: not-allowed;
+  outline: none;
+}
+
+.dil-btn-locked-wrap:focus-visible {
+  outline: 2px solid #265a38;
+  outline-offset: 2px;
+}
+
+.dil-btn-locked-hint {
+  position: absolute;
+  z-index: 50;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(320px, 92vw);
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(82, 70, 55, 0.2);
+  background: #2f2720;
+  color: #faf6f0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(26, 23, 20, 0.22);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.dil-btn-locked-hint::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: #2f2720;
+}
+
+.dil-btn-locked-wrap:hover .dil-btn-locked-hint,
+.dil-btn-locked-wrap:focus-visible .dil-btn-locked-hint,
+.dil-btn-locked-wrap:focus-within .dil-btn-locked-hint {
+  opacity: 1;
+  visibility: visible;
 }
 
 .dil-save-day-btn {
@@ -2374,11 +2472,39 @@ body {
   cursor: wait;
 }
 
+.dil-hero-actions__save-stack {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.dil-hero-actions__save-stack .dil-save-msg {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  left: auto;
+  width: max-content;
+  max-width: min(280px, 92vw);
+}
+
 .dil-save-msg {
-  margin: 0.5rem 0 0;
-  font-size: 0.82rem;
-  color: #5a5148;
-  font-weight: 600;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.dil-save-msg--success {
+  color: #1f5c38;
+}
+
+.dil-save-msg--error {
+  color: #9b2c2c;
+}
+
+.dil-save-msg--info {
+  color: #7d560f;
 }
 
 /* ── Legend — vertical card, right column of hero grid ── */
