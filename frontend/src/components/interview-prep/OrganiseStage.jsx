@@ -23,6 +23,20 @@ export default function OrganiseStage({
     });
   };
 
+  const editCard = (id, text) => {
+    onDumpChange(dumpCards.map((c) => (c.id === id ? { ...c, text } : c)));
+  };
+
+  const removeCard = (id) => {
+    onDumpChange(dumpCards.filter((c) => c.id !== id));
+    onZonesChange({
+      situation: (starZones.situation || []).filter((x) => x !== id),
+      task: (starZones.task || []).filter((x) => x !== id),
+      action: (starZones.action || []).filter((x) => x !== id),
+      result: (starZones.result || []).filter((x) => x !== id),
+    });
+  };
+
   return (
     <section className="ip-stage" aria-labelledby="ip-stage-org-title">
 
@@ -63,9 +77,15 @@ export default function OrganiseStage({
         </div>
       )}
 
-      <StarGrid dumpCards={dumpCards} starZones={starZones} onZonesChange={onZonesChange} />
+      <StarGrid
+        dumpCards={dumpCards}
+        starZones={starZones}
+        onZonesChange={onZonesChange}
+        onEditCard={editCard}
+        onRemoveCard={removeCard}
+      />
 
-      <FollowUpBubble starZones={starZones} onAddToZone={addToZone} />
+      {!needsStarSort ? <FollowUpBubble onAddToZone={addToZone} /> : null}
 
       <footer className="ip-stage-footer">
         <button type="button" className="ip-btn ip-btn--ghost" onClick={onBack}>

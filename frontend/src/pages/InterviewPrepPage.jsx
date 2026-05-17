@@ -14,6 +14,8 @@ import {
   deriveInterviewPrepJobFingerprint,
   expandLongDumpCardsHeuristic,
   heuristicStarSort,
+  reconcileStarZonesWithCards,
+  starPartitionMatchesCards,
   loadJobContextFromSimplifyHistory,
   mergeQuestionBundlesFromServer,
   normalizeQuestionBundle,
@@ -255,7 +257,7 @@ function workspaceFromBundle(b) {
   const finalized = String(n.finalizedAnswer || "").trim();
   return {
     dumpCards: n.dumpCards,
-    starZones: n.starZones,
+    starZones: reconcileStarZonesWithCards(n.dumpCards, n.starZones),
     answerDraft: draft || finalized,
     stage: migrateLegacyStage(n.stage),
     usedFallbackSort: n.usedFallbackSort,
@@ -445,6 +447,8 @@ function InterviewPrepContent({ initial }) {
   }, [customQuestions]);
 
   const cloudSaveTimerRef = useRef(null);
+  /** Bumped when the user organises ideas so in-flight cloud hydration cannot overwrite fresh STAR state. */
+  const workspaceApplyGenRef = useRef(0);
 
   const persistOrgLocal = useCallback((activeQ) => {
     if (typeof window === "undefined") return;
@@ -536,6 +540,7 @@ function InterviewPrepContent({ initial }) {
 
   useEffect(() => {
     let cancelled = false;
+    const hydrationGenAtStart = workspaceApplyGenRef.current;
     (async () => {
       if (!hasCloudSessionCredentials()) return;
       const cred = readCredentials();
@@ -567,10 +572,12 @@ function InterviewPrepContent({ initial }) {
           const norm = normalizeQuestionBundle(merged[aq] || defaultQuestionBundle());
           const wb = workspaceFromBundle(merged[aq] || null);
           const answerText = resolveAnswerTextForQuestion(norm, mergedForSavedLookup, aq);
+          const reconciledZones = reconcileStarZonesWithCards(wb.dumpCards, wb.starZones);
           queueMicrotask(() => {
+            if (cancelled || hydrationGenAtStart !== workspaceApplyGenRef.current) return;
             setSelectedQuestion(aq);
             setDumpCards(wb.dumpCards);
-            setStarZones(wb.starZones);
+            setStarZones(reconciledZones);
             setAnswerDraft(answerText || wb.answerDraft);
             setStage(answerText ? Math.max(wb.stage, 3) : wb.stage);
             setUsedFallbackSort(wb.usedFallbackSort);
@@ -585,6 +592,16 @@ function InterviewPrepContent({ initial }) {
       cancelled = true;
     };
   }, [jobContext, persistOrgLocal, setStage]);
+
+  const dumpCardIdsKey = useMemo(
+    () => dumpCards.map((c) => c.id).sort().join("\0"),
+    [dumpCards],
+  );
+
+  useEffect(() => {
+    if (stage !== 1) return;
+    setStarZones((prev) => (starPartitionMatchesCards(dumpCards, prev) ? prev : emptyZones()));
+  }, [dumpCardIdsKey, dumpCards, stage]);
 
   const canOrganise = dumpCards.length >= 2 || zonesHaveCards(starZones);
   const canPractise = Boolean(answerDraft?.trim()) || stage === 3;
@@ -769,6 +786,8 @@ function InterviewPrepContent({ initial }) {
   );
 
   const runOrganise = useCallback(async () => {
+    workspaceApplyGenRef.current += 1;
+    const organiseGen = workspaceApplyGenRef.current;
     setOrganising(true);
     let fallback = false;
     let zones = emptyZones();
@@ -799,14 +818,31 @@ function InterviewPrepContent({ initial }) {
         workingCards = expandLongDumpCardsHeuristic(dumpCards);
         zones = heuristicStarSort(workingCards);
       }
+      zones = reconcileStarZonesWithCards(workingCards, zones);
+      if (organiseGen !== workspaceApplyGenRef.current) return;
       setDumpCards(workingCards);
       setUsedFallbackSort(fallback);
       setStarZones(zones);
       setStage(2);
     } finally {
-      setOrganising(false);
+      if (organiseGen === workspaceApplyGenRef.current) setOrganising(false);
     }
   }, [dumpCards, resolvedQuestion, setStage]);
+
+  const handleStageSelect = useCallback(
+    (nextStage) => {
+      if (nextStage === 1 && stage > 1) {
+        enterBrainDumpFromLaterStage();
+        return;
+      }
+      if (nextStage === 2 && stage !== 2 && dumpCards.length > 0 && !starPartitionMatchesCards(dumpCards, starZones)) {
+        void runOrganise();
+        return;
+      }
+      setStage(nextStage);
+    },
+    [stage, dumpCards, starZones, enterBrainDumpFromLaterStage, runOrganise, setStage],
+  );
 
   const goBuildAnswer = useCallback(() => {
     const draft = buildAnswerDraftFromStar(starZones, dumpCards, resolvedQuestion || "");
@@ -894,17 +930,6 @@ function InterviewPrepContent({ initial }) {
     persistOrgLocal(next);
     void pushCloudProgress();
   }, [allQuestions, resolvedQuestion, selectedQuestion, flushBundleForQuestion, persistOrgLocal, pushCloudProgress, setStage]);
-
-  const handleStageSelect = useCallback(
-    (nextStage) => {
-      if (nextStage === 1 && stage > 1) {
-        enterBrainDumpFromLaterStage();
-        return;
-      }
-      setStage(nextStage);
-    },
-    [stage, enterBrainDumpFromLaterStage, setStage],
-  );
 
   const readinessLabelFn = useCallback((p) => readinessLabelFor(p), []);
 
