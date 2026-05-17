@@ -1,36 +1,64 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useState } from "react";
 import { ZONES } from "./StarGrid.jsx";
 
 const PROMPTS = {
-  situation: "What was the situation or main constraint? Just a sentence is fine.",
-  task: "What was your goal or what were you responsible for?",
-  action: "What did you personally do in that moment?",
-  result: "What was the outcome, even roughly or in plain words?",
+  situation:
+    "Situation: set the scene. Where were you, what was going on, and what made it challenging?",
+  task: "Task: what were you responsible for or trying to achieve in that moment?",
+  action: 'Action: what did you personally do? Use "I" and name the steps you took.',
+  result: "Result: what changed because of your work? Outcomes, impact, or rough numbers are fine.",
 };
 
-function firstEmptyZone(starZones) {
-  for (const z of ZONES) {
-    if (!(starZones[z.key] || []).length) return z.key;
-  }
-  return null;
-}
-
-export default function FollowUpBubble({ starZones, onAddToZone }) {
-  const empty = useMemo(() => firstEmptyZone(starZones), [starZones]);
+export default function FollowUpBubble({ onAddToZone }) {
+  const [activeKey, setActiveKey] = useState(ZONES[0].key);
   const [line, setLine] = useState("");
   const fieldId = useId();
 
-  if (!empty) return null;
+  const active = ZONES.find((z) => z.key === activeKey) || ZONES[0];
+  const prompt = PROMPTS[active.key] || "";
 
-  const q = PROMPTS[empty] || "";
+  const submit = () => {
+    const t = line.trim();
+    if (!t) return;
+    onAddToZone(active.key, t);
+    setLine("");
+  };
 
   return (
-    <div className="ip-follow-bubble">
-      <p className="ip-follow-bubble__title">One small question</p>
-      <p className="ip-follow-bubble__q">{q}</p>
+    <section className="ip-follow-bubble" aria-labelledby="ip-follow-title">
+      <p id="ip-follow-title" className="ip-follow-bubble__title">
+        Add another point
+      </p>
+
+      <div className="ip-follow-pills" role="tablist" aria-label="STAR sections">
+        {ZONES.map((z) => {
+          const selected = z.key === activeKey;
+          return (
+            <button
+              key={z.key}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              className={`ip-follow-pill ${selected ? "ip-follow-pill--active" : ""}`}
+              onClick={() => {
+                setActiveKey(z.key);
+                setLine("");
+              }}
+            >
+              <span className={`ip-follow-pill__letter ip-follow-pill__letter--${z.letterClass}`} aria-hidden="true">
+                {z.letter}
+              </span>
+              <span className="ip-follow-pill__text">{z.title}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="ip-follow-bubble__q">{prompt}</p>
+
       <div className="ip-follow-bubble__row">
         <label className="ip-visually-hidden" htmlFor={fieldId}>
-          Your answer
+          Add point for {active.title}
         </label>
         <input
           id={fieldId}
@@ -40,24 +68,17 @@ export default function FollowUpBubble({ starZones, onAddToZone }) {
           onKeyDown={(e) => {
             if (e.key === "Enter" && line.trim()) {
               e.preventDefault();
-              onAddToZone(empty, line.trim());
-              setLine("");
+              submit();
             }
           }}
-          placeholder="Type a short sentence…"
+          placeholder={`Write a ${active.title.toLowerCase()} point…`}
         />
-        <button
-          type="button"
-          className="ip-btn ip-btn--secondary"
-          disabled={!line.trim()}
-          onClick={() => {
-            onAddToZone(empty, line.trim());
-            setLine("");
-          }}
-        >
-          Add
+        <button type="button" className="ip-btn ip-btn--secondary" disabled={!line.trim()} onClick={submit}>
+          Add to {active.title}
         </button>
       </div>
-    </div>
+    </section>
   );
 }
+
+export { PROMPTS };

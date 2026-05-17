@@ -192,6 +192,60 @@ export function heuristicSplitBrainDumpText(text) {
  * @param {{ id: string, text: string }[]} cards
  * @returns {{ id: string, text: string }[]}
  */
+/** All card ids currently placed in STAR zones (order preserved per zone). */
+export function collectStarZoneCardIds(starZones) {
+  const keys = ["situation", "task", "action", "result"];
+  const out = [];
+  for (const k of keys) {
+    for (const id of starZones?.[k] || []) {
+      if (typeof id === "string" && id.trim()) out.push(id.trim());
+    }
+  }
+  return out;
+}
+
+/** True when every dump card appears exactly once across zones and zone ids are valid. */
+export function starPartitionMatchesCards(dumpCards, starZones) {
+  const cardIds = new Set((dumpCards || []).map((c) => c.id).filter(Boolean));
+  const zoneIds = collectStarZoneCardIds(starZones);
+  if (cardIds.size === 0) return zoneIds.length === 0;
+  if (zoneIds.length !== cardIds.size) return false;
+  const seen = new Set(zoneIds);
+  if (seen.size !== zoneIds.length) return false;
+  for (const id of zoneIds) {
+    if (!cardIds.has(id)) return false;
+  }
+  return true;
+}
+
+/** Card ids present in dumpCards but not assigned to any STAR zone. */
+export function unassignedDumpCardIds(dumpCards, starZones) {
+  const placed = new Set(collectStarZoneCardIds(starZones));
+  return (dumpCards || []).map((c) => c.id).filter((id) => id && !placed.has(id));
+}
+
+/**
+ * Drop stale zone ids, then heuristic-sort any cards that were never placed.
+ * @param {DumpCard[]} dumpCards
+ * @param {{ situation: string[], task: string[], action: string[], result: string[] }} starZones
+ */
+export function reconcileStarZonesWithCards(dumpCards, starZones) {
+  const cardIds = new Set((dumpCards || []).map((c) => c.id).filter(Boolean));
+  const keys = ["situation", "task", "action", "result"];
+  const next = { situation: [], task: [], action: [], result: [] };
+  for (const k of keys) {
+    next[k] = (starZones?.[k] || []).filter((id) => cardIds.has(id));
+  }
+  const placed = new Set(collectStarZoneCardIds(next));
+  const orphans = (dumpCards || []).filter((c) => c.id && !placed.has(c.id));
+  if (!orphans.length) return next;
+  const orphanZones = heuristicStarSort(orphans);
+  for (const k of keys) {
+    next[k] = [...next[k], ...(orphanZones[k] || [])];
+  }
+  return next;
+}
+
 export function expandLongDumpCardsHeuristic(cards) {
   const out = [];
   for (const card of cards) {

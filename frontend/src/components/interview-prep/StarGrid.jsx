@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
+import { unassignedDumpCardIds } from "../../utils/interviewPrepHelpers.js";
+import StarCardEditModal from "./StarCardEditModal.jsx";
 
-/** Organise-stage zones — classic STAR (Situation, Task, Action, Result). */
+/** Organise-stage zones: Situation, Task, Action, Result. */
 const ZONES = [
   {
     key: "situation",
@@ -8,7 +10,7 @@ const ZONES = [
     letterClass: "s",
     title: "Situation",
     label: "The situation",
-    help: "Set the scene: where you were, what was going on, and any constraints. Often 1–2 sentences.",
+    help: "Set the scene: where you were, what was going on, and any constraints.",
   },
   {
     key: "task",
@@ -16,7 +18,7 @@ const ZONES = [
     letterClass: "t",
     title: "Task",
     label: "Your goal or role",
-    help: "Your specific responsibility or goal — what you were asked to achieve or own in that moment.",
+    help: "Your goal or what you were responsible for in that moment.",
   },
   {
     key: "action",
@@ -24,7 +26,7 @@ const ZONES = [
     letterClass: "a",
     title: "Action",
     label: "What you did",
-    help: "What you personally did — say “I…” and name the steps you took, not only what the team did overall.",
+    help: 'What you did. Say "I" and name the steps you took.',
   },
   {
     key: "result",
@@ -32,44 +34,57 @@ const ZONES = [
     letterClass: "r",
     title: "Result",
     label: "The result",
-    help: "What changed because of your work: outcomes, impact, or numbers if you have them — even rough ones.",
+    help: "What changed: outcomes, impact, or rough numbers.",
   },
 ];
 
 function StarZoneHelp({ helpId, helpText }) {
-  const [open, setOpen] = useState(false);
-
   return (
     <span className="ip-star-zone__help-wrap">
-      <button
-        type="button"
-        className="ip-star-zone__help-btn"
-        aria-label="What this zone means"
-        aria-expanded={open}
-        aria-controls={helpId}
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        onBlur={() => setOpen(false)}
-      >
+      <span className="ip-star-zone__help-btn" aria-describedby={helpId}>
         ?
-      </button>
-      <span
-        id={helpId}
-        role="tooltip"
-        className={`ip-star-zone__tooltip ${open ? "ip-star-zone__tooltip--open" : ""}`}
-      >
+      </span>
+      <span id={helpId} role="tooltip" className="ip-star-zone__tooltip">
         {helpText}
       </span>
     </span>
   );
 }
 
-export default function StarGrid({ dumpCards, starZones, onZonesChange }) {
+function IconEdit() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path d="M13.5 6.5l4 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconRemove() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M6 7h12M9 7V5h6v2M10 11v6M14 11v6M8 7l1 12h6l1-12"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export default function StarGrid({ dumpCards, starZones, onZonesChange, onEditCard, onRemoveCard }) {
   const [selectedId, setSelectedId] = useState(null);
+  const [editingCard, setEditingCard] = useState(null);
 
   const byId = useMemo(() => Object.fromEntries(dumpCards.map((c) => [c.id, c])), [dumpCards]);
+  const unplacedIds = useMemo(() => unassignedDumpCardIds(dumpCards, starZones), [dumpCards, starZones]);
 
   const moveToZone = useCallback(
     (cardId, zoneKey) => {
@@ -106,73 +121,126 @@ export default function StarGrid({ dumpCards, starZones, onZonesChange }) {
     if (cardId) moveToZone(cardId, zoneKey);
   };
 
-  return (
-    <div className="ip-star-grid">
-      {ZONES.map(({ key, letter, letterClass, title, label, help }) => {
-        const ids = starZones[key] || [];
-        const empty = ids.length === 0;
-        const helpId = `ip-star-help-${key}`;
-        return (
-          <div
-            key={key}
-            className={`ip-star-zone ${empty ? "ip-star-zone--empty" : ""}`}
-            onDragOver={onDragOver}
-            onDrop={(e) => onDrop(e, key)}
-            onClick={() => {
-              if (selectedId) moveToZone(selectedId, key);
-            }}
-            role="group"
-            aria-label={`${letter} — ${title}: ${label}`}
-          >
-            <div className="ip-star-zone__head">
-              <span
-                className={`ip-star-zone__letter ip-star-zone__letter--${letterClass}`}
-                aria-hidden="true"
-              >
-                {letter}
-              </span>
-              <span className="ip-star-zone__titles">
-                <span className="ip-star-zone__title">{title}</span>
-                <span className="ip-star-zone__subtitle">{label}</span>
-              </span>
-              <StarZoneHelp helpId={helpId} helpText={help} />
-            </div>
-            <div className="ip-star-zone__body">
-              {empty ? (
-                <p className="ip-star-placeholder">Nothing here yet</p>
-              ) : (
-                ids.map((id) => {
-                  const c = byId[id];
-                  if (!c) return null;
-                  return (
-                    <div
-                      key={id}
-                      role="button"
-                      tabIndex={0}
-                      draggable
-                      onDragStart={(e) => onDragStart(e, id)}
-                      className={`ip-star-chip ${selectedId === id ? "ip-star-chip--pick" : ""}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedId((p) => (p === id ? null : id));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setSelectedId((p) => (p === id ? null : id));
-                        }
-                      }}
-                    >
-                      {c.text}
-                    </div>
-                  );
-                })
-              )}
-            </div>
+  const openEdit = (id, e) => {
+    e.stopPropagation();
+    const c = byId[id];
+    if (!c) return;
+    setEditingCard({ id, text: c.text });
+  };
+
+  const confirmRemove = (id, e) => {
+    e.stopPropagation();
+    if (typeof onRemoveCard === "function") onRemoveCard(id);
+    if (selectedId === id) setSelectedId(null);
+    if (editingCard?.id === id) setEditingCard(null);
+  };
+
+  const renderChip = (id, extraClass = "") => {
+    const c = byId[id];
+    if (!c) return null;
+    const labelSnippet = c.text.slice(0, 40) + (c.text.length > 40 ? "…" : "");
+    return (
+      <div key={id} className={`ip-star-chip-wrap ${selectedId === id ? "ip-star-chip-wrap--pick" : ""}`}>
+        <div
+          className={`ip-star-chip ${extraClass}`}
+          role="button"
+          tabIndex={0}
+          draggable
+          onDragStart={(e) => onDragStart(e, id)}
+          onClick={(e) => {
+            if (e.target.closest(".ip-star-chip__act")) return;
+            setSelectedId((p) => (p === id ? null : id));
+          }}
+          onKeyDown={(e) => {
+            if (e.target.closest(".ip-star-chip__act")) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setSelectedId((p) => (p === id ? null : id));
+            }
+          }}
+        >
+          <div className="ip-star-chip__actions">
+            <button
+              type="button"
+              className="ip-star-chip__act ip-star-chip__act--edit"
+              aria-label={`Edit "${labelSnippet}"`}
+              onClick={(e) => openEdit(id, e)}
+            >
+              <IconEdit />
+            </button>
+            <button
+              type="button"
+              className="ip-star-chip__act ip-star-chip__act--remove"
+              aria-label={`Remove "${labelSnippet}"`}
+              onClick={(e) => confirmRemove(id, e)}
+            >
+              <IconRemove />
+            </button>
           </div>
-        );
-      })}
-    </div>
+          <span className="ip-star-chip__text">{c.text}</span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <StarCardEditModal
+        open={Boolean(editingCard)}
+        initialText={editingCard?.text ?? ""}
+        onClose={() => setEditingCard(null)}
+        onSave={(text) => {
+          if (editingCard?.id && typeof onEditCard === "function") onEditCard(editingCard.id, text);
+          setEditingCard(null);
+        }}
+      />
+
+      {unplacedIds.length > 0 ? (
+        <div className="ip-star-unplaced" role="region" aria-label="Ideas not yet in STAR">
+          <p className="ip-star-unplaced__label">
+            Not placed yet ({unplacedIds.length}). Drag into a zone, or tap a card then tap a zone.
+          </p>
+          <div className="ip-star-unplaced__chips">
+            {unplacedIds.map((id) => renderChip(id, "ip-star-chip--unplaced"))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="ip-star-grid">
+        {ZONES.map(({ key, letter, letterClass, title, label, help }) => {
+          const ids = starZones[key] || [];
+          const empty = ids.length === 0;
+          const helpId = `ip-star-help-${key}`;
+          return (
+            <div
+              key={key}
+              className={`ip-star-zone ${empty ? "ip-star-zone--empty" : ""}`}
+              onDragOver={onDragOver}
+              onDrop={(e) => onDrop(e, key)}
+              onClick={() => {
+                if (selectedId) moveToZone(selectedId, key);
+              }}
+              role="group"
+              aria-label={`${letter}, ${title}: ${label}`}
+            >
+              <div className="ip-star-zone__head">
+                <span className={`ip-star-zone__letter ip-star-zone__letter--${letterClass}`} aria-hidden="true">
+                  {letter}
+                </span>
+                <span className="ip-star-zone__titles">
+                  <span className="ip-star-zone__title">{title}</span>
+                  <span className="ip-star-zone__subtitle">{label}</span>
+                </span>
+                <StarZoneHelp helpId={helpId} helpText={help} />
+              </div>
+              <div className="ip-star-zone__body">
+                {empty ? <p className="ip-star-placeholder">Nothing here yet</p> : ids.map((id) => renderChip(id))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
