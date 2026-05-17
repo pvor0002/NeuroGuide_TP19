@@ -340,6 +340,18 @@ export function heuristicStarSort(cards) {
  * @param {string} question
  * @returns {string} Pre-filled answer draft, or "" if no cards are assigned
  */
+/** Stable key for whether STAR notes changed since the last Gemini speech draft. */
+export function starContentFingerprint(question, starZones, dumpCards) {
+  const texts = starZoneTextsFromCards(starZones, dumpCards);
+  return JSON.stringify({
+    q: String(question || "").trim(),
+    s: texts.situation.map((t) => String(t).trim()),
+    t: texts.task.map((t) => String(t).trim()),
+    a: texts.action.map((t) => String(t).trim()),
+    r: texts.result.map((t) => String(t).trim()),
+  });
+}
+
 /** @returns {{ situation: string[], task: string[], action: string[], result: string[] }} */
 export function starZoneTextsFromCards(starZones, dumpCards) {
   const byId = Object.fromEntries(dumpCards.map((c) => [c.id, c.text]));
@@ -352,37 +364,54 @@ export function starZoneTextsFromCards(starZones, dumpCards) {
   };
 }
 
-export function buildAnswerDraftFromStar(starZones, dumpCards, question) {
-  console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: building draft for question →", question);
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
-  // Build a lookup map from card id → text for quick access
-  const byId = Object.fromEntries(dumpCards.map((c) => [c.id, c.text]));
-  const parts = [];
+/** Strip question quotes, STAR labels, and other non-speech framing from a draft. */
+export function cleanSpeechDraft(text, question) {
+  let t = String(text || "").trim();
+  if (!t) return "";
 
-  const pushZone = (label, keys) => {
-    const texts = keys.map((id) => byId[id]).filter(Boolean);
-    if (texts.length === 0) {
-      console.log(`[interviewPrepHelpers] buildAnswerDraftFromStar: zone "${label}" is empty — skipping`);
-      return;
-    }
-    console.log(`[interviewPrepHelpers] buildAnswerDraftFromStar: zone "${label}" →`, texts);
-    parts.push(`${label}\n${texts.join(" ")}`);
-  };
+  const q = String(question || "").trim();
+  if (q) {
+    t = t.replace(new RegExp(`^For the question\\s*["'\`]?${escapeRegExp(q)}["'\`]?\\s*:?\\s*`, "i"), "");
+  }
+  t = t.replace(/^For the question\s*["'`].+?["'`]\s*:?\s*/i, "");
 
-  pushZone("Situation", starZones.situation);
-  pushZone("Task", starZones.task);
-  pushZone("What I did", starZones.action);
-  pushZone("Result", starZones.result);
-
-  const body = parts.join("\n\n");
-  if (!body.trim()) {
-    console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: no content — returning empty string");
-    return "";
+  const zoneHeader =
+    /^(?:Situation|Task|What I did|Actions?|Result|Learning)\s*:?\s*(?:\n|$)/gim;
+  while (zoneHeader.test(t)) {
+    t = t.replace(zoneHeader, "");
   }
 
-  const draft = `For the question "${question}":\n\n${body}`;
-  console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: draft built →", draft);
-  return draft;
+  t = t.replace(/^\s*[-•*]\s+/gm, "");
+  t = t.replace(/^\s*\d+[.)]\s+/gm, "");
+  t = t.replace(/\n+/g, " ");
+  t = t.replace(/\s{2,}/g, " ");
+
+  return t.trim();
+}
+
+/** True when the draft still looks like an outline, not spoken answer text. */
+export function isHeuristicStarDraft(text, question) {
+  const t = String(text || "").trim();
+  if (!t) return false;
+  if (/^For the question\s*["'`]/i.test(t)) return true;
+  if (/^(?:Situation|Task|What I did|Actions?|Result)\s*\n/m.test(t)) return true;
+  const q = String(question || "").trim();
+  if (q && t.startsWith(`For the question "${q}"`)) return true;
+  return false;
+}
+
+/** Last-resort plain join when Gemini is unavailable (no headings or question line). */
+export function buildAnswerDraftFromStar(starZones, dumpCards) {
+  const { situation, task, action, result } = starZoneTextsFromCards(starZones, dumpCards);
+  const chunks = [...situation, ...task, ...action, ...result]
+    .map((s) => String(s).trim())
+    .filter(Boolean);
+  if (!chunks.length) return "";
+  return chunks.join(" ");
 }
 
 /**
@@ -485,6 +514,8 @@ export function defaultQuestionBundle() {
     draftUpdatedAt: 0,
     finalizedAnswer: null,
     finalizedAt: null,
+    speechFormulated: false,
+    formulatedStarKey: "",
   };
 }
 
@@ -518,6 +549,8 @@ export function normalizeQuestionBundle(raw) {
           ? String(b.finalized_answer)
           : null,
     finalizedAt: Number(b.finalizedAt ?? b.finalized_at ?? 0) || null,
+    speechFormulated: Boolean(b.speechFormulated ?? b.speech_formulated),
+    formulatedStarKey: String(b.formulatedStarKey ?? b.formulated_star_key ?? ""),
   };
 }
 

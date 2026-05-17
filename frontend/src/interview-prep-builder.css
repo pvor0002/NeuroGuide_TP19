@@ -2199,6 +2199,17 @@
   }
 }
 
+.ip-formulate-notice {
+  margin: 0.35rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #78350f;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
 .ip-reshape-row {
   display: flex;
   flex-wrap: wrap;

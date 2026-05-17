@@ -49,6 +49,7 @@ export default function PractiseStage({
   selectedQuestion,
   answerDraft,
   formulating = false,
+  formulateNotice = "",
   onAnswerChange,
   onSave,
   onNextQuestion,
@@ -87,6 +88,7 @@ export default function PractiseStage({
           answerDraft={answerDraft}
           onAnswerChange={onAnswerChange}
           composing={formulating}
+          formulateNotice={formulateNotice}
           aside={<StarCheatSheet />}
         />
       </div>

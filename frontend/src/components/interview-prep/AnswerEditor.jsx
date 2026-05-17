@@ -12,6 +12,7 @@ export default function AnswerEditor({
   onAnswerChange,
   onReshapeSuccess,
   composing = false,
+  formulateNotice = "",
   aside = null,
 }) {
   const [busyKey, setBusyKey] = useState(null);
@@ -63,6 +64,12 @@ export default function AnswerEditor({
         />
         {aside ? <div className="ip-answer-editor__aside">{aside}</div> : null}
       </div>
+
+      {formulateNotice ? (
+        <p className="ip-formulate-notice" role="status">
+          {formulateNotice}
+        </p>
+      ) : null}
 
       <div className="ip-reshape-row" role="toolbar" aria-label="Reshape answer">
         {ACTIONS.map((a) => (

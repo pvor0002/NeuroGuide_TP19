@@ -13,6 +13,7 @@ import {
 } from "../utils/interviewPrepNav.js";
 import {
   formulateInterviewSpeech,
+  reshapeSpeechFromStarNotes,
   liveSimplifyEnabled,
   starSortInterview,
 } from "../services/interviewPrepApi.js";
@@ -24,6 +25,9 @@ import {
 import { hasCloudSessionCredentials, readCredentials } from "../utils/cloudSync.js";
 import {
   buildAnswerDraftFromStar,
+  cleanSpeechDraft,
+  isHeuristicStarDraft,
+  starContentFingerprint,
   starZoneTextsFromCards,
   defaultQuestionBundle,
   deriveInterviewPrepJobFingerprint,
@@ -517,6 +521,7 @@ function InterviewPrepContent({ initial }) {
   const [usedFallbackSort, setUsedFallbackSort] = useState(() => initial.usedFallbackSort);
   const [organising, setOrganising] = useState(false);
   const [formulatingAnswer, setFormulatingAnswer] = useState(false);
+  const [formulateNotice, setFormulateNotice] = useState("");
   const [cloudSaving, setCloudSaving] = useState(false);
   const [organiseSaveAck, setOrganiseSaveAck] = useState(false);
   const [customQuestions, setCustomQuestions] = useState(() => initial.customQuestions || []);
@@ -602,6 +607,10 @@ function InterviewPrepContent({ initial }) {
         usedFallbackSort: patch.usedFallbackSort !== undefined ? patch.usedFallbackSort : usedFallbackSort,
         finalizedAnswer: patch.finalizedAnswer !== undefined ? patch.finalizedAnswer : prev.finalizedAnswer,
         finalizedAt: patch.finalizedAt !== undefined ? patch.finalizedAt : prev.finalizedAt,
+        speechFormulated:
+          patch.speechFormulated !== undefined ? patch.speechFormulated : prev.speechFormulated,
+        formulatedStarKey:
+          patch.formulatedStarKey !== undefined ? patch.formulatedStarKey : prev.formulatedStarKey,
         draftUpdatedAt: Date.now(),
       });
       if (questionBundleHasWork(prev) && !questionBundleHasWork(candidate)) return;
@@ -1086,10 +1095,14 @@ function InterviewPrepContent({ initial }) {
         starZones: zones,
         stage: 2,
         usedFallbackSort: fallback,
+        answerDraft: "",
+        speechFormulated: false,
+        formulatedStarKey: "",
       });
       setDumpCards(workingCards);
       setUsedFallbackSort(fallback);
       setStarZones(zones);
+      setAnswerDraft("");
       setStage(2);
       await saveProgressToDatabase({ force: true });
     } finally {
@@ -1120,11 +1133,25 @@ function InterviewPrepContent({ initial }) {
 
     const question = String(resolvedQuestion || "").trim();
     const existingAnswer = String(answerDraft || "").trim();
-    const starUnchanged =
-      zonesHaveCards(starZones) && starPartitionMatchesCards(dumpCards, starZones);
+    const starKey = starContentFingerprint(question, starZones, dumpCards);
+    const bundle = normalizeQuestionBundle(
+      bundlesRef.current[question] || defaultQuestionBundle(),
+    );
+    const starNotesUnchanged = bundle.formulatedStarKey === starKey;
+    const alreadyAiSpeech =
+      existingAnswer &&
+      bundle.speechFormulated &&
+      starNotesUnchanged &&
+      !isHeuristicStarDraft(existingAnswer, question);
 
-    if (existingAnswer && starUnchanged) {
-      commitWorkspaceToBundle({ answerDraft: existingAnswer, stage: 3 });
+    if (alreadyAiSpeech) {
+      setFormulateNotice("");
+      commitWorkspaceToBundle({
+        answerDraft: existingAnswer,
+        stage: 3,
+        speechFormulated: true,
+        formulatedStarKey: starKey,
+      });
       setStage(3);
       try {
         await saveProgressToDatabase({ force: true });
@@ -1134,28 +1161,65 @@ function InterviewPrepContent({ initial }) {
       return;
     }
 
+    setFormulateNotice("");
     setFormulatingAnswer(true);
     setStage(3);
 
     let draft = "";
+    let speechFormulated = false;
     try {
       const starTexts = starZoneTextsFromCards(starZones, dumpCards);
       const hasStarContent = Object.values(starTexts).some((arr) => arr.length > 0);
 
+      if (!liveSimplifyEnabled) {
+        console.warn("[InterviewPrep] Gemini disabled (VITE_SIMPLIFY_API=0); using STAR outline draft.");
+      } else if (!hasStarContent) {
+        console.warn("[InterviewPrep] No STAR card text resolved for speech formulation.");
+      }
+
       if (liveSimplifyEnabled && hasStarContent && question) {
         try {
           const res = await formulateInterviewSpeech(question, starTexts);
-          draft = String(res?.text || "").trim();
-        } catch {
+          draft = cleanSpeechDraft(String(res?.text || "").trim(), question);
+          if (draft) {
+            speechFormulated = true;
+            setFormulateNotice("");
+          }
+        } catch (err) {
+          console.warn("[InterviewPrep] formulate-speech failed:", err);
           draft = "";
         }
       }
 
-      if (!draft) {
-        draft = buildAnswerDraftFromStar(starZones, dumpCards, question);
+      if (!draft && liveSimplifyEnabled && hasStarContent && question) {
+        try {
+          const res = await reshapeSpeechFromStarNotes(question, starTexts);
+          draft = cleanSpeechDraft(String(res?.text || "").trim(), question);
+          if (draft) {
+            speechFormulated = true;
+            setFormulateNotice("");
+          }
+        } catch (reshapeErr) {
+          console.warn("[InterviewPrep] reshape speech fallback failed:", reshapeErr);
+        }
       }
 
-      commitWorkspaceToBundle({ answerDraft: draft, stage: 3 });
+      if (!draft) {
+        draft = cleanSpeechDraft(buildAnswerDraftFromStar(starZones, dumpCards), question);
+        speechFormulated = false;
+        if (liveSimplifyEnabled && hasStarContent) {
+          setFormulateNotice(
+            "Could not generate a spoken answer. Check that GEMINI_API_KEY is set on the API (Lambda or local backend).",
+          );
+        }
+      }
+
+      commitWorkspaceToBundle({
+        answerDraft: draft,
+        stage: 3,
+        speechFormulated,
+        formulatedStarKey: speechFormulated ? starKey : "",
+      });
       setAnswerDraft(draft);
       try {
         await saveProgressToDatabase({ force: true });
@@ -1395,6 +1459,7 @@ function InterviewPrepContent({ initial }) {
               selectedQuestion={resolvedQuestion}
               answerDraft={answerDraft}
               formulating={formulatingAnswer}
+              formulateNotice={formulateNotice}
               onAnswerChange={setAnswerDraft}
               onSave={() => void saveAnswer()}
               onNextQuestion={() => void nextQuestion()}

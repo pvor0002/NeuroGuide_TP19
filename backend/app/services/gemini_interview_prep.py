@@ -48,15 +48,27 @@ not corporate jargon. Preserve facts the candidate stated; do not invent employe
 
 Return ONLY JSON: {"text":"..."} where "text" is the full rewritten answer."""
 
-FORMULATE_SPEECH_SYSTEM = """You turn organised STAR brainstorm notes into one spoken interview answer
-for a neurodivergent job candidate.
+FORMULATE_SPEECH_SYSTEM = """You turn STAR brainstorm notes into a single conversational interview answer
+the candidate reads aloud — like explaining something to a friendly interviewer, not reading a list.
 
-Write warm, natural first-person English the candidate can read aloud in about 60–90 seconds.
-Weave Situation → Task → Action → Result into flowing speech — do NOT use section headings or labels.
-Use short sentences and plain words; avoid corporate jargon.
+Write ONE continuous story in first person (about 60–90 seconds aloud). Use connected sentences with
+natural transitions (so, then, because, after that, which meant). Merge related notes into the same
+sentence instead of stacking separate facts.
+
+SOUND LIKE SPEECH:
+- Good: "When I joined the team we were still on a legacy API, so I mapped out a week-by-week plan
+  and paired with frontend and QA every day. We shipped two days early and cut response times by 45%."
+- Bad (bullet/list): "Leverage Java logic. Immersion in Python syntax. Deep-dive into Pandas.
+  Study the codebase. Shipped early."
+
+FORBIDDEN: bullet points, numbered lists, dash lists, line breaks between facts, semicolon chains of
+tasks, repeating the interview question, STAR headings (Situation/Task/What I did/Result),
+filler openers ("Absolutely", "I can tell you about a time"), or meta talk about answering.
+
+Start directly in the story. Plain spoken English, warm tone, no corporate jargon.
 Preserve every fact from the notes; do not invent employers, metrics, tools, or outcomes.
 
-Return ONLY JSON: {"text":"..."} where "text" is the full answer."""
+Return ONLY JSON: {"text":"..."} where "text" is the full spoken answer."""
 
 SPEECH_COACH_SYSTEM = """You are a friendly, encouraging speech coach for neurodivergent job candidates
 practising interview answers out loud.
