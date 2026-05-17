@@ -1,28 +1,23 @@
 import { useEffect, useId, useRef, useState } from "react";
 
-export default function StarCardEditModal({ open, initialText, onSave, onClose }) {
+function StarCardEditModalForm({ initialText, onSave, onClose }) {
   const titleId = useId();
   const fieldId = useId();
   const [draft, setDraft] = useState(initialText || "");
   const textareaRef = useRef(null);
 
   useEffect(() => {
-    if (!open) return;
-    setDraft(initialText || "");
     const t = window.setTimeout(() => textareaRef.current?.focus(), 50);
     return () => window.clearTimeout(t);
-  }, [open, initialText]);
+  }, []);
 
   useEffect(() => {
-    if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
+  }, [onClose]);
 
   const trimmed = draft.trim();
   const canSave = Boolean(trimmed);
@@ -77,5 +72,17 @@ export default function StarCardEditModal({ open, initialText, onSave, onClose }
         </footer>
       </div>
     </div>
+  );
+}
+
+export default function StarCardEditModal({ open, initialText, onSave, onClose }) {
+  if (!open) return null;
+  return (
+    <StarCardEditModalForm
+      key={initialText}
+      initialText={initialText}
+      onSave={onSave}
+      onClose={onClose}
+    />
   );
 }

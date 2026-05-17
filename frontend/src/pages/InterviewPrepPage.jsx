@@ -491,12 +491,13 @@ function jobContextHasInterviewSource(jc) {
 function InterviewPrepContent({ initial }) {
   const navigate = useNavigate();
   const bundlesRef = useRef(initial.bundles || {});
-  const listingStepLockRef = useRef(peekInterviewPrepStartAtStep1());
+  const listingEntryFromListing = peekInterviewPrepStartAtStep1();
+  const listingStepLockRef = useRef(listingEntryFromListing);
   const cloudHydrateWorkspaceAppliedRef = useRef(false);
 
   //Your current stage of the interview prep process (legacy stage 4 → 3)
   const [stage, setStageRaw] = useState(() =>
-    listingStepLockRef.current ? 1 : persistableStage(initial.stage),
+    listingEntryFromListing ? 1 : persistableStage(initial.stage),
   );
   const setStage = useCallback((next) => {
     setStageRaw((prev) => {
@@ -569,12 +570,13 @@ function InterviewPrepContent({ initial }) {
   /** Bumped when the user organises ideas so in-flight cloud hydration cannot overwrite fresh STAR state. */
   const workspaceApplyGenRef = useRef(0);
   /** Blocks local persist / cloud push until first cloud hydrate finishes (avoids wiping RDS with empty local). */
-  const hydrationReadyRef = useRef(!hasCloudSessionCredentials());
-  const [hydrationReady, setHydrationReady] = useState(() => hydrationReadyRef.current);
+  const skipCloudHydrateOnMount = !hasCloudSessionCredentials();
+  const hydrationReadyRef = useRef(skipCloudHydrateOnMount);
+  const [hydrationReady, setHydrationReady] = useState(skipCloudHydrateOnMount);
   /** Fingerprint of the RDS row we loaded (PUT must use same key as GET). */
   const cloudJobFingerprintRef = useRef(null);
   /** False until cloud row is merged and UI workspace reflects it — blocks empty-state overwrites. */
-  const cloudWorkspaceSyncedRef = useRef(!hasCloudSessionCredentials());
+  const cloudWorkspaceSyncedRef = useRef(skipCloudHydrateOnMount);
 
   const persistOrgLocal = useCallback((activeQ) => {
     if (typeof window === "undefined") return;
@@ -661,7 +663,7 @@ function InterviewPrepContent({ initial }) {
         setCloudSaving(false);
       }
     },
-    [jobContext, commitWorkspaceToBundle],
+    [jobContext],
   );
 
   const scheduleCloudSave = useCallback(() => {
@@ -784,7 +786,7 @@ function InterviewPrepContent({ initial }) {
     } finally {
       finishHydration();
     }
-  }, [jobContext, persistOrgLocal, applyWorkspaceFromBundle, finishHydration]);
+  }, [jobContext, persistOrgLocal, applyWorkspaceFromBundle, finishHydration, setStage]);
 
   useEffect(() => {
     if (!allQuestions.length) return;
@@ -864,25 +866,22 @@ function InterviewPrepContent({ initial }) {
     return () => window.removeEventListener("ng-cloud-session-applied", onApplied);
   }, [hydrateFromCloud]);
 
-  const dumpCardIdsKey = useMemo(
-    () => dumpCards.map((c) => c.id).sort().join("\0"),
-    [dumpCards],
-  );
+  const starZonesForUi = useMemo(() => {
+    if (stage !== 1) return starZones;
+    return starPartitionMatchesCards(dumpCards, starZones) ? starZones : emptyZones();
+  }, [stage, dumpCards, starZones]);
 
-  useEffect(() => {
-    if (stage !== 1) return;
-    setStarZones((prev) => (starPartitionMatchesCards(dumpCards, prev) ? prev : emptyZones()));
-  }, [dumpCardIdsKey, dumpCards, stage]);
-
-  const canOrganise = dumpCards.length >= 2 || zonesHaveCards(starZones);
+  const canOrganise = dumpCards.length >= 2 || zonesHaveCards(starZonesForUi);
   const canPractise = Boolean(answerDraft?.trim()) || stage === 3;
 
   const questionKey = String(resolvedQuestion || "").trim();
 
   const currentQuestionBundle = useMemo(() => {
+    void answeredQuestions;
     if (!questionKey) return null;
-    return normalizeQuestionBundle(bundleForQuestionKey(bundlesRef.current, questionKey));
-  }, [questionKey, savedAnswers, answeredQuestions, dumpCards, answerDraft, stage]);
+    const bundles = bundlesRef.current;
+    return normalizeQuestionBundle(bundleForQuestionKey(bundles, questionKey));
+  }, [questionKey, answeredQuestions]);
 
   const hasFormulatedSpeech = useMemo(
     () =>
@@ -1182,7 +1181,6 @@ function InterviewPrepContent({ initial }) {
   const nextQuestion = useCallback(async () => {
     persistFormulatedAnswer();
     const qs = allQuestions;
-    const qFlush = qs.includes(selectedQuestion) ? selectedQuestion : resolvedQuestion;
     const idx = Math.max(0, qs.indexOf(resolvedQuestion));
     const next = qs[(idx + 1) % qs.length] || qs[0];
     try {
@@ -1212,7 +1210,6 @@ function InterviewPrepContent({ initial }) {
   }, [
     allQuestions,
     resolvedQuestion,
-    selectedQuestion,
     persistFormulatedAnswer,
     saveProgressToDatabase,
     persistOrgLocal,
@@ -1319,7 +1316,7 @@ function InterviewPrepContent({ initial }) {
               onSave={() => void saveOrganiseProgress()}
               onContinue={() => void goBuildAnswer()}
               onBack={enterBrainDumpFromLaterStage}
-              needsStarSort={dumpCards.length >= 1 && !zonesHaveCards(starZones)}
+              needsStarSort={dumpCards.length >= 1 && !zonesHaveCards(starZonesForUi)}
               onSortNow={() => runOrganise()}
               organising={organising}
               saving={cloudSaving}
