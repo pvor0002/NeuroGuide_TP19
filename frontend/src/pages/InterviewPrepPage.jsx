@@ -11,7 +11,11 @@ import {
   peekInterviewPrepStartAtStep1,
   releaseListingEntryStepLock,
 } from "../utils/interviewPrepNav.js";
-import { liveSimplifyEnabled, starSortInterview } from "../services/interviewPrepApi.js";
+import {
+  formulateInterviewSpeech,
+  liveSimplifyEnabled,
+  starSortInterview,
+} from "../services/interviewPrepApi.js";
 import {
   fetchInterviewPrepProgress,
   fetchInterviewPrepSessions,
@@ -20,6 +24,7 @@ import {
 import { hasCloudSessionCredentials, readCredentials } from "../utils/cloudSync.js";
 import {
   buildAnswerDraftFromStar,
+  starZoneTextsFromCards,
   defaultQuestionBundle,
   deriveInterviewPrepJobFingerprint,
   expandLongDumpCardsHeuristic,
@@ -145,12 +150,6 @@ function resolveAnswerTextForQuestion(normBundle, savedAnswersList, questionTrim
   const fromFinalized = finalizedTextForQuestion(normBundle, savedAnswersList, questionTrimmed);
   if (fromFinalized) return fromFinalized;
   return String(normBundle?.answerDraft || "").trim();
-}
-
-function questionHasSavedWork(normBundle, savedAnswersList, questionTrimmed) {
-  if (resolveAnswerTextForQuestion(normBundle, savedAnswersList, questionTrimmed)) return true;
-  const nb = normalizeQuestionBundle(normBundle);
-  return nb.dumpCards.length > 0 || zonesHaveCards(nb.starZones);
 }
 
 function computeAnsweredQuestionsMap(bundles, savedList) {
@@ -474,12 +473,6 @@ function buildQuestionList(jobContext, profileSkillSet) {
   return out.slice(0, 6);
 }
 
-function readinessLabelFor(p) {
-  if (p < 55) return "Getting there";
-  if (p < 82) return "Almost ready";
-  return "Ready to go";
-}
-
 function jobContextHasInterviewSource(jc) {
   if (!jc || typeof jc !== "object") return false;
   if (String(jc.rawText || "").trim()) return true;
@@ -522,8 +515,8 @@ function InterviewPrepContent({ initial }) {
   const [answerDraft, setAnswerDraft] = useState(() => initial.answerDraft);
   const [savedAnswers, setSavedAnswers] = useState(() => initial.savedAnswers);
   const [usedFallbackSort, setUsedFallbackSort] = useState(() => initial.usedFallbackSort);
-  const [readinessPercent, setReadinessPercent] = useState(40);
   const [organising, setOrganising] = useState(false);
+  const [formulatingAnswer, setFormulatingAnswer] = useState(false);
   const [cloudSaving, setCloudSaving] = useState(false);
   const [organiseSaveAck, setOrganiseSaveAck] = useState(false);
   const [customQuestions, setCustomQuestions] = useState(() => initial.customQuestions || []);
@@ -689,7 +682,6 @@ function InterviewPrepContent({ initial }) {
       setUsedFallbackSort(wb.usedFallbackSort);
       const hasSpeech = hasFormulatedSpeechForQuestion(norm, savedList, String(q).trim(), answerText || wb.answerDraft);
       setBrainDumpEditingRevisit(!hasSpeech);
-      setReadinessPercent(answerText ? 72 : wb.dumpCards.length ? 55 : 40);
     },
     [setStage],
   );
@@ -952,7 +944,6 @@ function InterviewPrepContent({ initial }) {
   useEffect(() => {
     if (stage !== 3) return;
     const id = setInterval(() => {
-      setReadinessPercent((p) => Math.min(94, p + 1));
     }, 9000);
     return () => clearInterval(id);
   }, [stage]);
@@ -990,7 +981,6 @@ function InterviewPrepContent({ initial }) {
       const wb = workspaceFromBundle(incoming);
       const qt = String(q).trim();
       const answerText = resolveAnswerTextForQuestion(norm, savedAnswersRef.current, qt);
-      const hasSaved = questionHasSavedWork(norm, savedAnswersRef.current, qt);
       setDumpCards(wb.dumpCards);
       setStarZones(reconcileStarZonesWithCards(wb.dumpCards, wb.starZones));
       setAnswerDraft(answerText || wb.answerDraft);
@@ -1004,7 +994,6 @@ function InterviewPrepContent({ initial }) {
         answerText || wb.answerDraft,
       );
       setBrainDumpEditingRevisit(!hasSpeech);
-      setReadinessPercent(hasSaved && answerText ? 72 : 40);
       persistOrgLocal(q);
       void saveProgressToDatabase({ throwOnError: false });
     },
@@ -1030,7 +1019,6 @@ function InterviewPrepContent({ initial }) {
       setAnswerDraft("");
       setStage(1);
       setUsedFallbackSort(false);
-      setReadinessPercent(40);
       setBrainDumpEditingRevisit(false);
       persistOrgLocal(t);
       void saveProgressToDatabase({ throwOnError: false });
@@ -1116,22 +1104,6 @@ function InterviewPrepContent({ initial }) {
     saveProgressToDatabase,
   ]);
 
-  const handleStageSelect = useCallback(
-    (nextStage) => {
-      if (nextStage > 1) releaseListingEntryStepLock(listingStepLockRef);
-      if (nextStage === 1 && stage > 1) {
-        enterBrainDumpFromLaterStage();
-        return;
-      }
-      if (nextStage === 2 && stage !== 2 && dumpCards.length > 0 && !starPartitionMatchesCards(dumpCards, starZones)) {
-        void runOrganise();
-        return;
-      }
-      setStage(nextStage);
-    },
-    [stage, dumpCards, starZones, enterBrainDumpFromLaterStage, runOrganise, setStage],
-  );
-
   const saveOrganiseProgress = useCallback(async () => {
     commitWorkspaceToBundle({ stage: 2 });
     try {
@@ -1146,13 +1118,13 @@ function InterviewPrepContent({ initial }) {
   const goBuildAnswer = useCallback(async () => {
     releaseListingEntryStepLock(listingStepLockRef);
 
+    const question = String(resolvedQuestion || "").trim();
     const existingAnswer = String(answerDraft || "").trim();
     const starUnchanged =
       zonesHaveCards(starZones) && starPartitionMatchesCards(dumpCards, starZones);
 
     if (existingAnswer && starUnchanged) {
       commitWorkspaceToBundle({ answerDraft: existingAnswer, stage: 3 });
-      setReadinessPercent(72);
       setStage(3);
       try {
         await saveProgressToDatabase({ force: true });
@@ -1162,15 +1134,36 @@ function InterviewPrepContent({ initial }) {
       return;
     }
 
-    const draft = buildAnswerDraftFromStar(starZones, dumpCards, resolvedQuestion || "");
-    commitWorkspaceToBundle({ answerDraft: draft, stage: 3 });
-    setAnswerDraft(draft);
-    setReadinessPercent(draft.trim() ? 72 : 40);
+    setFormulatingAnswer(true);
     setStage(3);
+
+    let draft = "";
     try {
-      await saveProgressToDatabase({ force: true });
-    } catch {
-      /* non-fatal */
+      const starTexts = starZoneTextsFromCards(starZones, dumpCards);
+      const hasStarContent = Object.values(starTexts).some((arr) => arr.length > 0);
+
+      if (liveSimplifyEnabled && hasStarContent && question) {
+        try {
+          const res = await formulateInterviewSpeech(question, starTexts);
+          draft = String(res?.text || "").trim();
+        } catch {
+          draft = "";
+        }
+      }
+
+      if (!draft) {
+        draft = buildAnswerDraftFromStar(starZones, dumpCards, question);
+      }
+
+      commitWorkspaceToBundle({ answerDraft: draft, stage: 3 });
+      setAnswerDraft(draft);
+      try {
+        await saveProgressToDatabase({ force: true });
+      } catch {
+        /* non-fatal */
+      }
+    } finally {
+      setFormulatingAnswer(false);
     }
   }, [
     answerDraft,
@@ -1181,6 +1174,26 @@ function InterviewPrepContent({ initial }) {
     commitWorkspaceToBundle,
     saveProgressToDatabase,
   ]);
+
+  const handleStageSelect = useCallback(
+    (nextStage) => {
+      if (nextStage > 1) releaseListingEntryStepLock(listingStepLockRef);
+      if (nextStage === 1 && stage > 1) {
+        enterBrainDumpFromLaterStage();
+        return;
+      }
+      if (nextStage === 2 && stage !== 2 && dumpCards.length > 0 && !starPartitionMatchesCards(dumpCards, starZones)) {
+        void runOrganise();
+        return;
+      }
+      if (nextStage === 3 && stage !== 3) {
+        void goBuildAnswer();
+        return;
+      }
+      setStage(nextStage);
+    },
+    [stage, dumpCards, starZones, enterBrainDumpFromLaterStage, runOrganise, goBuildAnswer, setStage],
+  );
 
   const persistFormulatedAnswer = useCallback(() => {
     const q = selectedQuestion;
@@ -1223,10 +1236,6 @@ function InterviewPrepContent({ initial }) {
     commitWorkspaceToBundle,
   ]);
 
-  const bumpReadiness = useCallback((n) => {
-    setReadinessPercent((p) => Math.min(98, p + (n || 6)));
-  }, []);
-
   const saveAnswer = useCallback(async () => {
     persistFormulatedAnswer();
     try {
@@ -1263,7 +1272,6 @@ function InterviewPrepContent({ initial }) {
       answerText || wb.answerDraft,
     );
     setBrainDumpEditingRevisit(!hasSpeech);
-    setReadinessPercent(answerText ? 72 : 40);
     persistOrgLocal(next);
   }, [
     allQuestions,
@@ -1273,8 +1281,6 @@ function InterviewPrepContent({ initial }) {
     persistOrgLocal,
     setStage,
   ]);
-
-  const readinessLabelFn = useCallback((p) => readinessLabelFor(p), []);
 
   const skillsShow = normalizedSkills(jobContext);
   const hasJobHints = Boolean(jobContext.role || jobContext.company || skillsShow.length);
@@ -1376,7 +1382,7 @@ function InterviewPrepContent({ initial }) {
               onBack={enterBrainDumpFromLaterStage}
               needsStarSort={dumpCards.length >= 1 && !zonesHaveCards(starZonesForUi)}
               onSortNow={() => runOrganise()}
-              organising={organising}
+              organising={organising || formulatingAnswer}
               saving={cloudSaving}
               saveAck={organiseSaveAck}
             />
@@ -1388,13 +1394,8 @@ function InterviewPrepContent({ initial }) {
             <PractiseStage
               selectedQuestion={resolvedQuestion}
               answerDraft={answerDraft}
-              onAnswerChange={(t) => {
-                setAnswerDraft(t);
-                bumpReadiness(3);
-              }}
-              readinessPercent={readinessPercent}
-              readinessLabel={readinessLabelFn}
-              onBumpReadiness={bumpReadiness}
+              formulating={formulatingAnswer}
+              onAnswerChange={setAnswerDraft}
               onSave={() => void saveAnswer()}
               onNextQuestion={() => void nextQuestion()}
               onBack={() => setStage(2)}

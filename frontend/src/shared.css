@@ -2346,17 +2346,21 @@ body {
 .dil-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.65rem 1rem;
   margin-top: 0.75rem;
   width: 100%;
 }
 
+.dil-hero-actions:has(.dil-save-msg) {
+  padding-bottom: 1.55rem;
+}
+
 .dil-hero-actions__end {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   gap: 0.65rem 1rem;
   margin-left: auto;
@@ -2468,11 +2472,39 @@ body {
   cursor: wait;
 }
 
+.dil-hero-actions__save-stack {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.dil-hero-actions__save-stack .dil-save-msg {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  left: auto;
+  width: max-content;
+  max-width: min(280px, 92vw);
+}
+
 .dil-save-msg {
-  margin: 0.5rem 0 0;
-  font-size: 0.82rem;
-  color: #5a5148;
-  font-weight: 600;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.dil-save-msg--success {
+  color: #1f5c38;
+}
+
+.dil-save-msg--error {
+  color: #9b2c2c;
+}
+
+.dil-save-msg--info {
+  color: #7d560f;
 }
 
 /* ── Legend — vertical card, right column of hero grid ── */

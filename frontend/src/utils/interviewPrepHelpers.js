@@ -340,6 +340,18 @@ export function heuristicStarSort(cards) {
  * @param {string} question
  * @returns {string} Pre-filled answer draft, or "" if no cards are assigned
  */
+/** @returns {{ situation: string[], task: string[], action: string[], result: string[] }} */
+export function starZoneTextsFromCards(starZones, dumpCards) {
+  const byId = Object.fromEntries(dumpCards.map((c) => [c.id, c.text]));
+  const texts = (ids) => (ids || []).map((id) => byId[id]).filter(Boolean);
+  return {
+    situation: texts(starZones.situation),
+    task: texts(starZones.task),
+    action: texts(starZones.action),
+    result: texts(starZones.result),
+  };
+}
+
 export function buildAnswerDraftFromStar(starZones, dumpCards, question) {
   console.log("[interviewPrepHelpers] buildAnswerDraftFromStar: building draft for question →", question);
 

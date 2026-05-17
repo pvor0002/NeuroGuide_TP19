@@ -11,7 +11,7 @@ import { getDefaultAdhdSlugForDayInLife } from "../utils/experienceHubProfile.js
 import { hasCloudSessionCredentials, readCredentials } from "../utils/cloudSync.js";
 import {
   INTERVIEW_PREP_MIN_SCORE,
-  interviewPrepEligibilityForJobTitle,
+  interviewPrepEligibilityForDayInLife,
 } from "../utils/jobScorePersistence.js";
 import { goToInterviewPrepWorkspaceFromListing } from "../utils/interviewPrepNav.js";
 import { resumeInterviewPrepFromSavedScoreRow } from "../utils/interviewPrepResume.js";
@@ -91,6 +91,7 @@ export default function DayInLifePage() {
   const [error, setError] = useState(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
+  const [saveMsgTone, setSaveMsgTone] = useState("info");
 
   useEffect(() => {
     if (!job_title || !adhd_type) return;
@@ -128,9 +129,16 @@ export default function DayInLifePage() {
 
   const visibleTimeline = timeline ?? cachedTimeline;
 
+  const occupationHint = String(st.occupation ?? searchParams.get("occupation") ?? "").trim();
+  const matchScoreHint = st.match_score_pct ?? searchParams.get("match_score") ?? null;
+
   const interviewPrepAccess = useMemo(
-    () => interviewPrepEligibilityForJobTitle(job_title),
-    [job_title],
+    () =>
+      interviewPrepEligibilityForDayInLife({
+        titleCandidates: [job_title, occupationHint],
+        overrideScorePct: matchScoreHint,
+      }),
+    [job_title, occupationHint, matchScoreHint],
   );
 
   const interviewPrepLockedHint = useMemo(() => {
@@ -160,6 +168,7 @@ export default function DayInLifePage() {
     if (!visibleTimeline?.length) return;
     setSaveMsg(null);
     if (!hasCloudSessionCredentials()) {
+      setSaveMsgTone("info");
       setSaveMsg("Sign in via Settings to save this day to your account.");
       return;
     }
@@ -170,8 +179,10 @@ export default function DayInLifePage() {
         adhd_type,
         timeline: visibleTimeline,
       });
+      setSaveMsgTone("success");
       setSaveMsg("Saved to your account.");
     } catch (e) {
+      setSaveMsgTone("error");
       setSaveMsg(e?.message || "Save failed.");
     } finally {
       setSaveBusy(false);
@@ -206,7 +217,7 @@ export default function DayInLifePage() {
                 ← Back
               </button>
               <div className="dil-hero-actions__end">
-                {interviewPrepAccess.hasScore ? (
+                {interviewPrepAccess.hasScore || matchScoreHint != null ? (
                   interviewPrepAccess.eligible ? (
                     <button
                       type="button"
@@ -238,18 +249,24 @@ export default function DayInLifePage() {
                   )
                 ) : null}
                 {visibleTimeline && !loading ? (
-                  <button
-                    type="button"
-                    className="dil-save-day-btn"
-                    onClick={() => void saveToAccount()}
-                    disabled={saveBusy}
-                  >
-                    {saveBusy ? "Saving…" : "Save this day"}
-                  </button>
+                  <div className="dil-hero-actions__save-stack">
+                    <button
+                      type="button"
+                      className="dil-save-day-btn"
+                      onClick={() => void saveToAccount()}
+                      disabled={saveBusy}
+                    >
+                      {saveBusy ? "Saving…" : "Save this day"}
+                    </button>
+                    {saveMsg ? (
+                      <p className={`dil-save-msg dil-save-msg--${saveMsgTone}`} role="status">
+                        {saveMsg}
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             </div>
-            {saveMsg ? <p className="dil-save-msg" role="status">{saveMsg}</p> : null}
           </div>
 
           <div className="day-in-life-legend">

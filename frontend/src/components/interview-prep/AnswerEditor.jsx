@@ -11,6 +11,8 @@ export default function AnswerEditor({
   answerDraft,
   onAnswerChange,
   onReshapeSuccess,
+  composing = false,
+  aside = null,
 }) {
   const [busyKey, setBusyKey] = useState(null);
   const [fade, setFade] = useState("in");
@@ -41,19 +43,26 @@ export default function AnswerEditor({
   );
 
   const disabled = !liveSimplifyEnabled;
+  const editorBusy = composing || busyKey !== null;
 
   return (
-    <div className="ip-answer-editor">
-      <label className="ip-label" htmlFor="ip-answer-draft">
-        Your answer
-      </label>
-      <textarea
-        id="ip-answer-draft"
-        className={`ip-textarea ip-textarea--answer ${fade === "out" ? "ip-fade-out" : "ip-fade-in"}`}
-        rows={14}
-        value={answerDraft}
-        onChange={(e) => onAnswerChange(e.target.value)}
-      />
+    <div className={`ip-answer-editor ${aside ? "ip-answer-editor--with-aside" : ""}`}>
+      <div className="ip-answer-editor__main">
+        <label className="ip-label ip-answer-editor__label" htmlFor="ip-answer-draft">
+          Your answer
+        </label>
+        <textarea
+          id="ip-answer-draft"
+          className={`ip-textarea ip-textarea--answer ${fade === "out" ? "ip-fade-out" : "ip-fade-in"} ${composing ? "ip-textarea--composing" : ""}`}
+          rows={14}
+          value={composing ? "" : answerDraft}
+          placeholder={composing ? "Turning your ideas into spoken answer…" : undefined}
+          readOnly={composing}
+          aria-busy={composing}
+          onChange={(e) => onAnswerChange(e.target.value)}
+        />
+        {aside ? <div className="ip-answer-editor__aside">{aside}</div> : null}
+      </div>
 
       <div className="ip-reshape-row" role="toolbar" aria-label="Reshape answer">
         {ACTIONS.map((a) => (
@@ -61,7 +70,7 @@ export default function AnswerEditor({
             key={a.key}
             type="button"
             className="ip-btn ip-btn--outline"
-            disabled={disabled || busyKey !== null || !answerDraft.trim()}
+            disabled={disabled || editorBusy || !String(answerDraft || "").trim()}
             title={disabled ? "Connect backend for AI reshaping" : undefined}
             onClick={() => runReshape(a.instruction, a.key)}
           >

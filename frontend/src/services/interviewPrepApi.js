@@ -112,3 +112,26 @@ export async function reshapeInterviewAnswer(answer, instruction) {
   }
   return readJsonOrText(res);
 }
+
+/**
+ * @param {string} question
+ * @param {{ situation: string[], task: string[], action: string[], result: string[] }} starTexts
+ */
+export async function formulateInterviewSpeech(question, starTexts) {
+  const res = await fetch(`${API_BASE}/interview-prep/formulate-speech`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question,
+      situation: starTexts.situation || [],
+      task: starTexts.task || [],
+      action: starTexts.action || [],
+      result: starTexts.result || [],
+    }),
+  });
+  if (!res.ok) {
+    const err = await readJsonOrText(res);
+    throw new Error(apiFailureMessage(res, err) || `Formulate speech failed (${res.status}).`);
+  }
+  return readJsonOrText(res);
+}

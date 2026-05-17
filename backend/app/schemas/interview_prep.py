@@ -45,6 +45,18 @@ class ReshapeResponse(BaseModel):
     text: str
 
 
+class FormulateSpeechRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+    situation: list[str] = Field(default_factory=list)
+    task: list[str] = Field(default_factory=list)
+    action: list[str] = Field(default_factory=list)
+    result: list[str] = Field(default_factory=list)
+
+
+class FormulateSpeechResponse(BaseModel):
+    text: str
+
+
 # ── Speech Coach ──────────────────────────────────────────────────────────────
 
 class SpeechCoachRequest(BaseModel):
