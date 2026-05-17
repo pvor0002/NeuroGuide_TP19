@@ -171,3 +171,62 @@ export function removeSavedJobScoreEntry(entry) {
     return readSavedJobScores();
   }
 }
+
+/** Minimum compatibility score (0–100) to open interview prep. */
+export const INTERVIEW_PREP_MIN_SCORE = 50;
+
+export function jobMatchScorePercent(result) {
+  const n = Number(result?.score);
+  if (!Number.isFinite(n)) return null;
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+function titleNormsForScoreRow(row) {
+  const keys = new Set();
+  const add = (v) => {
+    const k = normalizeJobTitleKey(v);
+    if (k) keys.add(k);
+  };
+  add(row?.jobTitleNorm);
+  add(row?.jobTitleDisplay);
+  add(row?.simplifiedSnapshot?.job_title);
+  return keys;
+}
+
+/** Best saved/history row for a job title (includes rows with simplify snapshot when available). */
+export function findJobScoreRowForTitle(jobTitle) {
+  const norm = normalizeJobTitleKey(jobTitle);
+  if (!norm) return null;
+
+  for (const row of [...readSavedJobScores(), ...readJobScoreHistory()]) {
+    if (!row?.result) continue;
+    if (titleNormsForScoreRow(row).has(norm)) return row;
+  }
+
+  const persisted = readPersistedJobScore();
+  if (persisted?.result && normalizeJobTitleKey(persisted.jobTitleNorm) === norm) {
+    return {
+      jobTitleNorm: persisted.jobTitleNorm,
+      jobTitleDisplay: "",
+      simplifiedVerStamp: persisted.simplifiedVerStamp ?? null,
+      occupationName: persisted.occupationName || "",
+      result: persisted.result,
+      simplifiedSnapshot: null,
+    };
+  }
+  return null;
+}
+
+export function interviewPrepEligibilityForJobTitle(jobTitle) {
+  const scoreRow = findJobScoreRowForTitle(jobTitle);
+  if (!scoreRow?.result) {
+    return { eligible: false, hasScore: false, scorePct: null, scoreRow: null };
+  }
+  const scorePct = jobMatchScorePercent(scoreRow.result);
+  return {
+    eligible: scorePct != null && scorePct >= INTERVIEW_PREP_MIN_SCORE,
+    hasScore: scorePct != null,
+    scorePct,
+    scoreRow,
+  };
+}
