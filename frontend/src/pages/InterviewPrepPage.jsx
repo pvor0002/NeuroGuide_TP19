@@ -876,12 +876,21 @@ function InterviewPrepContent({ initial }) {
 
   const questionKey = String(resolvedQuestion || "").trim();
 
-  const currentQuestionBundle = useMemo(() => {
-    void answeredQuestions;
-    if (!questionKey) return null;
-    const bundles = bundlesRef.current;
-    return normalizeQuestionBundle(bundleForQuestionKey(bundles, questionKey));
-  }, [questionKey, answeredQuestions]);
+  const [currentQuestionBundle, setCurrentQuestionBundle] = useState(() => {
+    const qk = String(initial.selectedQuestion || "").trim();
+    if (!qk) return null;
+    return normalizeQuestionBundle(bundleForQuestionKey(initial.bundles || {}, qk));
+  });
+
+  useEffect(() => {
+    if (!questionKey) {
+      setCurrentQuestionBundle(null);
+      return;
+    }
+    setCurrentQuestionBundle(
+      normalizeQuestionBundle(bundleForQuestionKey(bundlesRef.current, questionKey)),
+    );
+  }, [questionKey, answeredQuestions, dumpCards, starZones, answerDraft, stage]);
 
   const hasFormulatedSpeech = useMemo(
     () =>
