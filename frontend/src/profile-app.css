@@ -4651,45 +4651,20 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
-.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .q-profile-support-next-pair {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(12px, 1.4vw, 18px);
-  width: 100%;
+/* ADHD Support + Next Step are now direct grid children — same 1fr width as Work Prefs / Job Focus */
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--support,
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .q-profile-next-aside {
   min-width: 0;
-  max-width: min(920px, 100%);
-  margin-inline: auto;
-  justify-items: center;
-  align-items: start;
-}
-
-/* ADHD Support + Next step: shared width */
-.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .summary-block.q-profile-ready-square-tile,
-.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .q-profile-next-aside.q-profile-ready-square-tile {
-  width: min(100%, min(380px, 42vw));
-  max-width: 100%;
-  margin: 0;
+  width: 100%;
+  max-width: none;
   box-sizing: border-box;
-  align-self: start;
-  justify-self: center;
-}
-
-/* Next step card keeps the fixed aspect ratio — content is always the same */
-.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .q-profile-next-aside.q-profile-ready-square-tile {
-  aspect-ratio: 8 / 5;
-  min-height: 0;
-}
-
-/* ADHD Support card grows to fit its content — number of support items varies */
-.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .summary-block.q-profile-ready-square-tile {
   aspect-ratio: unset;
-  height: auto;
 }
 
-.q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .summary-block.q-profile-ready-square-tile .q-profile-ready-square-tile__scroll {
-  overflow-y: visible;
-  flex: 0 0 auto;
+/* All 4 dashboard cards: shared min-height so rows look visually consistent */
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .summary-block--dashboard,
+.q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .q-profile-next-aside {
+  min-height: clamp(160px, 18vw, 210px);
 }
 
 .q-profile-ready-square-tile.summary-block--dashboard {
@@ -4771,27 +4746,7 @@ button:disabled {
   min-width: 0;
 }
 
-@media (max-width: 720px) {
-  .q-layout--profile-ready .q-profile-summary-grid--dashboard-row > .q-profile-support-next-pair {
-    grid-template-columns: 1fr;
-    max-width: none;
-  }
-
-  .q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .summary-block.q-profile-ready-square-tile,
-  .q-layout--profile-ready .q-profile-summary-grid--dashboard-row .q-profile-support-next-pair > .q-profile-next-aside.q-profile-ready-square-tile {
-    width: min(100%, 400px);
-    /* Drop the fixed aspect ratio so the card grows to fit content instead of clipping it */
-    aspect-ratio: unset;
-    height: auto;
-    min-height: 0;
-  }
-
-  /* Let the inner scroll area expand fully instead of overflowing */
-  .q-profile-ready-square-tile .q-profile-ready-square-tile__scroll {
-    overflow-y: visible;
-    flex: 0 0 auto;
-  }
-}
+/* (q-profile-support-next-pair sub-grid removed — all 4 cards are direct grid children) */
 
 .summary-support-two-col {
   display: grid;
