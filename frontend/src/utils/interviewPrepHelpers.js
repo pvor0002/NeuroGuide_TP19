@@ -474,6 +474,101 @@ export function uid(prefix = "c") {
   return id;
 }
 
+const INTERVIEW_BEHAVIORAL_QUESTIONS = [
+  "Tell me about a time you had to adapt quickly to an unexpected change.",
+  "Describe a situation where you worked with someone very different from you.",
+  "Tell me about a time you made a mistake and how you handled it.",
+  "Describe a time when you had to manage more than one task at once.",
+  "Tell me about a time you helped a teammate who was struggling.",
+  "Describe a situation where you had to learn something new very quickly.",
+  "Tell me about yourself",
+];
+
+const SKILL_TEMPLATE_QUESTION_PATTERNS = [
+  /tell me about a time you used .+ to solve/i,
+  /describe a project where .+ was central/i,
+  /how has working with .+ shaped/i,
+  /this role involves .+\./i,
+  /you'll be working with .+ here/i,
+  /what do you already know about .+/i,
+  /can you walk me through a time you used .+/i,
+  /how has working with .+ helped/i,
+];
+
+function isSkillTemplateInterviewQuestion(question) {
+  const t = String(question || "").trim();
+  if (!t) return false;
+  return SKILL_TEMPLATE_QUESTION_PATTERNS.some((re) => re.test(t));
+}
+
+/** True when a stored/custom question belongs to this job (drops cross-role skill templates). */
+export function questionBelongsToInterviewJob(question, builtBase, jobSkills) {
+  const t = String(question || "").trim();
+  if (!t) return false;
+  if ((Array.isArray(builtBase) ? builtBase : []).includes(t)) return true;
+
+  const low = t.toLowerCase();
+  for (const b of INTERVIEW_BEHAVIORAL_QUESTIONS) {
+    const bl = b.toLowerCase();
+    if (low === bl || low.includes(bl) || bl.includes(low)) return true;
+  }
+
+  if (!isSkillTemplateInterviewQuestion(t)) return true;
+
+  const skills = (Array.isArray(jobSkills) ? jobSkills : [])
+    .map((s) => String(s || "").trim().toLowerCase())
+    .filter(Boolean);
+  if (!skills.length) return false;
+  return skills.some((s) => low.includes(s));
+}
+
+export function filterInterviewQuestionsForJob(questions, builtBase, jobSkills) {
+  const out = [];
+  const seen = new Set();
+  for (const q of Array.isArray(questions) ? questions : []) {
+    const t = String(q || "").trim();
+    if (!t || seen.has(t)) continue;
+    if (!questionBelongsToInterviewJob(t, builtBase, jobSkills)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out;
+}
+
+/** Keep only bundle entries for questions in this job's canonical list. */
+export function pruneBundlesToQuestionList(bundles, questionList) {
+  const allowed = new Set(
+    (Array.isArray(questionList) ? questionList : [])
+      .map((q) => String(q || "").trim())
+      .filter(Boolean),
+  );
+  const out = {};
+  if (!bundles || typeof bundles !== "object") return out;
+  for (const [k, v] of Object.entries(bundles)) {
+    const key = String(k || "").trim();
+    if (allowed.has(key)) out[key] = v;
+  }
+  return out;
+}
+
+/** Custom questions = entries in combined list that are not in the base list. */
+export function customQuestionsApartFromBase(baseQuestions, combinedList) {
+  const baseSet = new Set(
+    (Array.isArray(baseQuestions) ? baseQuestions : [])
+      .map((q) => String(q || "").trim())
+      .filter(Boolean),
+  );
+  const out = [];
+  const seen = new Set();
+  for (const q of Array.isArray(combinedList) ? combinedList : []) {
+    const t = String(q || "").trim();
+    if (!t || seen.has(t) || baseSet.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out;
+}
+
 /** Lookup per-question bundle by exact or trimmed question key. */
 export function bundleForQuestionKey(bundles, questionTrimmed) {
   const qt = String(questionTrimmed || "").trim();
