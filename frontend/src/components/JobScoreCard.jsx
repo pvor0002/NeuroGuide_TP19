@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import {
+  markInterviewPrepInWorkspace,
+  markInterviewPrepStartAtStep1,
+  INTERVIEW_PREP_SESSION_PATH,
+} from "../utils/interviewPrepNav.js";
 import WorkEnvironmentFitPanel from "./WorkEnvironmentFitPanel.jsx";
 import ExperienceMatchPanel from "./ExperienceMatchPanel.jsx";
 
@@ -356,26 +361,6 @@ function dropActionFor(fromZone, toZone) {
   if (toMissing && fromPartial) return "remove";
 
   return null;
-}
-
-const ZONE_MOVE_LABELS = {
-  tool_matched: "Fully matching",
-  tool_partial: "Partially aligned",
-  tool_missing: "Missing essentials",
-  soft_matched: "Aligned",
-  soft_missing: "Gaps to develop",
-};
-
-function validDropZonesFor(fromZone) {
-  if (!fromZone) return [];
-  const kind = zoneKind(fromZone);
-  const candidates =
-    kind === "tool"
-      ? ["tool_matched", "tool_partial", "tool_missing"]
-      : kind === "soft"
-        ? ["soft_matched", "soft_missing"]
-        : [];
-  return candidates.filter((z) => dropActionFor(fromZone, z));
 }
 
 function toolBucketsFromSplit(split) {
@@ -815,19 +800,8 @@ function DraggableChip({
   draggable: draggableProp,
   isDragging,
   onPointerDragStart,
-  onMoveToZone,
 }) {
   const draggable = draggableProp !== undefined ? draggableProp && !busy : !busy;
-  const [focused, setFocused] = useState(false);
-  const moveTargets = useMemo(
-    () => validDropZonesFor(zone).map((z) => ({ zoneId: z, label: ZONE_MOVE_LABELS[z] || z })),
-    [zone],
-  );
-
-  const handleMove = (targetZone) => {
-    if (!dropActionFor(zone, targetZone)) return;
-    onMoveToZone?.({ skill, fromZone: zone, toZone: targetZone });
-  };
 
   return (
     <span
@@ -836,18 +810,16 @@ function DraggableChip({
         `jsc-skill-chip--${tone}`,
         draggable ? "jsc-skill-chip--draggable" : "",
         isDragging ? "jsc-skill-chip--dragging" : "",
-        focused && !isDragging ? "jsc-skill-chip--focused" : "",
       ]
         .filter(Boolean)
         .join(" ")}
       tabIndex={draggable ? 0 : -1}
       role="listitem"
       aria-grabbed={isDragging || undefined}
-      aria-label={`${skill}. Draggable skill. Tab to focus, then use Move to buttons or drag to another column.`}
+      aria-label={`${skill}. Draggable skill.`}
       onPointerDown={(e) => {
         if (!draggable || e.button !== 0) return;
         if (!(e.target instanceof Element)) return;
-        if (e.target.closest(".jsc-skill-chip__move-btn")) return;
         e.preventDefault();
         if (e.currentTarget instanceof HTMLElement) e.currentTarget.blur();
         const rect = e.currentTarget.getBoundingClientRect();
@@ -863,31 +835,11 @@ function DraggableChip({
           captureEl: e.currentTarget,
         });
       }}
-      onFocus={() => setFocused(true)}
-      onBlur={(e) => {
-        if (e.currentTarget.contains(e.relatedTarget)) return;
-        setFocused(false);
-      }}
     >
       <span className="jsc-skill-chip__grip" aria-hidden="true">
         <ChipGripIcon />
       </span>
       <span className="jsc-skill-chip__label">{skill}</span>
-      {focused && moveTargets.length > 0 ? (
-        <span className="jsc-skill-chip__move" role="group" aria-label={`Move ${skill}`}>
-          {moveTargets.map((t) => (
-            <button
-              key={t.zoneId}
-              type="button"
-              className="jsc-skill-chip__move-btn"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => handleMove(t.zoneId)}
-            >
-              → {t.label}
-            </button>
-          ))}
-        </span>
-      ) : null}
     </span>
   );
 }
@@ -899,7 +851,6 @@ function SkillDropBucket({
   items,
   tone,
   busy,
-  onDropSkill,
   allowDrag = true,
   dragSession,
   hoverZone,
@@ -961,7 +912,6 @@ function SkillDropBucket({
                 String(dragSession?.skill || "").trim().toLowerCase() === String(it).trim().toLowerCase()
               }
               onPointerDragStart={onPointerDragStart}
-              onMoveToZone={onDropSkill}
             />
           ))}
           {isOverValid ? (
@@ -1136,7 +1086,6 @@ function SkillBucketsGroup({
             dragSession={activeDrag}
             hoverZone={hoverZone}
             onPointerDragStart={canDnD && !busy ? armPointerDrag : undefined}
-            onDropSkill={handleDrop}
           />
         ))}
       </div>
@@ -1645,13 +1594,17 @@ export default function JobScoreCard({
             ) : null}
             {!hideInterviewPrepCta ? (
               canPrepareInterview ? (
-                <Link
+                <button
+                  type="button"
                   className="jsc-post-score-btn jsc-post-score-btn--interview jsc-post-score-btn--interview-ready"
-                  to="/interview-prep/session"
-                  state={{ directWorkspace: true }}
+                  onClick={() => {
+                    markInterviewPrepInWorkspace();
+                    markInterviewPrepStartAtStep1();
+                    navigate(INTERVIEW_PREP_SESSION_PATH);
+                  }}
                 >
                   Start preparing for interview
-                </Link>
+                </button>
               ) : (
                 <span
                   className="jsc-post-score-btn-locked-wrap"
