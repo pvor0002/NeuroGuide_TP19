@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import LoginGateScreen from "../components/LoginGateScreen.jsx";
@@ -1844,11 +1845,12 @@ export default function SimplifyJobDescriptionPage() {
 
   return (
     <div className="simplify-page">
-      {justSaved && (
+      {justSaved && createPortal(
         <div className="ng-toast ng-toast--success" role="status" aria-live="polite">
           <span className="ng-toast__icon">✓</span>
           Job score saved successfully!
-        </div>
+        </div>,
+        document.body
       )}
       <DataConsentModal
         autoShow={false}

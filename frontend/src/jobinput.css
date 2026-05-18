@@ -10306,6 +10306,10 @@ body.jsc-skill-dnd-active {
   position: fixed;
   top: 1.5rem;
   right: 1.5rem;
+  left: auto;
+  bottom: auto;
+  width: max-content;
+  max-width: 340px;
   display: flex;
   align-items: center;
   gap: 0.55rem;
