@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   markInterviewPrepInWorkspace,
   markInterviewPrepStartAtStep1,
@@ -361,26 +361,6 @@ function dropActionFor(fromZone, toZone) {
   if (toMissing && fromPartial) return "remove";
 
   return null;
-}
-
-const ZONE_MOVE_LABELS = {
-  tool_matched: "Fully matching",
-  tool_partial: "Partially aligned",
-  tool_missing: "Missing essentials",
-  soft_matched: "Aligned",
-  soft_missing: "Gaps to develop",
-};
-
-function validDropZonesFor(fromZone) {
-  if (!fromZone) return [];
-  const kind = zoneKind(fromZone);
-  const candidates =
-    kind === "tool"
-      ? ["tool_matched", "tool_partial", "tool_missing"]
-      : kind === "soft"
-        ? ["soft_matched", "soft_missing"]
-        : [];
-  return candidates.filter((z) => dropActionFor(fromZone, z));
 }
 
 function toolBucketsFromSplit(split) {
@@ -820,7 +800,6 @@ function DraggableChip({
   draggable: draggableProp,
   isDragging,
   onPointerDragStart,
-  onMoveToZone,
 }) {
   const draggable = draggableProp !== undefined ? draggableProp && !busy : !busy;
 
@@ -872,7 +851,6 @@ function SkillDropBucket({
   items,
   tone,
   busy,
-  onDropSkill,
   allowDrag = true,
   dragSession,
   hoverZone,
@@ -934,7 +912,6 @@ function SkillDropBucket({
                 String(dragSession?.skill || "").trim().toLowerCase() === String(it).trim().toLowerCase()
               }
               onPointerDragStart={onPointerDragStart}
-              onMoveToZone={onDropSkill}
             />
           ))}
           {isOverValid ? (
@@ -1109,7 +1086,6 @@ function SkillBucketsGroup({
             dragSession={activeDrag}
             hoverZone={hoverZone}
             onPointerDragStart={canDnD && !busy ? armPointerDrag : undefined}
-            onDropSkill={handleDrop}
           />
         ))}
       </div>
