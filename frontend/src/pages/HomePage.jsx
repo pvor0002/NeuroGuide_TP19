@@ -324,9 +324,6 @@ export default function HomePage() {
             <a href="#" className="home-contact-mini-link">
               Contact us
             </a>
-            <a href="mailto:hello@neuroguide.app" className="home-contact-mini-link">
-              Email us
-            </a>
           </div>
         </div>
       </section>

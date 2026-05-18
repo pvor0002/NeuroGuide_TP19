@@ -2061,8 +2061,8 @@ a.home-hero-redesign__cta-btn {
 .home-focus-img {
   display: block;
   width: 100%;
-  aspect-ratio: 9 / 16;
-  max-height: min(420px, 78vw);
+  aspect-ratio: 4 / 3;
+  max-height: min(280px, 60vw);
   object-fit: cover;
   object-position: center;
   filter: saturate(0.92) contrast(1.02);
