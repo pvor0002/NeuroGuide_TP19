@@ -818,16 +818,6 @@ function DraggableChip({
   onMoveToZone,
 }) {
   const draggable = draggableProp !== undefined ? draggableProp && !busy : !busy;
-  const [focused, setFocused] = useState(false);
-  const moveTargets = useMemo(
-    () => validDropZonesFor(zone).map((z) => ({ zoneId: z, label: ZONE_MOVE_LABELS[z] || z })),
-    [zone],
-  );
-
-  const handleMove = (targetZone) => {
-    if (!dropActionFor(zone, targetZone)) return;
-    onMoveToZone?.({ skill, fromZone: zone, toZone: targetZone });
-  };
 
   return (
     <span
@@ -836,18 +826,16 @@ function DraggableChip({
         `jsc-skill-chip--${tone}`,
         draggable ? "jsc-skill-chip--draggable" : "",
         isDragging ? "jsc-skill-chip--dragging" : "",
-        focused && !isDragging ? "jsc-skill-chip--focused" : "",
       ]
         .filter(Boolean)
         .join(" ")}
       tabIndex={draggable ? 0 : -1}
       role="listitem"
       aria-grabbed={isDragging || undefined}
-      aria-label={`${skill}. Draggable skill. Tab to focus, then use Move to buttons or drag to another column.`}
+      aria-label={`${skill}. Draggable skill.`}
       onPointerDown={(e) => {
         if (!draggable || e.button !== 0) return;
         if (!(e.target instanceof Element)) return;
-        if (e.target.closest(".jsc-skill-chip__move-btn")) return;
         e.preventDefault();
         if (e.currentTarget instanceof HTMLElement) e.currentTarget.blur();
         const rect = e.currentTarget.getBoundingClientRect();
@@ -863,31 +851,11 @@ function DraggableChip({
           captureEl: e.currentTarget,
         });
       }}
-      onFocus={() => setFocused(true)}
-      onBlur={(e) => {
-        if (e.currentTarget.contains(e.relatedTarget)) return;
-        setFocused(false);
-      }}
     >
       <span className="jsc-skill-chip__grip" aria-hidden="true">
         <ChipGripIcon />
       </span>
       <span className="jsc-skill-chip__label">{skill}</span>
-      {focused && moveTargets.length > 0 ? (
-        <span className="jsc-skill-chip__move" role="group" aria-label={`Move ${skill}`}>
-          {moveTargets.map((t) => (
-            <button
-              key={t.zoneId}
-              type="button"
-              className="jsc-skill-chip__move-btn"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => handleMove(t.zoneId)}
-            >
-              → {t.label}
-            </button>
-          ))}
-        </span>
-      ) : null}
     </span>
   );
 }

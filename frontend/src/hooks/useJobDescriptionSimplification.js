@@ -117,15 +117,10 @@ export function useJobDescriptionSimplification() {
     setSimplifiedResult(null);
     setInfoMessage("");
     clearComposerFeedback();
-    if (mode === "text") {
-      setAttachment(null);
-      setFileExtractedTextStored("");
-      setWarnings([]);
-    } else {
-      setTextStored("");
-      setWarnings([]);
-    }
-  }, [clearComposerFeedback, setInputModeStored, setTextStored, setFileExtractedTextStored, setSimplifiedResult]);
+    setWarnings([]);
+    // Do NOT clear the other input — pasted text should survive switching to the
+    // file tab and back, and an uploaded file should survive switching to paste.
+  }, [clearComposerFeedback, setInputModeStored, setSimplifiedResult]);
 
   const onTextChange = useCallback(
     (next) => {
@@ -133,11 +128,18 @@ export function useJobDescriptionSimplification() {
       setSimplifiedResult(null);
       setComposerFileError("");
       setComposerActionError("");
-      setComposerInfo("");
       setWarnings([]);
       setInfoMessage("");
+      // If a file was previously loaded, clear it — only one input is used at a time.
+      if (next.trim() && fileExtractedText.trim()) {
+        setAttachment(null);
+        setFileExtractedTextStored("");
+        setComposerInfo("Using pasted text. Switch to Upload tab if you want to use your file instead.");
+      } else {
+        setComposerInfo("");
+      }
     },
-    [setTextStored, setSimplifiedResult]
+    [fileExtractedText, setTextStored, setFileExtractedTextStored, setSimplifiedResult]
   );
 
   const removeAttachment = useCallback(() => {
@@ -197,7 +199,13 @@ export function useJobDescriptionSimplification() {
           setFileExtractedTextStored(raw);
           setWarnings(nextWarnings);
           setComposerFileError("");
-          setComposerInfo("Text loaded from this file. Submit to get a simplified version.");
+          // If pasted text existed, clear it — only one input is used at a time.
+          if (text.trim()) {
+            setTextStored("");
+            setComposerInfo("Using uploaded file. Switch to Paste tab if you want to use your text instead.");
+          } else {
+            setComposerInfo("Text loaded from this file. Submit to get a simplified version.");
+          }
         } else {
           setAttachment(null);
           setFileExtractedTextStored("");
@@ -212,7 +220,7 @@ export function useJobDescriptionSimplification() {
         setIsExtracting(false);
       }
     },
-    [clearComposerFeedback, setFileExtractedTextStored, setSimplifiedResult]
+    [clearComposerFeedback, text, setTextStored, setFileExtractedTextStored, setSimplifiedResult]
   );
 
   const onSimplify = useCallback(async () => {
