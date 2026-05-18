@@ -414,7 +414,7 @@ export default function BrainDumpStage({
 
                 <p className="ip-bd-hint ip-bd-meta">
 
-                  {dumpCards.length} idea{dumpCards.length === 1 ? "" : "s"} saved — edit to view or change them.
+                  {dumpCards.length} idea{dumpCards.length === 1 ? "" : "s"} saved. Edit to view or change them.
 
                 </p>
 

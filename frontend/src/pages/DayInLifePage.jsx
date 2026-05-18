@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import JobExperienceHub from "../components/experience-hub/JobExperienceHub.jsx";
 import { fetchDayInLife } from "../services/dayInLifeApi.js";
@@ -92,6 +93,8 @@ export default function DayInLifePage() {
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [saveMsgTone, setSaveMsgTone] = useState("info");
+  const [justSaved, setJustSaved] = useState(false);
+  const justSavedTimer = useRef(null);
 
   useEffect(() => {
     if (!job_title || !adhd_type) return;
@@ -181,6 +184,9 @@ export default function DayInLifePage() {
       });
       setSaveMsgTone("success");
       setSaveMsg("Saved to your account.");
+      setJustSaved(true);
+      clearTimeout(justSavedTimer.current);
+      justSavedTimer.current = setTimeout(() => setJustSaved(false), 3000);
     } catch (e) {
       setSaveMsgTone("error");
       setSaveMsg(e?.message || "Save failed.");
@@ -201,6 +207,13 @@ export default function DayInLifePage() {
 
   return (
     <main className="day-in-life-page">
+      {justSaved && createPortal(
+        <div className="ng-toast ng-toast--success" role="status" aria-live="polite">
+          <span className="ng-toast__icon">✓</span>
+          Day saved successfully!
+        </div>,
+        document.body
+      )}
       <header className="simplify-hero dil-hero-override">
         <div className="simplify-hero-grid">
           <div className="simplify-hero-copy">
@@ -258,7 +271,7 @@ export default function DayInLifePage() {
                     >
                       {saveBusy ? "Saving…" : "Save this day"}
                     </button>
-                    {saveMsg ? (
+                    {saveMsg && saveMsgTone !== "success" ? (
                       <p className={`dil-save-msg dil-save-msg--${saveMsgTone}`} role="status">
                         {saveMsg}
                       </p>

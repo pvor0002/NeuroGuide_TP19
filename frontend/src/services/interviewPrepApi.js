@@ -186,3 +186,36 @@ export async function formulateInterviewSpeech(question, starTexts) {
     throw new Error(reshapeErr?.message ? `${primary} ${reshapeErr.message}` : primary);
   }
 }
+
+/**
+ * Generate 4 AI skill-based interview questions.
+ * @param {{ knownSkills: string[], missingSkills: string[], role: string }} params
+ * @returns {Promise<string[]>}
+ */
+export async function generateInterviewQuestions({
+  knownSkills = [],
+  missingSkills = [],
+  role = "",
+  company = "",
+  summary = "",
+  responsibilities = "",
+}) {
+  const res = await fetch(`${API_BASE}/interview-prep/generate-questions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      known_skills: knownSkills.slice(0, 10),
+      missing_skills: missingSkills.slice(0, 10),
+      role,
+      company,
+      summary,
+      responsibilities,
+    }),
+  });
+  if (!res.ok) {
+    const err = await readJsonOrText(res);
+    throw new Error(apiFailureMessage(res, err) || `generate-questions failed (${res.status}).`);
+  }
+  const data = await res.json();
+  return Array.isArray(data.questions) ? data.questions : [];
+}

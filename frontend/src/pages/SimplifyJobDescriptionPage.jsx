@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import DataConsentModal from "../components/DataConsentModal.jsx";
 import LoginGateScreen from "../components/LoginGateScreen.jsx";
@@ -7,6 +8,7 @@ import WarmHeroPaperShapes from "../components/WarmHeroPaperShapes.jsx";
 import JobScoreCard from "../components/JobScoreCard.jsx";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
 import { findOccupation, predictJobScore } from "../services/jobDescriptionApi.js";
+import { generateInterviewQuestions } from "../services/interviewPrepApi.js";
 import {
   buildExportPdfFilename,
   buildExportTxtFilename,
@@ -39,9 +41,9 @@ import jobMatchConversationUrl from "../../../data/images/job-match-conversation
 
 // ─── Profile definitions ────────────────────────────────────────────────────
 const PROFILE_META = {
-  inattentive: { label: "Calm & Clear",  desc: "Structured, low-overload" },
-  hyperactive: { label: "High Energy",   desc: "Action-oriented, fast" },
-  combined:    { label: "Balanced",       desc: "Structure + engagement" },
+  inattentive: { label: "Inattentive",  desc: "Structured, low-overload" },
+  hyperactive: { label: "Hyperactive-Impulsive",   desc: "Action-oriented, fast" },
+  combined:    { label: "Combined",       desc: "Structure + engagement" },
 };
 
 const CAREER_PROFILE_STORAGE_KEY = "neuroguide.careerProfile.react.v2";
@@ -1483,6 +1485,7 @@ export default function SimplifyJobDescriptionPage() {
   const [scrollToOutputOnResult, setScrollToOutputOnResult] = useState(false);
   const [fileDropActive, setFileDropActive] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const location = useLocation();
   const [loginGateDismissedPath, setLoginGateDismissedPath] = useState(null);
   const showLoginGate =
@@ -1625,6 +1628,66 @@ export default function SimplifyJobDescriptionPage() {
             originalPosting: buildOriginalPostingForHistory(inputMode, text, fileExtractedText),
           });
         }
+
+        // Generate AI interview questions in the background after score is ready
+        const simpVer = simplifiedResult?._ng_simp_ver ?? null;
+        if (simpVer && extractedSkills.length > 0) {
+          const profileSkillsSet = new Set(
+            (mergedSkills || []).map((s) => String(s).toLowerCase())
+          );
+          const knownSkills = extractedSkills.filter((s) =>
+            profileSkillsSet.has(String(s).toLowerCase())
+          );
+          const missingSkills = extractedSkills.filter(
+            (s) => !profileSkillsSet.has(String(s).toLowerCase())
+          );
+          const { companyName: aiCompany } = parseJobTitleAndCompany(
+            simplifiedResult?.basic_info ?? ""
+          );
+          const jobSummaryArr = simplifiedResult?.job_summary ?? [];
+          const aiSummary = Array.isArray(jobSummaryArr)
+            ? jobSummaryArr.join(" ")
+            : String(jobSummaryArr || "");
+          const aiResponsibilities =
+            typeof simplifiedResult?.responsibilities === "string"
+              ? simplifiedResult.responsibilities
+              : "";
+          console.log(
+            "%c[InterviewPrep] Sending to Gemini for AI question generation...",
+            "color: #2563eb; font-weight: bold;",
+            { simpVer, role: jobTitle, company: aiCompany, knownSkills, missingSkills }
+          );
+          generateInterviewQuestions({
+            knownSkills,
+            missingSkills,
+            role: jobTitle,
+            company: aiCompany,
+            summary: aiSummary,
+            responsibilities: aiResponsibilities,
+          })
+            .then((questions) => {
+              if (questions.length > 0) {
+                console.log(
+                  "%c[InterviewPrep] AI questions generated and saved to localStorage",
+                  "color: #16a34a; font-weight: bold;",
+                  { simpVer, questions }
+                );
+                try {
+                  localStorage.setItem(
+                    "neuroguide.interviewPrep.aiQuestions.v1",
+                    JSON.stringify({ simpVer, questions })
+                  );
+                } catch {
+                  // localStorage full — silently skip
+                }
+              } else {
+                console.warn("[InterviewPrep] Gemini returned 0 questions — templates will be used as fallback.");
+              }
+            })
+            .catch((err) => {
+              console.warn("[InterviewPrep] AI question generation failed — templates will be used as fallback.", err?.message);
+            });
+        }
       } catch (err) {
         setJobScoreError(err?.message || "Could not calculate job match score. Please try again.");
       } finally {
@@ -1687,6 +1750,8 @@ export default function SimplifyJobDescriptionPage() {
       activeProfileKey: savedProfileKey ?? activeProfile,
       originalPosting: buildOriginalPostingForHistory(inputMode, text, fileExtractedText),
     });
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 3000);
   }, [
     simplifiedResult,
     jobScoreResult,
@@ -1841,6 +1906,13 @@ export default function SimplifyJobDescriptionPage() {
 
   return (
     <div className="simplify-page">
+      {justSaved && createPortal(
+        <div className="ng-toast ng-toast--success" role="status" aria-live="polite">
+          <span className="ng-toast__icon">✓</span>
+          Job score saved successfully!
+        </div>,
+        document.body
+      )}
       <DataConsentModal
         autoShow={false}
         onBeforeContinue={

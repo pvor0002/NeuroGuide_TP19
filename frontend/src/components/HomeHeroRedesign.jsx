@@ -31,7 +31,7 @@ export default function HomeHeroRedesign() {
           </h1>
 
           <p className="home-hero-redesign__sub">
-            NeuroGuide turns dense postings into plain language, a personal fit score, and guided interview prep — one calm step at a time.
+            NeuroGuide turns dense postings into plain language, a personal fit score, and guided interview prep, one calm step at a time.
           </p>
 
           <ul className="home-hero-redesign__chips" aria-label="What NeuroGuide offers">
