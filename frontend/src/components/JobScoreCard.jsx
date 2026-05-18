@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  markInterviewPrepInWorkspace,
+  markInterviewPrepStartAtStep1,
+  INTERVIEW_PREP_SESSION_PATH,
+} from "../utils/interviewPrepNav.js";
 import WorkEnvironmentFitPanel from "./WorkEnvironmentFitPanel.jsx";
 import ExperienceMatchPanel from "./ExperienceMatchPanel.jsx";
 
@@ -1613,13 +1618,17 @@ export default function JobScoreCard({
             ) : null}
             {!hideInterviewPrepCta ? (
               canPrepareInterview ? (
-                <Link
+                <button
+                  type="button"
                   className="jsc-post-score-btn jsc-post-score-btn--interview jsc-post-score-btn--interview-ready"
-                  to="/interview-prep/session"
-                  state={{ directWorkspace: true }}
+                  onClick={() => {
+                    markInterviewPrepInWorkspace();
+                    markInterviewPrepStartAtStep1();
+                    navigate(INTERVIEW_PREP_SESSION_PATH);
+                  }}
                 >
                   Start preparing for interview
-                </Link>
+                </button>
               ) : (
                 <span
                   className="jsc-post-score-btn-locked-wrap"
