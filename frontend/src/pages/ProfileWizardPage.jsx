@@ -2274,51 +2274,46 @@ export default function ProfileWizardPage() {
                           </ul>
                         </article>
                       ))}
-                      <div className="q-profile-support-next-pair">
-                        {profileSupportSection ? (
-                          <article
-                            className="summary-block summary-block--dashboard summary-block--support q-profile-ready-square-tile"
-                            aria-label="Support setup summary"
-                          >
-                            <header className="summary-block-head">
-                              <div className="summary-block-title-row">
-                                <span className="summary-block-icon" aria-hidden="true">
-                                  <ProfileReadySectionIcon sectionId={profileSupportSection.iconId} />
-                                </span>
-                                <h3>{profileSupportSection.title}</h3>
-                              </div>
-                              <button
-                                type="button"
-                                className="summary-block-edit"
-                                onClick={() => jumpToStepById(profileSupportSection.firstStepId)}
-                              >
-                                <span className="summary-block-edit-ico" aria-hidden="true">
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                                    <path d="M4 20h4l9.5-9.5a2.1 2.1 0 0 0-3-3L5 16v4Z" />
-                                    <path d="M13.5 6.5l4 4" />
-                                  </svg>
-                                </span>
-                                Edit
-                              </button>
-                            </header>
-                            <p className="summary-block-meaning">{profileSupportSection.meaning}</p>
-                            <div
-                              className="summary-support-two-col q-profile-ready-square-tile__scroll"
-                              role="presentation"
-                            >
-                              {profileSupportSection.rows.map((row) => (
-                                <div key={row.key} className="summary-support-two-col-cell">
-                                  <span className="summary-key">{row.key}</span>
-                                  <div className="summary-support-two-col-value">
-                                    {renderSummaryValue(row)}
-                                  </div>
-                                </div>
-                              ))}
+                      {profileSupportSection ? (
+                        <article
+                          className="summary-block summary-block--dashboard summary-block--support"
+                          aria-label="Support setup summary"
+                        >
+                          <header className="summary-block-head">
+                            <div className="summary-block-title-row">
+                              <span className="summary-block-icon" aria-hidden="true">
+                                <ProfileReadySectionIcon sectionId={profileSupportSection.iconId} />
+                              </span>
+                              <h3>{profileSupportSection.title}</h3>
                             </div>
-                          </article>
-                        ) : null}
-                        {nextStepAside}
-                      </div>
+                            <button
+                              type="button"
+                              className="summary-block-edit"
+                              onClick={() => jumpToStepById(profileSupportSection.firstStepId)}
+                            >
+                              <span className="summary-block-edit-ico" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                                  <path d="M4 20h4l9.5-9.5a2.1 2.1 0 0 0-3-3L5 16v4Z" />
+                                  <path d="M13.5 6.5l4 4" />
+                                </svg>
+                              </span>
+                              Edit
+                            </button>
+                          </header>
+                          <p className="summary-block-meaning">{profileSupportSection.meaning}</p>
+                          <div className="summary-support-two-col" role="presentation">
+                            {profileSupportSection.rows.map((row) => (
+                              <div key={row.key} className="summary-support-two-col-cell">
+                                <span className="summary-key">{row.key}</span>
+                                <div className="summary-support-two-col-value">
+                                  {renderSummaryValue(row)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </article>
+                      ) : null}
+                      {nextStepAside}
                     </div>
                   </div>
 
@@ -2721,18 +2716,20 @@ export default function ProfileWizardPage() {
                             {resumeToProfileReady ? (
                               <>
                                 {currentStep?.kind !== "skills" && (
-                                  <button type="button" className="button secondary q-next" onClick={goNext}>
+                                  <button type="button" className="button primary q-next" onClick={goNext}>
                                     Next
                                     <span className="q-next-arrow" aria-hidden="true">→</span>
                                   </button>
                                 )}
-                                <button
-                                  type="button"
-                                  className="button primary q-done-profile-ready"
-                                  onClick={doneEditingReturnToProfileReady}
-                                >
-                                  Done
-                                </button>
+                                {currentStep?.kind === "skills" && (
+                                  <button
+                                    type="button"
+                                    className="button primary q-done-profile-ready"
+                                    onClick={doneEditingReturnToProfileReady}
+                                  >
+                                    Done
+                                  </button>
+                                )}
                               </>
                             ) : currentStep?.kind === "skills" ? (
                               <button type="button" className="button primary q-done-profile-ready" onClick={goNext}>

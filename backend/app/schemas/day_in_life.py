@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 class DayInLifeRequest(BaseModel):
     job_title: str = Field(
         ...,
+        min_length=1,
         description="Job title extracted by Gemini from the job description",
         examples=["UX Designer", "Software Developer", "Cloud Developer"]
     )
