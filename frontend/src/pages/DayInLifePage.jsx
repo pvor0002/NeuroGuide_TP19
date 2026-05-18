@@ -16,6 +16,10 @@ import {
 } from "../utils/jobScorePersistence.js";
 import { goToInterviewPrepWorkspaceFromListing } from "../utils/interviewPrepNav.js";
 import { resumeInterviewPrepFromSavedScoreRow } from "../utils/interviewPrepResume.js";
+import {
+  DIL_LAST_PARAMS_KEY,
+  goToDayInLifeListing,
+} from "../utils/dayInLifeNav.js";
 
 const ENERGY_LABELS = {
   high:   { label: "High focus required", colour: "#dc2626", bg: "#fff5f5", pillBg: "#fee2e2" },
@@ -24,18 +28,16 @@ const ENERGY_LABELS = {
   break:  { label: "Break",               colour: "#3b82f6", bg: "#eff6ff", pillBg: "#dbeafe" },
 };
 
-const LAST_PARAMS_KEY = "dil_last_params";
-
 function _saveLastParams(job, adhd) {
   try {
-    sessionStorage.setItem(LAST_PARAMS_KEY, JSON.stringify({ job_title: job, adhd_type: adhd }));
+    sessionStorage.setItem(DIL_LAST_PARAMS_KEY, JSON.stringify({ job_title: job, adhd_type: adhd }));
   } catch {
     /* ignore */
   }
 }
 function _loadLastParams() {
   try {
-    const raw = sessionStorage.getItem(LAST_PARAMS_KEY);
+    const raw = sessionStorage.getItem(DIL_LAST_PARAMS_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
@@ -161,6 +163,10 @@ export default function DayInLifePage() {
     goToInterviewPrepWorkspaceFromListing(navigate);
   };
 
+  const goBackToDayInLifeListing = () => {
+    goToDayInLifeListing(navigate);
+  };
+
   useEffect(() => {
     if (!job_title || !adhd_type || !visibleTimeline || loading) return;
     if (error) return;
@@ -226,7 +232,7 @@ export default function DayInLifePage() {
               This is a general simulation and may not reflect your exact experience. Schedules, demands, and support vary widely by company, team, and role.
             </p>
             <div className="dil-hero-actions">
-              <button type="button" className="simplify-hero-back" onClick={() => navigate(-1)}>
+              <button type="button" className="simplify-hero-back" onClick={goBackToDayInLifeListing}>
                 ← Back
               </button>
               <div className="dil-hero-actions__end">
@@ -310,7 +316,7 @@ export default function DayInLifePage() {
       {error && !loading ? (
         <div className="day-in-life-error">
           <p>Something went wrong: {error}</p>
-          <CareerProfileBackLink label="Go back" onClick={() => navigate(-1)} />
+          <CareerProfileBackLink label="Go back" onClick={goBackToDayInLifeListing} />
         </div>
       ) : null}
 

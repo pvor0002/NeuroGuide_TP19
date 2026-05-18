@@ -6,7 +6,10 @@ from typing import Annotated
 
 import psycopg2
 import psycopg2.errors as pg_errors
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 
 from app.api.routes.session import SessionUser
 from app.core.config import Settings, get_settings
@@ -76,3 +79,22 @@ def upsert_session_route(
     except psycopg2.Error as exc:
         raise _pg_err(exc) from exc
     return DayInLifeSessionUpsertResponse(session=DayInLifeSessionRow.from_db(row))
+
+
+@router.delete(
+    "/sessions/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_session_route(
+    _: DatabaseConfigured,
+    user: SessionUser,
+    session_id: UUID,
+) -> Response:
+    try:
+        deleted = pg_day_in_life.delete_session_by_id(user, session_id)
+    except psycopg2.Error as exc:
+        raise _pg_err(exc) from exc
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved day in the life not found.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -60,3 +60,20 @@ export async function putDayInLifeSession(credentials, payload) {
   }
   return body;
 }
+
+/**
+ * @param {object} credentials
+ * @param {string} sessionId
+ */
+export async function deleteDayInLifeSession(credentials, sessionId) {
+  const id = encodeURIComponent(String(sessionId || "").trim());
+  const res = await fetch(`${API_BASE}/pg/day-in-life/sessions/${id}`, {
+    method: "DELETE",
+    headers: buildSessionAuthHeaders(credentials),
+  });
+  if (res.status === 204) return;
+  const body = await readJsonOrText(res);
+  if (!res.ok) {
+    throw new Error(detailToMessage(body?.detail) || `Delete day in life failed (${res.status}).`);
+  }
+}

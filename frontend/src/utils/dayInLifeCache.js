@@ -24,3 +24,12 @@ export function dilCacheSet(job, adhd, timeline) {
     /* ignore */
   }
 }
+
+export function dilCacheRemove(job, adhd) {
+  try {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.removeItem(dilCacheKey(job, adhd));
+  } catch {
+    /* ignore */
+  }
+}

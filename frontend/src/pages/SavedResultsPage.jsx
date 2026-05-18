@@ -1,11 +1,13 @@
 ﻿import { Link, NavLink, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import SavedScoresPanel from "../components/saved-results/SavedScoresPanel.jsx";
-import { fetchDayInLifeSessions } from "../services/dayInLifeSessionsApi.js";
-import { readDayInLifeRecents } from "../utils/dayInLifeRecents.js";
-import { dilCacheSet } from "../utils/dayInLifeCache.js";
+import { deleteDayInLifeSession, fetchDayInLifeSessions } from "../services/dayInLifeSessionsApi.js";
+import { readDayInLifeRecents, removeDayInLifeRecent } from "../utils/dayInLifeRecents.js";
+import { dilCacheRemove, dilCacheSet } from "../utils/dayInLifeCache.js";
 import { hasCloudSessionCredentials, readCredentials } from "../utils/cloudSync.js";
 import InterviewPrepSessionsList from "../components/interview-prep/InterviewPrepSessionsList.jsx";
+import ListItemTrashButton from "../components/saved-results/ListItemTrashButton.jsx";
+import { useConfirmAction } from "../hooks/useConfirmAction.jsx";
 
 const TAB_IDS = ["scores", "day-in-life", "interview"];
 
@@ -37,8 +39,11 @@ function dilNormKey(job, adhd) {
 
 function DayInLifeSavedPanel() {
   const navigate = useNavigate();
-  const localRecents = readDayInLifeRecents();
+  const { confirm, modalElement } = useConfirmAction();
+  const [localRecents, setLocalRecents] = useState(() => readDayInLifeRecents());
   const [cloudSessions, setCloudSessions] = useState([]);
+  const [deletingKey, setDeletingKey] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
     if (!hasCloudSessionCredentials()) return;
@@ -80,8 +85,62 @@ function DayInLifeSavedPanel() {
     navigate(`/day-in-life?${q.toString()}`);
   };
 
+  const runDeleteCloudSession = async (sess) => {
+    const key = `cloud-${sess.id}`;
+    const cred = readCredentials();
+    if (!cred?.userId || !cred?.passKey) return;
+    setDeleteError(null);
+    setDeletingKey(key);
+    try {
+      await deleteDayInLifeSession(cred, sess.id);
+      const job = String(sess.job_title || "").trim();
+      const adhd = String(sess.adhd_type || "").trim();
+      dilCacheRemove(job, adhd);
+      setCloudSessions((prev) => prev.filter((s) => String(s.id) !== String(sess.id)));
+    } catch (err) {
+      setDeleteError(err?.message || "Could not delete saved timeline.");
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
+  const deleteCloudSession = (sess) => {
+    if (deletingKey) return;
+    const job = String(sess.job_title || "").trim();
+    confirm({
+      title: "Delete saved day in the life?",
+      message: `Remove the saved timeline for "${job}" from your account. This cannot be undone.`,
+      confirmLabel: "Delete",
+      onConfirm: () => runDeleteCloudSession(sess),
+    });
+  };
+
+  const runDeleteLocalRecent = (job, adhd, rowKey) => {
+    setDeleteError(null);
+    setDeletingKey(rowKey);
+    try {
+      removeDayInLifeRecent(job, adhd);
+      dilCacheRemove(job, adhd);
+      setLocalRecents(readDayInLifeRecents());
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
+  const deleteLocalRecent = (job, adhd, rowKey) => {
+    if (deletingKey) return;
+    confirm({
+      title: "Remove recent timeline?",
+      message: `Remove "${job}" from recent timelines on this device only.`,
+      confirmLabel: "Remove",
+      onConfirm: () => runDeleteLocalRecent(job, adhd, rowKey),
+    });
+  };
+
   return (
     <>
+      {modalElement}
+      {deleteError ? <p className="saved-results-panel__hint saved-results-panel__hint--error">{deleteError}</p> : null}
       {cloudSessions.length ? (
         <div className="saved-insights-subsect">
           <h3 className="saved-insights-subsect__title">Saved to your account</h3>
@@ -90,6 +149,8 @@ function DayInLifeSavedPanel() {
               const job = String(sess.job_title || "").trim();
               const adhd = String(sess.adhd_type || "").trim();
               const tl = Array.isArray(sess.timeline) ? sess.timeline : [];
+              const rowKey = `cloud-${sess.id}`;
+              const isDeleting = deletingKey === rowKey;
               const when =
                 sess.updated_at != null
                   ? new Date(sess.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
@@ -104,9 +165,20 @@ function DayInLifeSavedPanel() {
                     <p className="saved-results-subcard__date">{when}</p>
                   </div>
                   <div className="saved-results-subcard__actions">
-                    <button type="button" className="saved-results-resume-btn" onClick={() => openDil(job, adhd, tl)}>
+                    <button
+                      type="button"
+                      className="saved-results-resume-btn"
+                      disabled={Boolean(deletingKey)}
+                      onClick={() => openDil(job, adhd, tl)}
+                    >
                       Open saved day
                     </button>
+                    <ListItemTrashButton
+                      busy={isDeleting}
+                      disabled={Boolean(deletingKey)}
+                      label="Delete saved day in the life"
+                      onClick={() => deleteCloudSession(sess)}
+                    />
                   </div>
                 </li>
               );
@@ -122,6 +194,8 @@ function DayInLifeSavedPanel() {
             {localOnly.map((r, i) => {
               const job = String(r.job_title || "").trim();
               const adhd = String(r.adhd_type || "").trim();
+              const rowKey = `local-${job}|${adhd}|${i}`;
+              const isDeleting = deletingKey === rowKey;
               const when =
                 r.updatedAt != null
                   ? new Date(r.updatedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
@@ -136,9 +210,20 @@ function DayInLifeSavedPanel() {
                     <p className="saved-results-subcard__date">{when}</p>
                   </div>
                   <div className="saved-results-subcard__actions">
-                    <button type="button" className="saved-results-resume-btn" onClick={() => openDil(job, adhd, null)}>
+                    <button
+                      type="button"
+                      className="saved-results-resume-btn"
+                      disabled={Boolean(deletingKey)}
+                      onClick={() => openDil(job, adhd, null)}
+                    >
                       Open timeline
                     </button>
+                    <ListItemTrashButton
+                      busy={isDeleting}
+                      disabled={Boolean(deletingKey)}
+                      label="Remove recent timeline from this device"
+                      onClick={() => deleteLocalRecent(job, adhd, rowKey)}
+                    />
                   </div>
                 </li>
               );

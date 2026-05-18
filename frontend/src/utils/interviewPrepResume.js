@@ -45,3 +45,51 @@ export function resumeInterviewPrepFromSavedScoreRow(savedScoreRow) {
   applyInterviewPrepJobContext(ctx);
   return true;
 }
+
+/** Clear local interview prep workspace keys (organised cards, saved answers). */
+export function getActiveInterviewPrepFingerprint() {
+  const prev = parseLocalJson(JOB_CTX_KEY);
+  return prev ? deriveInterviewPrepJobFingerprint(prev) : null;
+}
+
+export function clearInterviewPrepLocalWorkspace() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(JOB_CTX_KEY);
+    window.localStorage.removeItem(ORG_KEY);
+    window.localStorage.removeItem(SAVED_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+const DISMISSED_KEY = "neuroguide.interviewPrep.dismissed.v1";
+
+function readDismissedFingerprints() {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(DISMISSED_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map((x) => String(x || "").trim()).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+export function readInterviewPrepDismissedFingerprints() {
+  return readDismissedFingerprints();
+}
+
+/** Hide a local-only listing row without deleting the underlying job score. */
+export function dismissInterviewPrepListingFingerprint(jobFingerprint) {
+  const fp = String(jobFingerprint || "").trim();
+  if (!fp || typeof window === "undefined") return;
+  const set = readDismissedFingerprints();
+  set.add(fp);
+  try {
+    window.localStorage.setItem(DISMISSED_KEY, JSON.stringify([...set]));
+  } catch {
+    /* ignore */
+  }
+}

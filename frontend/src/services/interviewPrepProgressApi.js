@@ -105,3 +105,26 @@ export async function putInterviewPrepProgress(credentials, payload) {
   }
   return body;
 }
+
+/**
+ * @param {object} credentials
+ * @param {string} jobFingerprint
+ */
+export async function deleteInterviewPrepProgress(credentials, jobFingerprint) {
+  const enc = encodeURIComponent(jobFingerprint);
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/pg/interview-prep/progress?job_fingerprint=${enc}`, {
+      method: "DELETE",
+      headers: buildSessionAuthHeaders(credentials),
+    });
+  } catch (err) {
+    throw wrapProgressFetchError(err, "Delete interview prep");
+  }
+  if (res.status === 204) return;
+  const body = await readJsonOrText(res);
+  if (!res.ok) {
+    const msg = body?.detail ? String(body.detail) : `Interview prep delete failed (${res.status}).`;
+    throw new Error(msg);
+  }
+}
