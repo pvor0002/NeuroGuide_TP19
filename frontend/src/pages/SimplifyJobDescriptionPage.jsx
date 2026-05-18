@@ -39,9 +39,9 @@ import jobMatchConversationUrl from "../../../data/images/job-match-conversation
 
 // ─── Profile definitions ────────────────────────────────────────────────────
 const PROFILE_META = {
-  inattentive: { label: "Calm & Clear",  desc: "Structured, low-overload" },
-  hyperactive: { label: "High Energy",   desc: "Action-oriented, fast" },
-  combined:    { label: "Balanced",       desc: "Structure + engagement" },
+  inattentive: { label: "Inattentive",  desc: "Structured, low-overload" },
+  hyperactive: { label: "Hyperactive-Impulsive",   desc: "Action-oriented, fast" },
+  combined:    { label: "Combined",       desc: "Structure + engagement" },
 };
 
 const CAREER_PROFILE_STORAGE_KEY = "neuroguide.careerProfile.react.v2";
@@ -1483,6 +1483,7 @@ export default function SimplifyJobDescriptionPage() {
   const [scrollToOutputOnResult, setScrollToOutputOnResult] = useState(false);
   const [fileDropActive, setFileDropActive] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const location = useLocation();
   const [loginGateDismissedPath, setLoginGateDismissedPath] = useState(null);
   const showLoginGate =
@@ -1687,6 +1688,8 @@ export default function SimplifyJobDescriptionPage() {
       activeProfileKey: savedProfileKey ?? activeProfile,
       originalPosting: buildOriginalPostingForHistory(inputMode, text, fileExtractedText),
     });
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 3000);
   }, [
     simplifiedResult,
     jobScoreResult,
@@ -1841,6 +1844,12 @@ export default function SimplifyJobDescriptionPage() {
 
   return (
     <div className="simplify-page">
+      {justSaved && (
+        <div className="ng-toast ng-toast--success" role="status" aria-live="polite">
+          <span className="ng-toast__icon">✓</span>
+          Job score saved successfully!
+        </div>
+      )}
       <DataConsentModal
         autoShow={false}
         onBeforeContinue={

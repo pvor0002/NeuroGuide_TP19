@@ -5267,7 +5267,6 @@ a.home-hero-redesign__cta-btn {
     #ead6cc 68%,
     #f6f0eb 100%
   );
-  animation: simplify-snapshot-attention 3.2s ease-in-out infinite;
   will-change: transform, box-shadow;
 }
 
@@ -5693,42 +5692,58 @@ a.home-hero-redesign__cta-btn {
 
 /* High Energy — warm peach-terracotta (btn-peach family) */
 .sp-profile--hyperactive {
-  --sp-accent: #c76a5a;
-  --sp-accent-mid: #d98472;
-  --sp-accent-light: #fdeee6;
-  --sp-accent-pale: #fff8f5;
-  --sp-title: #6e3228;
-  --sp-num-bg: rgba(235, 199, 185, 0.65);
-  --sp-num-fg: #4a221c;
-  --sp-check: #c76a5a;
-  --sp-tag-bg: rgba(199, 106, 90, 0.1);
-  --sp-tag-border: rgba(199, 106, 90, 0.35);
-  --sp-tag-fg: #6e3228;
-  --sp-dot: #d98472;
-  --sp-flow-bg: #8a4538;
-  --sp-chip-bg: rgba(199, 106, 90, 0.1);
-  --sp-chip-border: rgba(199, 106, 90, 0.32);
-  --sp-chip-fg: #6e3228;
+  --sp-accent: #2563eb;
+  --sp-accent-mid: #0d9488;
+  --sp-accent-light: #eff6ff;
+  --sp-accent-pale: #f0fdfa;
+  --sp-title: #1e3a8a;
+  --sp-num-bg: rgba(13, 148, 136, 0.15);
+  --sp-num-fg: #134e4a;
+  --sp-check: #2563eb;
+  --sp-tag-bg: rgba(37, 99, 235, 0.08);
+  --sp-tag-border: rgba(37, 99, 235, 0.28);
+  --sp-tag-fg: #1e3a8a;
+  --sp-dot: #0d9488;
+  --sp-flow-bg: #1e3a8a;
+  --sp-chip-bg: rgba(13, 148, 136, 0.08);
+  --sp-chip-border: rgba(13, 148, 136, 0.3);
+  --sp-chip-fg: #134e4a;
+}
+
+/* Hyperactive — gradient title mixing cobalt blue + teal */
+.sp-profile--hyperactive .sp-section-title {
+  background: linear-gradient(120deg, #2563eb 0%, #0d9488 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Balanced — violet accent, still peach-friendly */
 .sp-profile--combined {
-  --sp-accent: #7e54c4;
-  --sp-accent-mid: #9a74d9;
-  --sp-accent-light: #efe8fb;
-  --sp-accent-pale: #f9f6ff;
-  --sp-title: #4f3585;
-  --sp-num-bg: rgba(169, 140, 230, 0.45);
-  --sp-num-fg: #3d2970;
-  --sp-check: #7e54c4;
-  --sp-tag-bg: rgba(126, 84, 196, 0.1);
-  --sp-tag-border: rgba(126, 84, 196, 0.26);
-  --sp-tag-fg: #4f3585;
-  --sp-dot: #9a74d9;
-  --sp-flow-bg: #4f3585;
-  --sp-chip-bg: rgba(126, 84, 196, 0.09);
-  --sp-chip-border: rgba(126, 84, 196, 0.26);
-  --sp-chip-fg: #4f3585;
+  --sp-accent: #4D7C5F;
+  --sp-accent-mid: #BE185D;
+  --sp-accent-light: #F0FDF4;
+  --sp-accent-pale: #FDF2F8;
+  --sp-title: #1A3D2B;
+  --sp-num-bg: rgba(190, 24, 93, 0.28);
+  --sp-num-fg: #831843;
+  --sp-check: #4D7C5F;
+  --sp-tag-bg: rgba(77, 124, 95, 0.08);
+  --sp-tag-border: rgba(77, 124, 95, 0.3);
+  --sp-tag-fg: #1A3D2B;
+  --sp-dot: #BE185D;
+  --sp-flow-bg: #1A3D2B;
+  --sp-chip-bg: rgba(190, 24, 93, 0.07);
+  --sp-chip-border: rgba(190, 24, 93, 0.28);
+  --sp-chip-fg: #831843;
+}
+
+/* Combined — gradient title mixing sage green + deep rose */
+.sp-profile--combined .sp-section-title {
+  background: linear-gradient(120deg, #4D7C5F 0%, #BE185D 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .sp-profile {
@@ -5825,9 +5840,15 @@ a.home-hero-redesign__cta-btn {
   border-top-color: #2d6a40;
 }
 
-.sp-profile--inattentive .sp-summary-line--main,
-.sp-profile--combined .sp-summary-line--main {
+.sp-profile--inattentive .sp-summary-line--main {
   color: #1b4332;
+}
+
+.sp-profile--combined .sp-summary-line--main {
+  background: linear-gradient(120deg, #4D7C5F 0%, #BE185D 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .sp-profile--inattentive .sp-summary-line--hook,
@@ -6581,6 +6602,7 @@ a.home-hero-redesign__cta-btn {
 .simplify-snapshot-bar--hyperactive {
   --snap-accent: rgba(230, 150, 120, 0.22);
   border-color: rgba(210, 160, 135, 0.5);
+  animation: simplify-snapshot-attention 3.2s ease-in-out infinite;
 }
 
 .simplify-snapshot-bar--combined {
@@ -6590,8 +6612,15 @@ a.home-hero-redesign__cta-btn {
 
 /* Hyperactive headline banner */
 .sp-headline-block--hyper {
-  background: linear-gradient(135deg, var(--sp-accent-light, #f9e0d4) 0%, #fff 100%);
-  border-top-color: var(--sp-accent, #bf5130);
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdfa 100%);
+  border-top-color: #2563eb;
+}
+
+.sp-headline-block--hyper .sp-headline {
+  background: linear-gradient(120deg, #2563eb 0%, #0d9488 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Must know — horizontal chip grid */
@@ -10265,4 +10294,37 @@ body.jsc-skill-dnd-active {
   font-size: 0.78rem;
   line-height: 1.55;
   color: #3f3832;
+}
+
+/* ── Toast notification ─────────────────────────────────────────────────── */
+@keyframes ng-toast-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ng-toast {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.75rem 1.4rem;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  box-shadow: 0 4px 18px rgba(45, 41, 38, 0.14);
+  z-index: 9999;
+  animation: ng-toast-in 0.25s ease both;
+  white-space: nowrap;
+}
+
+.ng-toast--success {
+  background: #1a3d2b;
+  color: #ffffff;
+}
+
+.ng-toast__icon {
+  font-size: 1rem;
+  line-height: 1;
 }

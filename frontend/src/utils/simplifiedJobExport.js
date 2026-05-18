@@ -96,12 +96,12 @@ export function sanitizeFilenameSegment(name) {
 }
 
 export function buildExportPdfFilename(jobTitle, companyName) {
-  const t = sanitizeFilenameSegment(jobTitle);
-  const c = sanitizeFilenameSegment(companyName);
-  if (t && c) return `${t} - ${c} - Simplified.pdf`;
-  if (t) return `${t} - Simplified.pdf`;
-  if (c) return `${c} - Simplified.pdf`;
-  return "Simplified Job Description.pdf";
+  const t = sanitizeFilenameSegment(jobTitle).replace(/\s+/g, "_");
+  const c = sanitizeFilenameSegment(companyName).replace(/\s+/g, "_");
+  if (t && c) return `${t}_${c}_Simplified.pdf`;
+  if (t) return `${t}_Simplified.pdf`;
+  if (c) return `${c}_Simplified.pdf`;
+  return "Simplified_Job_Description.pdf";
 }
 
 export function buildExportTxtFilename(jobTitle, companyName) {
