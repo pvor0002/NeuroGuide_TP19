@@ -9,16 +9,6 @@ import {
 
 const JOB_CTX_KEY = "neuroguide.interviewPrep.jobContext.v1";
 
-function parseLocalJson(key) {
-  try {
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Persist job context for Interview Prep and mark the active per-job workspace.
  * @param {object} jobContext

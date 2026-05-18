@@ -1608,7 +1608,7 @@ function resolveInterviewPrepMountKey(location) {
 export default function InterviewPrepPage() {
   const location = useLocation();
   const mountKey = resolveInterviewPrepMountKey(location);
-  const initial = useMemo(() => loadInterviewPrepBootstrap(), [mountKey]);
+  const initial = loadInterviewPrepBootstrap();
   if (!jobContextHasInterviewSource(initial.jobContext)) {
     return <Navigate to={INTERVIEW_PREP_LIST_PATH} replace />;
   }
