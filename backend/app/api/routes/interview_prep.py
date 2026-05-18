@@ -6,6 +6,8 @@ from app.core.config import Settings, get_settings
 from app.schemas.interview_prep import (
     FormulateSpeechRequest,
     FormulateSpeechResponse,
+    GenerateQuestionsRequest,
+    GenerateQuestionsResponse,
     ReshapeRequest,
     ReshapeResponse,
     SpeechCoachRequest,
@@ -19,6 +21,7 @@ from app.schemas.interview_prep import (
 from app.services.gemini_interview_prep import (
     coach_spoken_answer_with_gemini,
     formulate_speech_from_star_with_gemini,
+    generate_interview_questions_with_gemini,
     reshape_answer_with_gemini,
     split_card_text_with_gemini,
     star_sort_cards_with_gemini,
@@ -144,3 +147,27 @@ def speech_coach_endpoint(
         readiness_bump=result["readiness_bump"],
         summary=result["summary"],
     )
+
+
+@router.post("/generate-questions", response_model=GenerateQuestionsResponse)
+@router.post("/generate-questions/", response_model=GenerateQuestionsResponse)
+def generate_questions_endpoint(
+    body: GenerateQuestionsRequest,
+    settings: Settings = Depends(get_settings),
+) -> GenerateQuestionsResponse:
+    try:
+        questions = generate_interview_questions_with_gemini(
+            known_skills=body.known_skills,
+            missing_skills=body.missing_skills,
+            role=body.role,
+            settings=settings,
+            company=body.company,
+            summary=body.summary,
+            responsibilities=body.responsibilities,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[interview-prep/generate-questions] unexpected: %s", exc)
+        raise HTTPException(status_code=502, detail=f"Question generation failed: {exc!s}") from exc
+    return GenerateQuestionsResponse(questions=questions)

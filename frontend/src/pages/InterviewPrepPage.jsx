@@ -51,8 +51,41 @@ const JOB_CTX_KEY = "neuroguide.interviewPrep.jobContext.v1";
 const ORG_KEY = "neuroguide.interviewPrep.organised.v1";
 const SAVED_KEY = "neuroguide.interviewPrep.savedAnswers.v3";
 const PROFILE_KEY = "neuroguide.careerProfile.react.v2";
-const MAX_CUSTOM_QUESTIONS = 20;
+const MAX_CUSTOM_QUESTIONS = 10;
 const MAX_CUSTOM_QUESTION_CHARS = 480;
+const AI_QUESTIONS_KEY = "neuroguide.interviewPrep.aiQuestions.v1";
+
+/** Fixed pool — 2 are always picked from this list (not AI generated). */
+const BEHAVIORAL_QUESTIONS = [
+  "Tell me about a time you had to adapt quickly to an unexpected change.",
+  "Describe a situation where you worked with someone very different from you.",
+  "Tell me about a time you made a mistake and how you handled it.",
+  "Describe a time when you had to manage more than one task at once.",
+  "Tell me about a time you helped a teammate who was struggling.",
+  "Describe a situation where you had to learn something new very quickly.",
+  "Tell me about yourself",
+];
+
+/** Return 2 behavioral questions based on a seed (simpVer or 0). */
+function pickBehavioralQuestions(seed = 0) {
+  const i = Math.abs(Number(seed) || 0) % BEHAVIORAL_QUESTIONS.length;
+  const j = (i + 1) % BEHAVIORAL_QUESTIONS.length;
+  return [BEHAVIORAL_QUESTIONS[i], BEHAVIORAL_QUESTIONS[j]];
+}
+
+/** Load AI questions from localStorage for the current job. Returns [] if none/stale. */
+function loadAiQuestions(simpVer) {
+  if (!simpVer) return [];
+  try {
+    const raw = localStorage.getItem(AI_QUESTIONS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (parsed?.simpVer !== simpVer) return [];
+    return Array.isArray(parsed.questions) ? parsed.questions : [];
+  } catch {
+    return [];
+  }
+}
 
 function mergeCustomQuestionLists(local, remote) {
   const seen = new Set();
@@ -435,9 +468,33 @@ function normalizedSkills(jobContext) {
   return parseManualTags(jobContext.skillsManual);
 }
 
+/**
+ * Build the base question list (4 skill-based + 2 behavioral = 6 total).
+ * Uses AI-generated questions if available for this job; otherwise falls back to templates.
+ */
 function buildQuestionList(jobContext, profileSkillSet) {
-  const skills = normalizedSkills(jobContext);
+  const simpVer = jobContext?.simplifiedVerStamp ?? null;
+  const behavioral = pickBehavioralQuestions(simpVer);
 
+  // Try AI questions first
+  const aiQuestions = loadAiQuestions(simpVer);
+  if (aiQuestions.length >= 2) {
+    const skillBased = aiQuestions.slice(0, 4);
+    const out = [...skillBased];
+    for (const b of behavioral) {
+      if (!out.includes(b)) out.push(b);
+    }
+    const final = out.slice(0, 6);
+    console.log(
+      "%c[InterviewPrep] Source: AI (Gemini)",
+      "color: #16a34a; font-weight: bold;",
+      { simpVer, skillQuestions: skillBased, behavioralQuestions: behavioral, total: final }
+    );
+    return final;
+  }
+
+  // Fallback: template-based questions
+  const skills = normalizedSkills(jobContext);
   const knownSkills = skills.filter((s) => skillMatchesProfile(s, profileSkillSet));
   const missingSkills = skills.filter((s) => !skillMatchesProfile(s, profileSkillSet));
 
@@ -461,20 +518,27 @@ function buildQuestionList(jobContext, profileSkillSet) {
     tailored.push(missingTemplates[i % missingTemplates.length](s));
   });
 
-  const universal = [
-    "Tell me about a challenge you overcame.",
-    "What are you most proud of professionally?",
-    "Tell me about a time you worked with others.",
-    "Why do you want this role?",
-    "Tell me about yourself.",
-  ];
-
   const out = [...tailored.slice(0, 4)];
-  for (const u of universal) {
-    if (out.length >= 6) break;
-    if (!out.includes(u)) out.push(u);
+  for (const b of behavioral) {
+    if (!out.includes(b)) out.push(b);
   }
-  return out.slice(0, 6);
+  const final = out.slice(0, 6);
+  console.log(
+    "%c[InterviewPrep] Source: TEMPLATE (no AI questions found for this job)",
+    "color: #d97706; font-weight: bold;",
+    {
+      simpVer,
+      reason: aiQuestions.length === 0
+        ? "No AI questions in localStorage for this simpVer"
+        : `Only ${aiQuestions.length} AI question(s) found (need at least 2)`,
+      knownSkills,
+      missingSkills,
+      templateQuestions: tailored.slice(0, 4),
+      behavioralQuestions: behavioral,
+      total: final,
+    }
+  );
+  return final;
 }
 
 function jobContextHasInterviewSource(jc) {
@@ -540,7 +604,26 @@ function InterviewPrepContent({ initial }) {
     return readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
   }, []);
 
-  const baseQuestions = useMemo(() => buildQuestionList(jobContext, profileSkillSet), [jobContext, profileSkillSet]);
+  // Bumped whenever we should re-read AI questions from localStorage (e.g. tab regains focus after
+  // score runs on the Simplify page and background generation finishes).
+  const [aiQuestionsRevision, setAiQuestionsRevision] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => setAiQuestionsRevision((n) => n + 1);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+
+  const baseQuestions = useMemo(
+    () => buildQuestionList(jobContext, profileSkillSet),
+    // aiQuestionsRevision intentionally included so we re-read localStorage when the tab refocuses
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [jobContext, profileSkillSet, aiQuestionsRevision],
+  );
 
   const allQuestions = useMemo(
     () => combineQuestionLists(baseQuestions, customQuestions),

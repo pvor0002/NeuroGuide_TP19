@@ -8,6 +8,7 @@ import WarmHeroPaperShapes from "../components/WarmHeroPaperShapes.jsx";
 import JobScoreCard from "../components/JobScoreCard.jsx";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
 import { findOccupation, predictJobScore } from "../services/jobDescriptionApi.js";
+import { generateInterviewQuestions } from "../services/interviewPrepApi.js";
 import {
   buildExportPdfFilename,
   buildExportTxtFilename,
@@ -1626,6 +1627,66 @@ export default function SimplifyJobDescriptionPage() {
             activeProfileKey: savedProfileKey ?? activeProfile,
             originalPosting: buildOriginalPostingForHistory(inputMode, text, fileExtractedText),
           });
+        }
+
+        // Generate AI interview questions in the background after score is ready
+        const simpVer = simplifiedResult?._ng_simp_ver ?? null;
+        if (simpVer && extractedSkills.length > 0) {
+          const profileSkillsSet = new Set(
+            (mergedSkills || []).map((s) => String(s).toLowerCase())
+          );
+          const knownSkills = extractedSkills.filter((s) =>
+            profileSkillsSet.has(String(s).toLowerCase())
+          );
+          const missingSkills = extractedSkills.filter(
+            (s) => !profileSkillsSet.has(String(s).toLowerCase())
+          );
+          const { companyName: aiCompany } = parseJobTitleAndCompany(
+            simplifiedResult?.basic_info ?? ""
+          );
+          const jobSummaryArr = simplifiedResult?.job_summary ?? [];
+          const aiSummary = Array.isArray(jobSummaryArr)
+            ? jobSummaryArr.join(" ")
+            : String(jobSummaryArr || "");
+          const aiResponsibilities =
+            typeof simplifiedResult?.responsibilities === "string"
+              ? simplifiedResult.responsibilities
+              : "";
+          console.log(
+            "%c[InterviewPrep] Sending to Gemini for AI question generation...",
+            "color: #2563eb; font-weight: bold;",
+            { simpVer, role: jobTitle, company: aiCompany, knownSkills, missingSkills }
+          );
+          generateInterviewQuestions({
+            knownSkills,
+            missingSkills,
+            role: jobTitle,
+            company: aiCompany,
+            summary: aiSummary,
+            responsibilities: aiResponsibilities,
+          })
+            .then((questions) => {
+              if (questions.length > 0) {
+                console.log(
+                  "%c[InterviewPrep] AI questions generated and saved to localStorage",
+                  "color: #16a34a; font-weight: bold;",
+                  { simpVer, questions }
+                );
+                try {
+                  localStorage.setItem(
+                    "neuroguide.interviewPrep.aiQuestions.v1",
+                    JSON.stringify({ simpVer, questions })
+                  );
+                } catch {
+                  // localStorage full — silently skip
+                }
+              } else {
+                console.warn("[InterviewPrep] Gemini returned 0 questions — templates will be used as fallback.");
+              }
+            })
+            .catch((err) => {
+              console.warn("[InterviewPrep] AI question generation failed — templates will be used as fallback.", err?.message);
+            });
         }
       } catch (err) {
         setJobScoreError(err?.message || "Could not calculate job match score. Please try again.");

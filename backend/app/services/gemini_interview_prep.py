@@ -19,11 +19,13 @@ logger = logging.getLogger(__name__)
 SPLIT_CARD_SYSTEM = """You split one long interview brainstorm note into 2-5 separate point cards.
 
 Each point is ONE distinct idea (setting, task/goal, action taken, result/impact, or learning).
-Break dense paragraphs apart even when there are few full stops — look for topic shifts, lists,
-cause/effect chains, and "I did X / the outcome was Y" patterns.
+Break text apart even when there is no punctuation — this is often spoken brain-dump text.
+Look for topic shifts, cause/effect chains ("so I had to...", "because...", "which meant..."),
+and "I did X / the outcome was Y" patterns.
 Keep the candidate's facts and wording close to the original; do not invent employers, metrics, or events.
 If the text is already a single idea, return exactly one point (trimmed, same meaning).
 Each point should be at most 2 short sentences and under 320 characters.
+Do not use em dashes (—) in any point. Use commas instead.
 
 Return ONLY JSON, no markdown fences: {"points": ["...", "..."]}
 Maximum 5 points."""
@@ -46,6 +48,8 @@ Rules:
 RESHAPE_SYSTEM = """You rewrite interview answers for neurodivergent candidates: warm, natural spoken English,
 not corporate jargon. Preserve facts the candidate stated; do not invent employers, metrics, or degrees.
 
+FORBIDDEN punctuation: em dashes (—). Use commas, colons, or rewrite the sentence instead.
+
 Return ONLY JSON: {"text":"..."} where "text" is the full rewritten answer."""
 
 FORMULATE_SPEECH_SYSTEM = """You turn STAR brainstorm notes into a single conversational interview answer
@@ -63,7 +67,8 @@ SOUND LIKE SPEECH:
 
 FORBIDDEN: bullet points, numbered lists, dash lists, line breaks between facts, semicolon chains of
 tasks, repeating the interview question, STAR headings (Situation/Task/What I did/Result),
-filler openers ("Absolutely", "I can tell you about a time"), or meta talk about answering.
+filler openers ("Absolutely", "I can tell you about a time"), meta talk about answering,
+or em dashes (—). Use commas or rewrite instead of em dashes.
 
 Start directly in the story. Plain spoken English, warm tone, no corporate jargon.
 Preserve every fact from the notes; do not invent employers, metrics, tools, or outcomes.
@@ -177,7 +182,12 @@ def should_split_card_text(text: str) -> bool:
     if len(t) < _SPLIT_MIN_CHARS:
         return False
     parts = [p.strip() for p in re.split(r"(?<=[.!?])\s+", t) if p.strip()]
-    return len(parts) >= 2 or len(t) >= _SPLIT_FORCE_CHARS
+    # Multiple sentences detected, or text is long enough to force a split.
+    if len(parts) >= 2 or len(t) >= _SPLIT_FORCE_CHARS:
+        return True
+    # Run-on text with no sentence endings (spoken brain dump): still split if long enough.
+    has_no_sentence_endings = not re.search(r"[.!?]", t)
+    return has_no_sentence_endings and len(t) >= _SPLIT_MIN_CHARS
 
 
 def heuristic_split_card_text(text: str) -> list[str]:
@@ -599,3 +609,88 @@ def coach_spoken_answer_with_gemini(
         "readiness_bump": clamp(data.get("readiness_bump", 10), 0, 20),
         "summary": str(data.get("summary") or "").strip(),
     }
+
+
+# ── Generate Interview Questions ──────────────────────────────────────────────
+
+_GENERATE_QUESTIONS_SYSTEM = """You write beginner-friendly interview questions for a first-time job applicant.
+You will receive the job title, company, a plain-language job summary, the day-to-day responsibilities,
+and two skill lists: skills the candidate already has, and skills they are missing.
+
+Generate exactly 4 questions in this fixed order:
+
+Question 1 — KNOWN SKILL question (index 0):
+  Pick the first known skill. Connect it to something real in the role or at the company.
+  e.g. "Can you walk me through a time you used Python to solve a real problem?"
+
+Question 2 — KNOWN SKILL question (index 1):
+  Pick the second known skill (or the first again if only one exists). Use a different sentence structure from question 1.
+  e.g. "How has working with SQL shaped the way you think about data?"
+
+Question 3 — MISSING SKILL question (index 2):
+  Pick the first missing skill. Be encouraging and practical, not intimidating.
+  e.g. "You'll be using Kubernetes here. If you had a week to get started, what would your first steps be?"
+
+Question 4 — COMPANY question (index 3):
+  Ask something about the company or role that shows genuine interest or awareness.
+  Use the company name, what they do, or what the day-to-day looks like.
+  e.g. "What excites you most about working at Acme on their security team?"
+  or   "This role involves protecting patient data every day. What draws you to that kind of responsibility?"
+
+Additional rules:
+- Every question must use a DIFFERENT sentence structure — no two questions can open the same way.
+- Keep each question short (under 30 words), plain, and warm. No jargon.
+- Write as if speaking directly to the candidate in a friendly interview.
+- If known_skills is empty, write a role-based question instead of questions 1 and 2.
+- If missing_skills is empty, write a third known-skill question instead of question 3.
+- Return ONLY valid JSON with exactly 4 items: {"questions": ["...", "...", "...", "..."]}
+- No markdown fences, no extra keys."""
+
+
+def generate_interview_questions_with_gemini(
+    known_skills: list[str],
+    missing_skills: list[str],
+    role: str,
+    settings: Settings,
+    company: str = "",
+    summary: str = "",
+    responsibilities: str = "",
+) -> list[str]:
+    """Generate 4 beginner-friendly, skill-based interview questions via Gemini."""
+    if not settings.gemini_api_key:
+        raise HTTPException(status_code=502, detail="Gemini not configured.")
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+    model_chain = _gemini_model_fallback_chain("gemini-2.0-flash")
+
+    known_str = ", ".join(known_skills[:4]) if known_skills else "none"
+    missing_str = ", ".join(missing_skills[:4]) if missing_skills else "none"
+
+    prompt_parts = [f"Role: {role.strip() or 'not specified'}"]
+    if company.strip():
+        prompt_parts.append(f"Company: {company.strip()}")
+    if summary.strip():
+        prompt_parts.append(f"Job summary: {summary.strip()[:600]}")
+    if responsibilities.strip():
+        prompt_parts.append(f"Day-to-day responsibilities: {responsibilities.strip()[:800]}")
+    prompt_parts.append(f"Skills the candidate already has: {known_str}")
+    prompt_parts.append(f"Skills the candidate is missing: {missing_str}")
+    prompt_parts.append(
+        "\nGenerate exactly 4 questions in order: [0] known skill question, "
+        "[1] known skill question (different structure), [2] missing skill question, [3] company question."
+    )
+    user_prompt = "\n".join(prompt_parts)
+
+    data = _gemini_generate_json(
+        client,
+        model_chain,
+        system_instruction=_GENERATE_QUESTIONS_SYSTEM,
+        user_prompt=user_prompt,
+    )
+
+    raw_list = data.get("questions") if isinstance(data, dict) else data
+    if not isinstance(raw_list, list):
+        raise HTTPException(status_code=502, detail="Unexpected response shape from Gemini.")
+
+    questions = [str(q).strip() for q in raw_list if str(q).strip()]
+    return questions[:4]

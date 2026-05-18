@@ -79,3 +79,17 @@ class SpeechCoachResponse(BaseModel):
     filler_words: list[str] = Field(default_factory=list)
     readiness_bump: int = Field(0, ge=0, le=20)
     summary: str = ""
+
+
+# ── Generate Questions ────────────────────────────────────────────────────────
+
+class GenerateQuestionsRequest(BaseModel):
+    known_skills: list[str] = Field(default_factory=list, max_length=20)
+    missing_skills: list[str] = Field(default_factory=list, max_length=20)
+    role: str = Field(default="", max_length=200)
+    company: str = Field(default="", max_length=200)
+    summary: str = Field(default="", max_length=2000)
+    responsibilities: str = Field(default="", max_length=2000)
+
+class GenerateQuestionsResponse(BaseModel):
+    questions: list[str] = Field(default_factory=list)

@@ -324,6 +324,51 @@
   font-style: italic;
 }
 
+/* ── Answer composing overlay ─────────────────────────────────────────────── */
+
+.ip-answer-editor__textarea-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.ip-answer-editor__textarea-wrap .ip-textarea--answer {
+  flex: 1;
+}
+
+.ip-answer-composing-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.ip-answer-spinner {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e0d8;
+  border-top-color: var(--ip-accent, #b08a6e);
+  border-radius: 50%;
+  animation: ip-spin 0.75s linear infinite;
+}
+
+@keyframes ip-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ip-answer-composing-label {
+  font-size: 0.875rem;
+  color: var(--ip-muted, #8a7e72);
+  font-style: italic;
+}
+
 /* =========================================================================
    Stage tabs (hero tab bar — overrides applied in shared.css .ip-hero-tabs)
    ========================================================================= */
@@ -2153,11 +2198,18 @@
   grid-row: 1;
 }
 
-.ip-answer-editor--with-aside .ip-textarea--answer {
+.ip-answer-editor--with-aside .ip-answer-editor__textarea-wrap {
   grid-column: 1;
   grid-row: 2;
   min-height: 22rem;
   height: 100%;
+  position: relative;
+}
+
+.ip-answer-editor--with-aside .ip-textarea--answer {
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
 }
 
 .ip-answer-editor--with-aside .ip-answer-editor__aside {

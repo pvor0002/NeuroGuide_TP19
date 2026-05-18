@@ -52,16 +52,24 @@ export default function AnswerEditor({
         <label className="ip-label ip-answer-editor__label" htmlFor="ip-answer-draft">
           Your answer
         </label>
-        <textarea
-          id="ip-answer-draft"
-          className={`ip-textarea ip-textarea--answer ${fade === "out" ? "ip-fade-out" : "ip-fade-in"} ${composing ? "ip-textarea--composing" : ""}`}
-          rows={14}
-          value={composing ? "" : answerDraft}
-          placeholder={composing ? "Turning your ideas into spoken answer…" : undefined}
-          readOnly={composing}
-          aria-busy={composing}
-          onChange={(e) => onAnswerChange(e.target.value)}
-        />
+        <div className="ip-answer-editor__textarea-wrap">
+          <textarea
+            id="ip-answer-draft"
+            className={`ip-textarea ip-textarea--answer ${fade === "out" ? "ip-fade-out" : "ip-fade-in"} ${composing ? "ip-textarea--composing" : ""}`}
+            rows={14}
+            value={composing ? "" : answerDraft}
+            placeholder={composing ? "" : undefined}
+            readOnly={composing}
+            aria-busy={composing}
+            onChange={(e) => onAnswerChange(e.target.value)}
+          />
+          {composing && (
+            <div className="ip-answer-composing-overlay" aria-live="polite" aria-label="Generating answer">
+              <span className="ip-answer-spinner" aria-hidden="true" />
+              <span className="ip-answer-composing-label">Turning your ideas into spoken answer…</span>
+            </div>
+          )}
+        </div>
         {aside ? <div className="ip-answer-editor__aside">{aside}</div> : null}
       </div>
 
