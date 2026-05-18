@@ -2720,10 +2720,12 @@ export default function ProfileWizardPage() {
                             </button>
                             {resumeToProfileReady ? (
                               <>
-                                <button type="button" className="button secondary q-next" onClick={goNext}>
-                                  Next
-                                  <span className="q-next-arrow" aria-hidden="true">→</span>
-                                </button>
+                                {currentStep?.kind !== "skills" && (
+                                  <button type="button" className="button secondary q-next" onClick={goNext}>
+                                    Next
+                                    <span className="q-next-arrow" aria-hidden="true">→</span>
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   className="button primary q-done-profile-ready"
@@ -2732,6 +2734,10 @@ export default function ProfileWizardPage() {
                                   Done
                                 </button>
                               </>
+                            ) : currentStep?.kind === "skills" ? (
+                              <button type="button" className="button primary q-done-profile-ready" onClick={goNext}>
+                                Done
+                              </button>
                             ) : (
                               <button type="button" className="button primary q-next" onClick={goNext}>
                                 Next
