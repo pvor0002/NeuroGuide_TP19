@@ -9,6 +9,7 @@ import JobScoreCard from "../components/JobScoreCard.jsx";
 import { useJobDescriptionSimplification } from "../hooks/useJobDescriptionSimplification.js";
 import { findOccupation, predictJobScore } from "../services/jobDescriptionApi.js";
 import { generateInterviewQuestions } from "../services/interviewPrepApi.js";
+import { saveAiQuestionsForJob } from "../utils/interviewPrepStorage.js";
 import {
   buildExportPdfFilename,
   buildExportTxtFilename,
@@ -1673,9 +1674,15 @@ export default function SimplifyJobDescriptionPage() {
                   { simpVer, questions }
                 );
                 try {
-                  localStorage.setItem(
-                    "neuroguide.interviewPrep.aiQuestions.v1",
-                    JSON.stringify({ simpVer, questions })
+                  saveAiQuestionsForJob(
+                    {
+                      simplifiedVerStamp: simpVer,
+                      simplifiedSnapshot: simplifiedResult,
+                      role: jobTitle,
+                      company: aiCompany,
+                      jobTitleNorm: normalizeJobTitleKey(jobTitle),
+                    },
+                    { simpVer, questions },
                   );
                 } catch {
                   // localStorage full — silently skip
