@@ -31,6 +31,28 @@ export function recordDayInLifeRecent(jobTitle, adhdType) {
   }
 }
 
+/** Remove one recent timeline from this browser. */
+export function removeDayInLifeRecent(jobTitle, adhdType) {
+  if (typeof window === "undefined") return;
+  const job = String(jobTitle || "").trim();
+  const adhd = String(adhdType || "").trim().toLowerCase();
+  if (!job || !adhd) return;
+  try {
+    const prev = readDayInLifeRecents();
+    const next = prev.filter(
+      (x) =>
+        !(
+          x &&
+          String(x.job_title || "").trim() === job &&
+          String(x.adhd_type || "").trim().toLowerCase() === adhd
+        ),
+    );
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
+
 /** @returns {{ job_title: string, adhd_type: string, updatedAt: number }[]} */
 export function readDayInLifeRecents() {
   if (typeof window === "undefined") return [];

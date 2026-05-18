@@ -55,6 +55,28 @@ def list_sessions_for_user(user_id: UUID, *, limit: int = 48) -> list[dict[str, 
         conn.close()
 
 
+def delete_progress(user_id: UUID, job_fingerprint: str) -> bool:
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            DELETE FROM interview_prep_sessions
+            WHERE user_id = %s AND job_fingerprint = %s
+            """,
+            (str(user_id), job_fingerprint),
+        )
+        deleted = cur.rowcount > 0
+        conn.commit()
+        return deleted
+    except psycopg2.Error:
+        conn.rollback()
+        logger.exception("[PG interview_prep] delete_progress failed")
+        raise
+    finally:
+        conn.close()
+
+
 def upsert_progress(
     user_id: UUID,
     *,

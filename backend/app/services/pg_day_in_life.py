@@ -99,6 +99,28 @@ def upsert_session(
         conn.close()
 
 
+def delete_session_by_id(user_id: UUID, session_id: UUID) -> bool:
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            DELETE FROM day_in_life_sessions
+            WHERE user_id = %s AND id = %s
+            """,
+            (str(user_id), str(session_id)),
+        )
+        deleted = cur.rowcount > 0
+        conn.commit()
+        return deleted
+    except psycopg2.Error:
+        conn.rollback()
+        logger.exception("[PG day_in_life] delete_session_by_id failed")
+        raise
+    finally:
+        conn.close()
+
+
 def get_session(
     user_id: UUID,
     *,

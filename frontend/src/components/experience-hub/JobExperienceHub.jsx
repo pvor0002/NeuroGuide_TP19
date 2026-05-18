@@ -1,18 +1,27 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { fetchDayInLifeSessions } from "../../services/dayInLifeSessionsApi.js";
-import { fetchInterviewPrepSessions } from "../../services/interviewPrepProgressApi.js";
+import { deleteDayInLifeSession, fetchDayInLifeSessions } from "../../services/dayInLifeSessionsApi.js";
+import {
+  deleteInterviewPrepProgress,
+  fetchInterviewPrepSessions,
+} from "../../services/interviewPrepProgressApi.js";
 import { hasCloudSessionCredentials, readCredentials } from "../../utils/cloudSync.js";
-import { dilCacheSet } from "../../utils/dayInLifeCache.js";
-import { readDayInLifeRecents } from "../../utils/dayInLifeRecents.js";
+import { dilCacheRemove, dilCacheSet } from "../../utils/dayInLifeCache.js";
+import { readDayInLifeRecents, removeDayInLifeRecent } from "../../utils/dayInLifeRecents.js";
 import { displayTitleForScoreRow, mergeScoreRowsForHub } from "../../utils/experienceHubJobs.js";
 import { getDefaultAdhdSlugForDayInLife } from "../../utils/experienceHubProfile.js";
 import {
   jobContextFromInterviewSessionSummary,
   jobContextFromSavedScoreRow,
 } from "../../utils/interviewPrepHelpers.js";
-import { applyInterviewPrepJobContext } from "../../utils/interviewPrepResume.js";
+import {
+  applyInterviewPrepJobContext,
+  clearInterviewPrepLocalWorkspace,
+  getActiveInterviewPrepFingerprint,
+} from "../../utils/interviewPrepResume.js";
 import { goToInterviewPrepWorkspaceFromListing } from "../../utils/interviewPrepNav.js";
+import ListItemTrashButton from "../saved-results/ListItemTrashButton.jsx";
+import { useConfirmAction } from "../../hooks/useConfirmAction.jsx";
 
 function formatAdhdLabel(raw) {
   const s = String(raw || "")
@@ -39,11 +48,13 @@ function interviewSessionLabel(sess) {
  */
 export default function JobExperienceHub({ mode }) {
   const navigate = useNavigate();
+  const { confirm, modalElement } = useConfirmAction();
   const defaultAdhd = getDefaultAdhdSlugForDayInLife();
-  const [localRecents] = useState(() => readDayInLifeRecents());
+  const [localRecents, setLocalRecents] = useState(() => readDayInLifeRecents());
   const [cloudDil, setCloudDil] = useState([]);
   const [cloudInterview, setCloudInterview] = useState([]);
   const [cloudErr, setCloudErr] = useState(null);
+  const [deletingKey, setDeletingKey] = useState(null);
 
   const jobRows = mergeScoreRowsForHub().filter((row) => jobContextFromSavedScoreRow(row));
 
@@ -104,6 +115,85 @@ export default function JobExperienceHub({ mode }) {
     goToInterviewPrepWorkspaceFromListing(navigate);
   };
 
+  const runDeleteCloudDil = async (sess) => {
+    const key = `dil-cloud-${sess.id}`;
+    const cred = readCredentials();
+    if (!cred?.userId || !cred?.passKey) return;
+    setDeletingKey(key);
+    try {
+      await deleteDayInLifeSession(cred, sess.id);
+      dilCacheRemove(sess.job_title, sess.adhd_type);
+      setCloudDil((prev) => prev.filter((s) => String(s.id) !== String(sess.id)));
+    } catch (e) {
+      setCloudErr(e?.message || "Could not delete saved timeline.");
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
+  const deleteCloudDil = (sess) => {
+    if (deletingKey) return;
+    const job = String(sess.job_title || "").trim();
+    confirm({
+      title: "Delete saved day in the life?",
+      message: `Remove the saved timeline for "${job}" from your account. This cannot be undone.`,
+      confirmLabel: "Delete",
+      onConfirm: () => runDeleteCloudDil(sess),
+    });
+  };
+
+  const runDeleteLocalDil = (job, adhd, rowKey) => {
+    setDeletingKey(rowKey);
+    try {
+      removeDayInLifeRecent(job, adhd);
+      dilCacheRemove(job, adhd);
+      setLocalRecents(readDayInLifeRecents());
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
+  const deleteLocalDil = (job, adhd, rowKey) => {
+    if (deletingKey) return;
+    confirm({
+      title: "Remove recent timeline?",
+      message: `Remove "${job}" from recent timelines on this device only.`,
+      confirmLabel: "Remove",
+      onConfirm: () => runDeleteLocalDil(job, adhd, rowKey),
+    });
+  };
+
+  const runDeleteCloudInterview = async (sess) => {
+    const key = `ip-cloud-${sess.id}`;
+    const fp = String(sess.job_fingerprint || "").trim();
+    if (!fp) return;
+    const cred = readCredentials();
+    if (!cred?.userId || !cred?.passKey) return;
+    setDeletingKey(key);
+    try {
+      await deleteInterviewPrepProgress(cred, fp);
+      setCloudInterview((prev) => prev.filter((s) => String(s.job_fingerprint || "").trim() !== fp));
+      if (getActiveInterviewPrepFingerprint() === fp) {
+        clearInterviewPrepLocalWorkspace();
+      }
+    } catch (e) {
+      setCloudErr(e?.message || "Could not delete interview prep.");
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
+  const deleteCloudInterview = (sess) => {
+    if (deletingKey) return;
+    const title = interviewSessionLabel(sess);
+    confirm({
+      title: "Delete saved interview prep?",
+      message: `Remove interview prep for "${title}" from your account. This cannot be undone.`,
+      confirmLabel: "Delete",
+      onConfirm: () => runDeleteCloudInterview(sess),
+    });
+  };
+
   const title = mode === "dil" ? "Day in the Life" : "Interview Prep";
   const lead =
     mode === "dil"
@@ -112,6 +202,7 @@ export default function JobExperienceHub({ mode }) {
 
   return (
     <div className="experience-hub">
+      {modalElement}
       <header className="experience-hub__head">
         <p className="experience-hub__eyebrow">{mode === "dil" ? "Energy mapped" : "STAR method"}</p>
         <h1 className="experience-hub__title">{title}</h1>
@@ -182,19 +273,34 @@ export default function JobExperienceHub({ mode }) {
               <p className="experience-hub__empty">None yet — generate a day in the life and it will show here.</p>
             ) : (
               <ul className="experience-hub__list">
-                {localRecents.map((r, i) => (
-                  <li key={`${r.job_title}|${r.adhd_type}|${i}`} className="experience-hub__card">
-                    <div className="experience-hub__card-text">
-                      <p className="experience-hub__card-title">{r.job_title}</p>
-                      <p className="experience-hub__card-meta">{formatAdhdLabel(r.adhd_type) || r.adhd_type}</p>
-                    </div>
-                    <div className="experience-hub__card-actions">
-                      <button type="button" className="experience-hub__btn" onClick={() => openDil(r.job_title, r.adhd_type)}>
-                        Open
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                {localRecents.map((r, i) => {
+                  const rowKey = `dil-local-${r.job_title}|${r.adhd_type}|${i}`;
+                  const isDeleting = deletingKey === rowKey;
+                  return (
+                    <li key={`${r.job_title}|${r.adhd_type}|${i}`} className="experience-hub__card">
+                      <div className="experience-hub__card-text">
+                        <p className="experience-hub__card-title">{r.job_title}</p>
+                        <p className="experience-hub__card-meta">{formatAdhdLabel(r.adhd_type) || r.adhd_type}</p>
+                      </div>
+                      <div className="experience-hub__card-actions">
+                        <button
+                          type="button"
+                          className="experience-hub__btn"
+                          disabled={Boolean(deletingKey)}
+                          onClick={() => openDil(r.job_title, r.adhd_type)}
+                        >
+                          Open
+                        </button>
+                        <ListItemTrashButton
+                          busy={isDeleting}
+                          disabled={Boolean(deletingKey)}
+                          label="Remove recent timeline from this device"
+                          onClick={() => deleteLocalDil(r.job_title, r.adhd_type, rowKey)}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -211,19 +317,34 @@ export default function JobExperienceHub({ mode }) {
               <p className="experience-hub__empty">No saved timelines yet. Generate a day, then use &quot;Save this day&quot;.</p>
             ) : (
               <ul className="experience-hub__list">
-                {cloudDil.map((sess) => (
-                  <li key={String(sess.id)} className="experience-hub__card">
-                    <div className="experience-hub__card-text">
-                      <p className="experience-hub__card-title">{sess.job_title}</p>
-                      <p className="experience-hub__card-meta">{formatAdhdLabel(sess.adhd_type) || sess.adhd_type}</p>
-                    </div>
-                    <div className="experience-hub__card-actions">
-                      <button type="button" className="experience-hub__btn" onClick={() => openDilFromCloud(sess)}>
-                        Open saved day
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                {cloudDil.map((sess) => {
+                  const rowKey = `dil-cloud-${sess.id}`;
+                  const isDeleting = deletingKey === rowKey;
+                  return (
+                    <li key={String(sess.id)} className="experience-hub__card">
+                      <div className="experience-hub__card-text">
+                        <p className="experience-hub__card-title">{sess.job_title}</p>
+                        <p className="experience-hub__card-meta">{formatAdhdLabel(sess.adhd_type) || sess.adhd_type}</p>
+                      </div>
+                      <div className="experience-hub__card-actions">
+                        <button
+                          type="button"
+                          className="experience-hub__btn"
+                          disabled={Boolean(deletingKey)}
+                          onClick={() => openDilFromCloud(sess)}
+                        >
+                          Open saved day
+                        </button>
+                        <ListItemTrashButton
+                          busy={isDeleting}
+                          disabled={Boolean(deletingKey)}
+                          label="Delete saved day in the life"
+                          onClick={() => deleteCloudDil(sess)}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -241,23 +362,41 @@ export default function JobExperienceHub({ mode }) {
             <p className="experience-hub__empty">No cloud saves yet — your work is still stored locally per job.</p>
           ) : (
             <ul className="experience-hub__list">
-              {cloudInterview.map((sess) => (
-                <li key={String(sess.id)} className="experience-hub__card">
-                  <div className="experience-hub__card-text">
-                    <p className="experience-hub__card-title">{interviewSessionLabel(sess)}</p>
-                    <p className="experience-hub__card-meta">
-                      {sess.updated_at
-                        ? new Date(sess.updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-                        : ""}
-                    </p>
-                  </div>
-                  <div className="experience-hub__card-actions">
-                    <button type="button" className="experience-hub__btn" onClick={() => openInterviewFromCloud(sess)}>
-                      Resume
-                    </button>
-                  </div>
-                </li>
-              ))}
+              {cloudInterview.map((sess) => {
+                const rowKey = `ip-cloud-${sess.id}`;
+                const isDeleting = deletingKey === rowKey;
+                return (
+                  <li key={String(sess.id)} className="experience-hub__card">
+                    <div className="experience-hub__card-text">
+                      <p className="experience-hub__card-title">{interviewSessionLabel(sess)}</p>
+                      <p className="experience-hub__card-meta">
+                        {sess.updated_at
+                          ? new Date(sess.updated_at).toLocaleString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="experience-hub__card-actions">
+                      <button
+                        type="button"
+                        className="experience-hub__btn"
+                        disabled={Boolean(deletingKey)}
+                        onClick={() => openInterviewFromCloud(sess)}
+                      >
+                        Resume
+                      </button>
+                      <ListItemTrashButton
+                        busy={isDeleting}
+                        disabled={Boolean(deletingKey)}
+                        label="Delete interview prep"
+                        onClick={() => deleteCloudInterview(sess)}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
