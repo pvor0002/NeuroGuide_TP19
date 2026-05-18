@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import StageTabs from "../components/interview-prep/StageTabs.jsx";
 import BrainDumpStage from "../components/interview-prep/BrainDumpStage.jsx";
 import OrganiseStage from "../components/interview-prep/OrganiseStage.jsx";
@@ -37,8 +37,11 @@ import {
   starPartitionMatchesCards,
   loadJobContextFromSimplifyHistory,
   bundleForQuestionKey,
+  customQuestionsApartFromBase,
+  filterInterviewQuestionsForJob,
   mergeQuestionBundlesFromServer,
   normalizeInterviewPrepProgress,
+  pruneBundlesToQuestionList,
   questionBundleHasWork,
   normalizeQuestionBundle,
   readProfileSkillSet,
@@ -46,14 +49,20 @@ import {
   skillMatchesProfile,
   uid,
 } from "../utils/interviewPrepHelpers.js";
+import {
+  loadAiQuestionsForJob,
+  loadWorkspaceForFingerprint,
+  saveWorkspaceJobContext,
+  saveWorkspaceOrg,
+  saveWorkspaceSavedAnswers,
+  getActiveInterviewPrepFingerprint,
+  setActiveInterviewPrepFingerprint,
+} from "../utils/interviewPrepStorage.js";
 
 const JOB_CTX_KEY = "neuroguide.interviewPrep.jobContext.v1";
-const ORG_KEY = "neuroguide.interviewPrep.organised.v1";
-const SAVED_KEY = "neuroguide.interviewPrep.savedAnswers.v3";
 const PROFILE_KEY = "neuroguide.careerProfile.react.v2";
 const MAX_CUSTOM_QUESTIONS = 10;
 const MAX_CUSTOM_QUESTION_CHARS = 480;
-const AI_QUESTIONS_KEY = "neuroguide.interviewPrep.aiQuestions.v1";
 
 /** Fixed pool — 2 are always picked from this list (not AI generated). */
 const BEHAVIORAL_QUESTIONS = [
@@ -73,18 +82,11 @@ function pickBehavioralQuestions(seed = 0) {
   return [BEHAVIORAL_QUESTIONS[i], BEHAVIORAL_QUESTIONS[j]];
 }
 
-/** Load AI questions from localStorage for the current job. Returns [] if none/stale. */
-function loadAiQuestions(simpVer) {
+/** Load AI questions for this job only. Returns [] if none/stale. */
+function loadAiQuestions(jobContext) {
+  const simpVer = jobContext?.simplifiedVerStamp ?? null;
   if (!simpVer) return [];
-  try {
-    const raw = localStorage.getItem(AI_QUESTIONS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (parsed?.simpVer !== simpVer) return [];
-    return Array.isArray(parsed.questions) ? parsed.questions : [];
-  } catch {
-    return [];
-  }
+  return loadAiQuestionsForJob(jobContext, simpVer);
 }
 
 function mergeCustomQuestionLists(local, remote) {
@@ -233,12 +235,6 @@ function safeParse(raw) {
   }
 }
 
-function loadSavedAnswers() {
-  const parsed = safeParse(typeof window !== "undefined" ? window.localStorage.getItem(SAVED_KEY) : null);
-  if (Array.isArray(parsed)) return parsed;
-  return [];
-}
-
 function defaultJobContext() {
   return {
     rawText: "",
@@ -348,7 +344,7 @@ function pickInterviewPrepSessionRow(sessions, jobContext, localFp) {
     });
     if (byRole) return byRole;
   }
-  return list[0];
+  return null;
 }
 
 function pickHydrationQuestion(qs, merged, prog, localSelected, savedList) {
@@ -362,9 +358,6 @@ function pickHydrationQuestion(qs, merged, prog, localSelected, savedList) {
   for (const q of qs) {
     const b = normalizeQuestionBundle(merged[q]);
     if (b.dumpCards.length > 0 || zonesHaveCards(b.starZones) || b.finalizedAnswer || b.answerDraft) return q;
-  }
-  for (const [qk, raw] of Object.entries(merged || {})) {
-    if (!qs.includes(qk) && questionBundleHasWork(raw)) return qk;
   }
   return qs[0] ?? null;
 }
@@ -405,9 +398,11 @@ function workspaceFromBundle(b) {
 
 function loadInterviewPrepBootstrap() {
   if (typeof window === "undefined") {
+    const emptyCtx = defaultJobContext();
     return {
       stage: 1,
-      jobContext: defaultJobContext(),
+      jobContext: emptyCtx,
+      jobFingerprint: deriveInterviewPrepJobFingerprint(emptyCtx),
       bundles: {},
       selectedQuestion: null,
       dumpCards: [],
@@ -418,40 +413,54 @@ function loadInterviewPrepBootstrap() {
       customQuestions: [],
     };
   }
-  //Your role, company, and skills from the job posting
   const jc = safeParse(window.localStorage.getItem(JOB_CTX_KEY));
-  //Your organised thoughts into STAR format
-  const org = safeParse(window.localStorage.getItem(ORG_KEY));
-  //Your saved answers
-  const saved = loadSavedAnswers();
-  //Your job context from the job posting and the job posting itself
-  const fromSimplify = loadJobContextFromSimplifyHistory(); 
-  const mergedJob = mergeJobContextFromSources(jc, fromSimplify);
-  const { bundles, activeQuestion } = migrateOrgToBundles(org);
-  const sel = typeof activeQuestion === "string" ? activeQuestion : null;
+  const mergedJob =
+    jc && jobContextHasInterviewSource(jc)
+      ? { ...defaultJobContext(), ...jc }
+      : mergeJobContextFromSources(null, loadJobContextFromSimplifyHistory());
+  const jobFingerprint = deriveInterviewPrepJobFingerprint(mergedJob);
+  setActiveInterviewPrepFingerprint(jobFingerprint);
+  saveWorkspaceJobContext(jobFingerprint, mergedJob);
+
+  const ws = loadWorkspaceForFingerprint(jobFingerprint);
+  const org = ws.org;
+  const saved = ws.savedAnswers;
+  const prof = readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
+  const storedIQ = Array.isArray(org?.interviewQuestions) ? org.interviewQuestions : [];
+  const lists = resolveQuestionListForJob(mergedJob, prof, {
+    interviewQuestions: storedIQ,
+    customQuestions: org?.customQuestions,
+  });
+  const { bundles: rawBundles, activeQuestion } = migrateOrgToBundles(org);
+  const bundles = pruneBundlesToQuestionList(rawBundles, lists.all);
+  const customQs = lists.customOnly.slice(0, MAX_CUSTOM_QUESTIONS);
+  const sel =
+    typeof activeQuestion === "string" && lists.all.includes(activeQuestion) ? activeQuestion : null;
   const wb = workspaceFromBundle(sel ? bundles[sel] : null);
 
-  const customQs = Array.isArray(org?.customQuestions)
-    ? org.customQuestions.map((s) => String(s || "").trim()).filter(Boolean).slice(0, MAX_CUSTOM_QUESTIONS)
-    : [];
-
   const savedList = mergeSavedAnswersByQuestion([], Array.isArray(saved) ? saved : []);
+  const prunedSaved = savedList.filter((row) => {
+    const q = String(row?.question || "").trim();
+    return q && lists.all.includes(q);
+  });
   const bundleForSel = sel ? normalizeQuestionBundle(bundles[sel] || null) : null;
   const savedReviewText =
-    bundleForSel && sel ? finalizedTextForQuestion(bundleForSel, savedList, String(sel).trim()) : "";
+    bundleForSel && sel ? finalizedTextForQuestion(bundleForSel, prunedSaved, String(sel).trim()) : "";
   const initialStage = savedReviewText ? Math.max(wb.stage, 3) : wb.stage;
 
   return {
     stage: initialStage,
     jobContext: mergedJob,
+    jobFingerprint,
     bundles,
     selectedQuestion: sel,
     dumpCards: wb.dumpCards,
     starZones: wb.starZones,
     answerDraft: savedReviewText ? String(bundleForSel.answerDraft || "").trim() || savedReviewText : wb.answerDraft,
-    savedAnswers: savedList,
+    savedAnswers: prunedSaved,
     usedFallbackSort: wb.usedFallbackSort,
     customQuestions: customQs,
+    interviewQuestions: lists.all,
   };
 }
 
@@ -477,7 +486,7 @@ function buildQuestionList(jobContext, profileSkillSet) {
   const behavioral = pickBehavioralQuestions(simpVer);
 
   // Try AI questions first
-  const aiQuestions = loadAiQuestions(simpVer);
+  const aiQuestions = loadAiQuestions(jobContext);
   if (aiQuestions.length >= 2) {
     const skillBased = aiQuestions.slice(0, 4);
     const out = [...skillBased];
@@ -549,8 +558,62 @@ function jobContextHasInterviewSource(jc) {
   return false;
 }
 
+function resolveQuestionListForJob(jobContext, profileSkillSet, { interviewQuestions, customQuestions } = {}) {
+  const builtBase = buildQuestionList(jobContext, profileSkillSet);
+  const jobSkills = normalizedSkills(jobContext);
+  const stored = Array.isArray(interviewQuestions)
+    ? interviewQuestions.map((s) => String(s || "").trim()).filter(Boolean)
+    : [];
+  const customExtra = Array.isArray(customQuestions) ? customQuestions : [];
+  const extras = filterInterviewQuestionsForJob(
+    [...stored, ...customExtra],
+    builtBase,
+    jobSkills,
+  ).filter((q) => !builtBase.includes(q));
+  const all = combineQuestionLists(builtBase, extras);
+  return {
+    builtBase,
+    base: builtBase,
+    all,
+    customOnly: customQuestionsApartFromBase(builtBase, all),
+  };
+}
+
+function syncWorkspaceToLocal(
+  fp,
+  jobContext,
+  bundles,
+  activeQuestion,
+  customQuestions,
+  savedAnswers,
+  interviewQuestions,
+) {
+  const key = String(fp || "").trim();
+  if (!key) return;
+  const prof = readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
+  const lists = resolveQuestionListForJob(jobContext, prof, {
+    interviewQuestions,
+    customQuestions,
+  });
+  const prunedBundles = pruneBundlesToQuestionList(bundles, lists.all);
+  saveWorkspaceJobContext(key, jobContext);
+  saveWorkspaceOrg(key, {
+    v: 2,
+    bundles: prunedBundles,
+    activeQuestion,
+    customQuestions: lists.customOnly,
+    interviewQuestions: lists.all,
+  });
+  saveWorkspaceSavedAnswers(key, savedAnswers);
+}
+
 function InterviewPrepContent({ initial }) {
   const navigate = useNavigate();
+  const jobFingerprintRef = useRef(
+    initial.jobContext?.cloudJobFingerprint ||
+      initial.jobFingerprint ||
+      deriveInterviewPrepJobFingerprint(initial.jobContext),
+  );
   const bundlesRef = useRef(initial.bundles || {});
   const [questionBundles, setQuestionBundles] = useState(() => initial.bundles || {});
   const listingEntryFromListing = peekInterviewPrepStartAtStep1();
@@ -590,6 +653,7 @@ function InterviewPrepContent({ initial }) {
   const [cloudSaving, setCloudSaving] = useState(false);
   const [organiseSaveAck, setOrganiseSaveAck] = useState(false);
   const [customQuestions, setCustomQuestions] = useState(() => initial.customQuestions || []);
+  const interviewQuestionsRef = useRef(initial.interviewQuestions || []);
   /** When true, Brain dump shows the composer for a question that already has formulated speech. */
   const [brainDumpEditingRevisit, setBrainDumpEditingRevisit] = useState(false);
   // Tracks which questions have saved content — shown as ✓ badges in QuestionSelector.
@@ -630,6 +694,10 @@ function InterviewPrepContent({ initial }) {
     [baseQuestions, customQuestions],
   );
 
+  useEffect(() => {
+    interviewQuestionsRef.current = allQuestions;
+  }, [allQuestions]);
+
   const resolvedQuestion = useMemo(() => {
     if (!allQuestions.length) return null;
     if (selectedQuestion && allQuestions.includes(selectedQuestion)) return selectedQuestion;
@@ -662,20 +730,20 @@ function InterviewPrepContent({ initial }) {
 
   const persistOrgLocal = useCallback((activeQ) => {
     if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        ORG_KEY,
-        JSON.stringify({
-          v: 2,
-          bundles: bundlesRef.current,
-          activeQuestion: activeQ ?? selectedQuestionRef.current,
-          customQuestions: customQuestionsRef.current,
-        }),
-      );
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    const prof = readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
+    const lists = resolveQuestionListForJob(jobContext, prof, {
+      interviewQuestions: interviewQuestionsRef.current,
+      customQuestions: customQuestionsRef.current,
+    });
+    bundlesRef.current = pruneBundlesToQuestionList(bundlesRef.current, lists.all);
+    saveWorkspaceOrg(jobFingerprintRef.current, {
+      v: 2,
+      bundles: bundlesRef.current,
+      activeQuestion: activeQ ?? selectedQuestionRef.current,
+      customQuestions: lists.customOnly,
+      interviewQuestions: lists.all,
+    });
+  }, [jobContext]);
 
   const commitWorkspaceToBundle = useCallback(
     (patch = {}) => {
@@ -722,11 +790,22 @@ function InterviewPrepContent({ initial }) {
         return { ok: false, skipped: true };
       }
       const fp =
-        cloudJobFingerprintRef.current || deriveInterviewPrepJobFingerprint(jobContext);
-      const iq = combineQuestionLists(
-        buildQuestionList(jobContext, readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY))),
-        customQuestionsRef.current,
-      );
+        cloudJobFingerprintRef.current ||
+        jobFingerprintRef.current ||
+        deriveInterviewPrepJobFingerprint(jobContext);
+      const prof = readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
+      const lists = resolveQuestionListForJob(jobContext, prof, {
+        interviewQuestions: interviewQuestionsRef.current,
+        customQuestions: customQuestionsRef.current,
+      });
+      const prunedBundles = pruneBundlesToQuestionList(bundlesRef.current, lists.all);
+      const prunedSaved = (savedAnswersRef.current || []).filter((row) => {
+        const q = String(row?.question || "").trim();
+        return q && lists.all.includes(q);
+      });
+      bundlesRef.current = prunedBundles;
+      savedAnswersRef.current = prunedSaved;
+      customQuestionsRef.current = lists.customOnly;
       setCloudSaving(true);
       try {
         await putInterviewPrepProgress(cred, {
@@ -735,12 +814,14 @@ function InterviewPrepContent({ initial }) {
             jobContext.simplifiedSnapshot && typeof jobContext.simplifiedSnapshot === "object"
               ? jobContext.simplifiedSnapshot
               : null,
-          interview_questions: iq,
+          interview_questions: lists.all,
           progress: {
-            bundles: bundlesRef.current,
-            activeQuestion: selectedQuestionRef.current,
-            savedAnswers: savedAnswersRef.current,
-            customQuestions: customQuestionsRef.current,
+            bundles: prunedBundles,
+            activeQuestion: lists.all.includes(selectedQuestionRef.current)
+              ? selectedQuestionRef.current
+              : null,
+            savedAnswers: prunedSaved,
+            customQuestions: lists.customOnly,
           },
         });
         return { ok: true };
@@ -801,7 +882,11 @@ function InterviewPrepContent({ initial }) {
     }
     cloudWorkspaceSyncedRef.current = false;
     const hydrationGenAtStart = workspaceApplyGenRef.current;
-    const fp = deriveInterviewPrepJobFingerprint(jobContext);
+    const fp =
+      jobContext?.cloudJobFingerprint ||
+      jobFingerprintRef.current ||
+      deriveInterviewPrepJobFingerprint(jobContext);
+    jobFingerprintRef.current = fp;
     const prof = readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
     try {
       let row = await fetchInterviewPrepProgress(cred, fp);
@@ -818,6 +903,21 @@ function InterviewPrepContent({ initial }) {
         }
       }
       if (!row) {
+        const profLocal = readProfileSkillSet(window.localStorage.getItem(PROFILE_KEY));
+        const listsLocal = resolveQuestionListForJob(jobContext, profLocal, {
+          interviewQuestions: interviewQuestionsRef.current,
+          customQuestions: customQuestionsRef.current,
+        });
+        bundlesRef.current = pruneBundlesToQuestionList(bundlesRef.current, listsLocal.all);
+        syncWorkspaceToLocal(
+          fp,
+          jobContext,
+          bundlesRef.current,
+          selectedQuestionRef.current,
+          customQuestionsRef.current,
+          savedAnswersRef.current,
+          listsLocal.all,
+        );
         cloudWorkspaceSyncedRef.current = true;
         finishHydration();
         return;
@@ -827,38 +927,40 @@ function InterviewPrepContent({ initial }) {
       const prog = normalizeInterviewPrepProgress(row.progress);
       const remoteCustom = prog.customQuestions;
       const serverBundles = prog.bundles;
-      const bundleOnlyCustom = Object.keys(serverBundles).filter((k) => {
-        const t = String(k || "").trim();
-        return t && questionBundleHasWork(serverBundles[k]);
+      const serverIQ = Array.isArray(row.interview_questions)
+        ? row.interview_questions.map((s) => String(s || "").trim()).filter(Boolean)
+        : [];
+      const lists = resolveQuestionListForJob(jobContext, prof, {
+        interviewQuestions: serverIQ,
+        customQuestions: remoteCustom,
       });
-      const mergedCustom = mergeCustomQuestionLists(customQuestionsRef.current, [
-        ...remoteCustom,
-        ...bundleOnlyCustom,
-      ]);
-      customQuestionsRef.current = mergedCustom;
-      setCustomQuestions(mergedCustom);
-      const qs = combineQuestionLists(buildQuestionList(jobContext, prof), mergedCustom);
-      const merged = mergeQuestionBundlesFromServer(bundlesRef.current, serverBundles, [
-        ...qs,
-        ...Object.keys(serverBundles),
-      ]);
+      customQuestionsRef.current = lists.customOnly;
+      setCustomQuestions(lists.customOnly);
+      interviewQuestionsRef.current = lists.all;
+      const qs = lists.all;
+      const merged = pruneBundlesToQuestionList(
+        mergeQuestionBundlesFromServer(
+          pruneBundlesToQuestionList(bundlesRef.current, qs),
+          serverBundles,
+          qs,
+        ),
+        qs,
+      );
       bundlesRef.current = merged;
       setQuestionBundles(merged);
       const remoteSaved =
         prog.savedAnswers.length > 0 ? prog.savedAnswers : savedAnswersFromBundles(serverBundles);
-      const mergedSaved = mergeSavedAnswersByQuestion(savedAnswersRef.current, remoteSaved);
+      const mergedSaved = mergeSavedAnswersByQuestion([], remoteSaved).filter((r) => {
+        const q = String(r?.question || "").trim();
+        return q && qs.includes(q);
+      });
       savedAnswersRef.current = mergedSaved;
       setSavedAnswers(mergedSaved);
       setAnsweredQuestions(() => computeAnsweredQuestionsMap(bundlesRef.current, savedAnswersRef.current));
       const targetQ = pickHydrationQuestion(qs, merged, prog, selectedQuestionRef.current, mergedSaved);
       const skipWorkspaceApply = hydrationGenAtStart !== workspaceApplyGenRef.current;
-      if (targetQ && !skipWorkspaceApply && !cloudHydrateWorkspaceAppliedRef.current) {
+      if (targetQ && qs.includes(targetQ) && !skipWorkspaceApply && !cloudHydrateWorkspaceAppliedRef.current) {
         cloudHydrateWorkspaceAppliedRef.current = true;
-        if (!qs.includes(targetQ)) {
-          const extra = mergeCustomQuestionLists(customQuestionsRef.current, [targetQ]);
-          customQuestionsRef.current = extra;
-          setCustomQuestions(extra);
-        }
         const bundleRow = bundleForQuestionKey(merged, targetQ) || defaultQuestionBundle();
         applyWorkspaceFromBundle(targetQ, bundleRow, mergedSaved);
         persistOrgLocal(targetQ);
@@ -867,6 +969,15 @@ function InterviewPrepContent({ initial }) {
       } else {
         persistOrgLocal(targetQ || selectedQuestionRef.current);
       }
+      syncWorkspaceToLocal(
+        rowFp || fp,
+        jobContext,
+        bundlesRef.current,
+        selectedQuestionRef.current,
+        customQuestionsRef.current,
+        savedAnswersRef.current,
+        lists.all,
+      );
       cloudWorkspaceSyncedRef.current = true;
     } catch (err) {
       console.warn("[InterviewPrep] cloud hydrate failed:", err);
@@ -1009,7 +1120,12 @@ function InterviewPrepContent({ initial }) {
   }, [resolvedQuestion, answerDraft, setStage]);
 
   useEffect(() => {
-    window.localStorage.setItem(JOB_CTX_KEY, JSON.stringify(jobContext));
+    try {
+      window.localStorage.setItem(JOB_CTX_KEY, JSON.stringify(jobContext));
+      saveWorkspaceJobContext(jobFingerprintRef.current, jobContext);
+    } catch {
+      /* ignore */
+    }
   }, [jobContext]);
 
   useEffect(() => {
@@ -1021,11 +1137,7 @@ function InterviewPrepContent({ initial }) {
     }
     if (stateList.length > 0 || refList.length === 0) {
       savedAnswersRef.current = stateList;
-      try {
-        window.localStorage.setItem(SAVED_KEY, JSON.stringify(stateList));
-      } catch {
-        /* ignore */
-      }
+      saveWorkspaceSavedAnswers(jobFingerprintRef.current, stateList);
     }
     if (hydrationReady) scheduleCloudSave();
   }, [savedAnswers, scheduleCloudSave, hydrationReady]);
@@ -1562,10 +1674,22 @@ function InterviewPrepContent({ initial }) {
   );
 }
 
+function resolveInterviewPrepMountKey(location) {
+  const stateKey = location?.state?.ipSessionKey;
+  const nonce = location?.state?.ipMountNonce ?? "";
+  const fp =
+    (stateKey && String(stateKey).trim()) ||
+    getActiveInterviewPrepFingerprint() ||
+    deriveInterviewPrepJobFingerprint(safeParse(window.localStorage.getItem(JOB_CTX_KEY)));
+  return `${fp}::${nonce}`;
+}
+
 export default function InterviewPrepPage() {
-  const initial = useMemo(() => loadInterviewPrepBootstrap(), []);
+  const location = useLocation();
+  const mountKey = resolveInterviewPrepMountKey(location);
+  const initial = loadInterviewPrepBootstrap();
   if (!jobContextHasInterviewSource(initial.jobContext)) {
     return <Navigate to={INTERVIEW_PREP_LIST_PATH} replace />;
   }
-  return <InterviewPrepContent initial={initial} />;
+  return <InterviewPrepContent key={mountKey} initial={initial} />;
 }

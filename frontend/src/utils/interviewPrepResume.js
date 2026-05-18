@@ -1,35 +1,25 @@
 import { deriveInterviewPrepJobFingerprint, jobContextFromSavedScoreRow } from "./interviewPrepHelpers.js";
+import {
+  clearAllInterviewPrepWorkspaces,
+  clearWorkspaceForFingerprint,
+  getActiveInterviewPrepFingerprint,
+  setActiveInterviewPrepFingerprint,
+  saveWorkspaceJobContext,
+} from "./interviewPrepStorage.js";
 
 const JOB_CTX_KEY = "neuroguide.interviewPrep.jobContext.v1";
-const ORG_KEY = "neuroguide.interviewPrep.organised.v1";
-const SAVED_KEY = "neuroguide.interviewPrep.savedAnswers.v3";
-
-function parseLocalJson(key) {
-  try {
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
 
 /**
- * Persist job context for Interview Prep. If the job fingerprint changes, clears local
- * organised workspace and saved answers so the next visit does not mix Q/A across jobs.
+ * Persist job context for Interview Prep and mark the active per-job workspace.
  * @param {object} jobContext
  */
 export function applyInterviewPrepJobContext(jobContext) {
   if (typeof window === "undefined" || !jobContext || typeof jobContext !== "object") return;
-  const prev = parseLocalJson(JOB_CTX_KEY);
   const nextFp = deriveInterviewPrepJobFingerprint(jobContext);
-  const prevFp = prev ? deriveInterviewPrepJobFingerprint(prev) : null;
   try {
     window.localStorage.setItem(JOB_CTX_KEY, JSON.stringify(jobContext));
-    if (prevFp !== nextFp) {
-      window.localStorage.removeItem(ORG_KEY);
-      window.localStorage.removeItem(SAVED_KEY);
-    }
+    setActiveInterviewPrepFingerprint(nextFp);
+    saveWorkspaceJobContext(nextFp, jobContext);
   } catch {
     /* ignore */
   }
@@ -47,20 +37,16 @@ export function resumeInterviewPrepFromSavedScoreRow(savedScoreRow) {
 }
 
 /** Clear local interview prep workspace keys (organised cards, saved answers). */
-export function getActiveInterviewPrepFingerprint() {
-  const prev = parseLocalJson(JOB_CTX_KEY);
-  return prev ? deriveInterviewPrepJobFingerprint(prev) : null;
-}
+export { getActiveInterviewPrepFingerprint } from "./interviewPrepStorage.js";
 
 export function clearInterviewPrepLocalWorkspace() {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(JOB_CTX_KEY);
-    window.localStorage.removeItem(ORG_KEY);
-    window.localStorage.removeItem(SAVED_KEY);
-  } catch {
-    /* ignore */
+  const fp = getActiveInterviewPrepFingerprint();
+  if (fp) {
+    clearWorkspaceForFingerprint(fp);
+    return;
   }
+  clearAllInterviewPrepWorkspaces();
 }
 
 const DISMISSED_KEY = "neuroguide.interviewPrep.dismissed.v1";
