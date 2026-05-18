@@ -19,6 +19,7 @@ import {
   readInterviewPrepDismissedFingerprints,
   resumeInterviewPrepFromSavedScoreRow,
 } from "../../utils/interviewPrepResume.js";
+import { clearWorkspaceForFingerprint } from "../../utils/interviewPrepStorage.js";
 import { goToInterviewPrepWorkspaceFromListing } from "../../utils/interviewPrepNav.js";
 import { interviewSessionLabelForSaved } from "../../utils/interviewPrepSessionLabels.js";
 import ListItemTrashButton from "../saved-results/ListItemTrashButton.jsx";
@@ -132,6 +133,7 @@ export default function InterviewPrepSessionsList() {
         setDismissed(readInterviewPrepDismissedFingerprints());
       }
 
+      clearWorkspaceForFingerprint(item.fingerprint);
       if (getActiveInterviewPrepFingerprint() === item.fingerprint) {
         clearInterviewPrepLocalWorkspace();
       }

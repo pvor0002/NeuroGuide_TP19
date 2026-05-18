@@ -113,6 +113,7 @@ export function jobContextFromSavedScoreRow(row) {
     manualFallback: false,
     simplifiedVerStamp: stamp,
     simplifiedSnapshot: snap,
+    jobTitleNorm: row.jobTitleNorm != null ? String(row.jobTitleNorm).trim() : undefined,
   };
 }
 
@@ -124,11 +125,14 @@ export function jobContextFromInterviewSessionSummary(row) {
   if (!row || typeof row !== "object") return null;
   const snap = row.simplified_job;
   if (!snap || typeof snap !== "object") return null;
-  return jobContextFromSavedScoreRow({
+  const ctx = jobContextFromSavedScoreRow({
     simplifiedSnapshot: snap,
     simplifiedVerStamp: snap._ng_simp_ver ?? null,
     jobTitleDisplay: "",
   });
+  if (!ctx) return null;
+  const cloudFp = String(row.job_fingerprint || "").trim();
+  return cloudFp ? { ...ctx, cloudJobFingerprint: cloudFp } : ctx;
 }
 
 /** Minimum length before a brain-dump note may be split into multiple cards. */
@@ -498,10 +502,36 @@ export function normalizeInterviewPrepProgress(raw) {
 
 /** Stable key for linking interview prep to a simplified posting + role. */
 export function deriveInterviewPrepJobFingerprint(jobContext) {
-  const stamp = jobContext?.simplifiedVerStamp != null ? String(jobContext.simplifiedVerStamp) : "none";
-  const role = String(jobContext?.role || "").trim().toLowerCase().slice(0, 160);
-  const co = String(jobContext?.company || "").trim().toLowerCase().slice(0, 160);
-  return `${stamp}|${role}|${co}`;
+  if (!jobContext || typeof jobContext !== "object") return "unknown";
+  const cloudFp = String(jobContext.cloudJobFingerprint || "").trim();
+  if (cloudFp) return cloudFp;
+  const stamp = jobContext.simplifiedVerStamp != null ? String(jobContext.simplifiedVerStamp) : "none";
+  const rowNorm = String(jobContext.jobTitleNorm || "")
+    .trim()
+    .toLowerCase()
+    .slice(0, 160);
+  const snap = jobContext.simplifiedSnapshot;
+  let postingKey = "";
+  if (snap && typeof snap === "object") {
+    postingKey =
+      String(snap.job_title || "")
+        .trim()
+        .toLowerCase()
+        .slice(0, 160) ||
+      String(snap.basic_info || "")
+        .trim()
+        .toLowerCase()
+        .slice(0, 120);
+  }
+  const role = String(jobContext.role || "")
+    .trim()
+    .toLowerCase()
+    .slice(0, 160);
+  const co = String(jobContext.company || "")
+    .trim()
+    .toLowerCase()
+    .slice(0, 160);
+  return [stamp, rowNorm || postingKey, role, co].filter(Boolean).join("|");
 }
 
 export function defaultQuestionBundle() {

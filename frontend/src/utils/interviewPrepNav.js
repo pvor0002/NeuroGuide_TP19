@@ -1,3 +1,5 @@
+import { getActiveInterviewPrepFingerprint } from "./interviewPrepStorage.js";
+
 /** sessionStorage: user is in an active interview prep workspace this browser tab session. */
 const WORKSPACE_SESSION_KEY = "ng_interview_prep_in_workspace_v1";
 /** One-shot: open workspace on Brain dump (step 1) after picking a job from the listing. */
@@ -91,7 +93,10 @@ export function goToInterviewPrepWorkspace(navigate) {
 export function goToInterviewPrepWorkspaceFromListing(navigate) {
   markInterviewPrepInWorkspace();
   markInterviewPrepStartAtStep1();
-  navigate(INTERVIEW_PREP_SESSION_PATH);
+  const fp = getActiveInterviewPrepFingerprint() || "";
+  navigate(INTERVIEW_PREP_SESSION_PATH, {
+    state: { ipSessionKey: fp, ipMountNonce: Date.now() },
+  });
 }
 
 export function goToInterviewPrepWorkspaceHard() {
