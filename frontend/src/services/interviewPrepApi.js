@@ -1,7 +1,17 @@
 import { getApiBase } from "../utils/apiBase.js";
+import { readCredentials } from "../utils/cloudSync.js";
 import { cleanSpeechDraft } from "../utils/interviewPrepHelpers.js";
+import { buildSessionAuthHeaders } from "./sessionApi.js";
 
 const API_BASE = getApiBase();
+
+function requireAuthHeaders(credentials) {
+  const cred = credentials ?? readCredentials();
+  if (!cred?.userId || !cred?.passKey) {
+    throw new Error("Sign in with cloud sync to use AI interview prep features.");
+  }
+  return buildSessionAuthHeaders(cred);
+}
 
 export const liveSimplifyEnabled = import.meta.env.VITE_SIMPLIFY_API !== "0";
 
@@ -47,10 +57,10 @@ function apiFailureMessage(res, err) {
  * @param {string} text
  * @returns {Promise<string[]>}
  */
-export async function splitBrainDumpText(question, text) {
+export async function splitBrainDumpText(question, text, credentials) {
   const res = await fetch(`${API_BASE}/interview-prep/split-brain-dump`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: requireAuthHeaders(credentials),
     body: JSON.stringify({ question: question || "", text }),
   });
   if (!res.ok) {
@@ -62,10 +72,10 @@ export async function splitBrainDumpText(question, text) {
   return points.length ? points : [String(text).trim()];
 }
 
-export async function starSortInterview(question, cards) {
+export async function starSortInterview(question, cards, credentials) {
   const res = await fetch(`${API_BASE}/interview-prep/star-sort`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: requireAuthHeaders(credentials),
     body: JSON.stringify({ question, cards }),
   });
   if (!res.ok) {
@@ -80,10 +90,10 @@ export async function starSortInterview(question, cards) {
  * @param {string} spokenTranscript
  * @param {string} [writtenAnswer]
  */
-export async function coachSpeechAnswer(question, spokenTranscript, writtenAnswer = "") {
+export async function coachSpeechAnswer(question, spokenTranscript, writtenAnswer = "", credentials) {
   const res = await fetch(`${API_BASE}/interview-prep/speech-coach`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: requireAuthHeaders(credentials),
     body: JSON.stringify({
       question,
       spoken_transcript: spokenTranscript,
@@ -101,10 +111,10 @@ export async function coachSpeechAnswer(question, spokenTranscript, writtenAnswe
  * @param {string} answer
  * @param {string} instruction
  */
-export async function reshapeInterviewAnswer(answer, instruction) {
+export async function reshapeInterviewAnswer(answer, instruction, credentials) {
   const res = await fetch(`${API_BASE}/interview-prep/reshape-answer`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: requireAuthHeaders(credentials),
     body: JSON.stringify({ answer, instruction }),
   });
   if (!res.ok) {
@@ -145,12 +155,12 @@ function speechResponse(text, question) {
 }
 
 /** Gemini via reshape-answer (works when formulate-speech route is not deployed yet). */
-export async function reshapeSpeechFromStarNotes(question, starTexts) {
+export async function reshapeSpeechFromStarNotes(question, starTexts, credentials) {
   const input = starTextsToFormulateInput(question, starTexts).trim();
   if (input.length < 12) {
     throw new Error("Not enough STAR content to formulate an answer.");
   }
-  const data = await reshapeInterviewAnswer(input, SPEECH_FORMULATE_INSTRUCTION);
+  const data = await reshapeInterviewAnswer(input, SPEECH_FORMULATE_INSTRUCTION, credentials);
   return speechResponse(data?.text, question);
 }
 
@@ -158,7 +168,7 @@ export async function reshapeSpeechFromStarNotes(question, starTexts) {
  * @param {string} question
  * @param {{ situation: string[], task: string[], action: string[], result: string[] }} starTexts
  */
-export async function formulateInterviewSpeech(question, starTexts) {
+export async function formulateInterviewSpeech(question, starTexts, credentials) {
   const payload = {
     question,
     situation: starTexts.situation || [],
@@ -169,7 +179,7 @@ export async function formulateInterviewSpeech(question, starTexts) {
 
   const res = await fetch(`${API_BASE}/interview-prep/formulate-speech`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: requireAuthHeaders(credentials),
     body: JSON.stringify(payload),
   });
 
@@ -179,7 +189,7 @@ export async function formulateInterviewSpeech(question, starTexts) {
   }
 
   try {
-    return await reshapeSpeechFromStarNotes(question, starTexts);
+    return await reshapeSpeechFromStarNotes(question, starTexts, credentials);
   } catch (reshapeErr) {
     const err = await readJsonOrText(res);
     const primary = apiFailureMessage(res, err) || `Formulate speech failed (${res.status}).`;
@@ -192,17 +202,20 @@ export async function formulateInterviewSpeech(question, starTexts) {
  * @param {{ knownSkills: string[], missingSkills: string[], role: string }} params
  * @returns {Promise<string[]>}
  */
-export async function generateInterviewQuestions({
-  knownSkills = [],
-  missingSkills = [],
-  role = "",
-  company = "",
-  summary = "",
-  responsibilities = "",
-}) {
+export async function generateInterviewQuestions(
+  {
+    knownSkills = [],
+    missingSkills = [],
+    role = "",
+    company = "",
+    summary = "",
+    responsibilities = "",
+  },
+  credentials,
+) {
   const res = await fetch(`${API_BASE}/interview-prep/generate-questions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: requireAuthHeaders(credentials),
     body: JSON.stringify({
       known_skills: knownSkills.slice(0, 10),
       missing_skills: missingSkills.slice(0, 10),

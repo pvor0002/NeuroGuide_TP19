@@ -10,7 +10,7 @@ import psycopg2.errors as pg_errors
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 
-from app.api.routes.session import SessionUser
+from app.api.deps.auth import SessionUser
 from app.core.config import Settings, get_settings
 from app.schemas.interview_prep_storage import (
     InterviewPrepProgressResponse,
@@ -48,7 +48,14 @@ def _pg_err(exc: psycopg2.Error) -> HTTPException:
     return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc).strip())
 
 
-def _row_to_response(row: dict) -> InterviewPrepProgressResponse:
+def _assert_row_owner(row: dict, user: UUID) -> None:
+    row_user = UUID(str(row["user_id"]))
+    if row_user != user:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden.")
+
+
+def _row_to_response(row: dict, user: UUID) -> InterviewPrepProgressResponse:
+    _assert_row_owner(row, user)
     iq = row.get("interview_questions") or []
     if not isinstance(iq, list):
         iq = []
@@ -105,7 +112,7 @@ def get_progress_route(
         raise _pg_err(exc) from exc
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No saved interview prep for this job.")
-    return _row_to_response(row)
+    return _row_to_response(row, user)
 
 
 @router.put("/progress", response_model=InterviewPrepProgressResponse)
@@ -124,7 +131,7 @@ def put_progress_route(
         )
     except psycopg2.Error as exc:
         raise _pg_err(exc) from exc
-    return _row_to_response(row)
+    return _row_to_response(row, user)
 
 
 @router.delete(

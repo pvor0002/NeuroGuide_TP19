@@ -38,14 +38,15 @@ with occupation/job-score tables.
 
 from __future__ import annotations
 
-from typing import Annotated, Optional
+from typing import Annotated
 from uuid import UUID
 
 import psycopg2
 import psycopg2.errors as pg_errors
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from starlette.responses import Response
 
+from app.api.deps.auth import SessionUser, get_session_user
 from app.core.config import Settings, get_settings
 from app.schemas.session_sync import (
     ConsentPatchBody,
@@ -90,29 +91,6 @@ def _pg_err(exc: psycopg2.Error) -> HTTPException:
     if isinstance(exc, psycopg2.OperationalError):
         return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc).strip())
     return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc).strip())
-
-
-def get_session_user(
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_ng_user_id: Annotated[Optional[str], Header(alias="X-NG-User-Id")] = None,
-    x_ng_pass_key: Annotated[Optional[str], Header(alias="X-NG-Pass-Key")] = None,
-) -> UUID:
-    _need_pepper(settings)
-    if not x_ng_user_id or not x_ng_pass_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing X-NG-User-Id or X-NG-Pass-Key.",
-        )
-    try:
-        uid = UUID(str(x_ng_user_id).strip())
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user id.") from exc
-    if not pg_session.verify_pass_key(uid, x_ng_pass_key):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid pass key.")
-    return uid
-
-
-SessionUser = Annotated[UUID, Depends(get_session_user)]
 
 
 @router.post("/register", response_model=SessionSnapshot, status_code=status.HTTP_201_CREATED)

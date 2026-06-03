@@ -1,7 +1,9 @@
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.api.deps.auth import SessionUser
 from app.core.config import Settings, get_settings
 from app.schemas.interview_prep import (
     FormulateSpeechRequest,
@@ -38,6 +40,7 @@ router = APIRouter(prefix="/interview-prep", tags=["interview-prep"])
 @router.post("/star-sort/", response_model=StarSortResponse)
 def star_sort_endpoint(
     body: StarSortRequest,
+    _: SessionUser,
     settings: Settings = Depends(get_settings),
 ) -> StarSortResponse:
     cards_payload = [{"id": c.id.strip(), "text": c.text.strip()} for c in body.cards]
@@ -64,6 +67,7 @@ def star_sort_endpoint(
 @router.post("/split-brain-dump/", response_model=SplitBrainDumpResponse)
 def split_brain_dump_endpoint(
     body: SplitBrainDumpRequest,
+    _: SessionUser,
     settings: Settings = Depends(get_settings),
 ) -> SplitBrainDumpResponse:
     text = body.text.strip()
@@ -83,6 +87,7 @@ def split_brain_dump_endpoint(
 @router.post("/formulate-speech/", response_model=FormulateSpeechResponse)
 def formulate_speech_endpoint(
     body: FormulateSpeechRequest,
+    _: SessionUser,
     settings: Settings = Depends(get_settings),
 ) -> FormulateSpeechResponse:
     try:
@@ -107,6 +112,7 @@ def formulate_speech_endpoint(
 @router.post("/reshape-answer/", response_model=ReshapeResponse)
 def reshape_endpoint(
     body: ReshapeRequest,
+    _: SessionUser,
     settings: Settings = Depends(get_settings),
 ) -> ReshapeResponse:
     try:
@@ -124,6 +130,7 @@ def reshape_endpoint(
 @router.post("/speech-coach/", response_model=SpeechCoachResponse)
 def speech_coach_endpoint(
     body: SpeechCoachRequest,
+    _: SessionUser,
     settings: Settings = Depends(get_settings),
 ) -> SpeechCoachResponse:
     try:
@@ -153,6 +160,7 @@ def speech_coach_endpoint(
 @router.post("/generate-questions/", response_model=GenerateQuestionsResponse)
 def generate_questions_endpoint(
     body: GenerateQuestionsRequest,
+    _: SessionUser,
     settings: Settings = Depends(get_settings),
 ) -> GenerateQuestionsResponse:
     try:

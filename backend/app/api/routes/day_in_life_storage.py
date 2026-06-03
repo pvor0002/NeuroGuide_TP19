@@ -11,7 +11,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 
-from app.api.routes.session import SessionUser
+from app.api.deps.auth import SessionUser
 from app.core.config import Settings, get_settings
 from app.schemas.day_in_life_storage import (
     DayInLifeSessionListResponse,

@@ -76,6 +76,28 @@ def get_career_profile(profile_id: UUID) -> Optional[dict]:
         conn.close()
 
 
+def get_career_profile_for_user(profile_id: UUID, user_id: UUID) -> Optional[dict]:
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            """
+            SELECT id, user_id, profile, created_at, updated_at
+            FROM career_profiles
+            WHERE id = %s AND user_id = %s
+            """,
+            (str(profile_id), str(user_id)),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        out = dict(row)
+        out["profile"] = _normalize_profile(out.get("profile"))
+        return out
+    finally:
+        conn.close()
+
+
 def list_career_profiles_for_user(user_id: UUID) -> list[dict]:
     conn = get_db_connection()
     try:
@@ -127,11 +149,56 @@ def update_career_profile(profile_id: UUID, profile: dict) -> Optional[dict]:
         conn.close()
 
 
+def update_career_profile_for_user(profile_id: UUID, user_id: UUID, profile: dict) -> Optional[dict]:
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            """
+            UPDATE career_profiles
+            SET profile = %s, updated_at = now()
+            WHERE id = %s AND user_id = %s
+            RETURNING id, user_id, profile, created_at, updated_at
+            """,
+            (Json(profile), str(profile_id), str(user_id)),
+        )
+        row = cursor.fetchone()
+        conn.commit()
+        if not row:
+            return None
+        out = dict(row)
+        out["profile"] = _normalize_profile(out.get("profile"))
+        return out
+    except psycopg2.Error:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def delete_career_profile(profile_id: UUID) -> bool:
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM career_profiles WHERE id = %s", (str(profile_id),))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        return deleted
+    except psycopg2.Error:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def delete_career_profile_for_user(profile_id: UUID, user_id: UUID) -> bool:
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM career_profiles WHERE id = %s AND user_id = %s",
+            (str(profile_id), str(user_id)),
+        )
         deleted = cursor.rowcount > 0
         conn.commit()
         return deleted
